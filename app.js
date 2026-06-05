@@ -15,7 +15,7 @@ let selectedPaymentMethod = "Tunai"; let activeMember = null;
 // UTILITY FUNCTIONS
 const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka || 0);
 const formatTanggal = (timestamp) => { 
-    if(!timestamp) return 'Pending...'; 
+    if(!timestamp) return 'Memproses...'; 
     try {
         if(typeof timestamp === 'string') return new Date(timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
         if(timestamp.seconds) return new Date(timestamp.seconds * 1000).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
@@ -102,10 +102,9 @@ async function syncOfflineTransactions() {
 
                         await addDoc(salesRef, sale); 
                         
-                        // BUG FIX 1: Safe Try-Catch untuk pemotongan stok jika barang sudah dihapus Admin
                         for (const item of sale.items) { 
                             try { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); } 
-                            catch(errStock) { console.warn("Barang tidak ditemukan di DB saat sinkronisasi stok:", item.nama); }
+                            catch(errStock) { console.warn("Barang tidak ditemukan di DB saat sinkronisasi stok."); }
                         }
                         
                         if (sale.shiftId) { await updateDoc(doc(db, "shift", sale.shiftId), { totalPenjualan: increment(sale.totalAkhir) }); }
@@ -300,37 +299,52 @@ function updateShiftUI(isActive) {
 window.triggerBukaShift = () => {
     document.getElementById('shift-modal-title').textContent = "Buka Shift"; document.getElementById('shift-input-label').textContent = "Modal Fisik (Rp)";
     document.getElementById('btn-close-shift-modal').classList.add('hidden'); document.getElementById('btn-shift-submit').textContent = "Buka";
+    
     document.getElementById('shift-form').onsubmit = async (e) => {
         e.preventDefault(); 
-        if (!navigator.onLine) return alert("Peringatan: Tidak dapat membuka shift. Koneksi internet dibutuhkan agar server dapat merekam laporan shift baru Anda.");
+        if (!navigator.onLine) return alert("Peringatan: Tidak dapat membuka shift. Koneksi internet dibutuhkan.");
         
-        const val = Math.max(0, parseFloat(document.getElementById('shift-cash-input').value) || 0);
-        const docRef = await addDoc(shiftsRef, { userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, status: "buka" });
-        activeShiftSession = { id: docRef.id, userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], modalAwal: val, totalPenjualan: 0, status: "buka" };
-        localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
-        await logActivity("SHIFT_BUKA", `Kasir membuka shift dengan modal ${toRupiah(val)}`);
-        document.getElementById('shift-modal').classList.add('hidden'); updateShiftUI(true);
+        // BUG FIX 3: Disable tombol ganda saat buka shift
+        const btnSubmit = document.getElementById('btn-shift-submit');
+        btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan...";
+        
+        try {
+            const val = Math.max(0, parseFloat(document.getElementById('shift-cash-input').value) || 0);
+            const docRef = await addDoc(shiftsRef, { userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, status: "buka" });
+            activeShiftSession = { id: docRef.id, userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], modalAwal: val, totalPenjualan: 0, status: "buka" };
+            localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
+            await logActivity("SHIFT_BUKA", `Kasir membuka shift dengan modal ${toRupiah(val)}`);
+            document.getElementById('shift-modal').classList.add('hidden'); updateShiftUI(true);
+        } catch(err) { alert("Error: " + err.message); } 
+        finally { btnSubmit.disabled = false; btnSubmit.textContent = "Buka Shift"; document.getElementById('shift-form').reset(); }
     };
-    document.getElementById('shift-form').reset(); document.getElementById('shift-modal').classList.remove('hidden');
+    document.getElementById('shift-modal').classList.remove('hidden');
 };
 
 window.triggerTutupShift = () => {
     document.getElementById('shift-modal-title').textContent = "Z-Report Tutup Shift"; document.getElementById('shift-input-label').textContent = "Uang Aktual di Laci (Rp)";
     document.getElementById('btn-close-shift-modal').classList.remove('hidden'); document.getElementById('btn-shift-submit').textContent = "Tutup Shift";
     document.getElementById('btn-close-shift-modal').onclick = () => document.getElementById('shift-modal').classList.add('hidden');
+    
     document.getElementById('shift-form').onsubmit = async (e) => {
         e.preventDefault(); 
-        if (!navigator.onLine) return alert("Peringatan: Tidak dapat menutup shift. Koneksi internet dibutuhkan untuk validasi data Z-Report ke pusat.");
+        if (!navigator.onLine) return alert("Peringatan: Tidak dapat menutup shift. Koneksi internet dibutuhkan.");
         
-        const val = Math.max(0, parseFloat(document.getElementById('shift-cash-input').value) || 0);
-        const selisih = val - (activeShiftSession.modalAwal + (activeShiftSession.totalPenjualan || 0));
-        
-        await updateDoc(doc(db, "shift", activeShiftSession.id), { waktuTutup: serverTimestamp(), uangFisikAktual: val, selisih: selisih, status: "tutup" });
-        await logActivity("SHIFT_TUTUP", `Kasir menutup shift. Selisih kas: ${toRupiah(selisih)}`);
-        alert(`Shift Ditutup. Selisih: ${toRupiah(selisih)}`);
-        document.getElementById('shift-modal').classList.add('hidden'); activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false);
+        const btnSubmit = document.getElementById('btn-shift-submit');
+        btnSubmit.disabled = true; btnSubmit.textContent = "Validasi...";
+
+        try {
+            const val = Math.max(0, parseFloat(document.getElementById('shift-cash-input').value) || 0);
+            const selisih = val - (activeShiftSession.modalAwal + (activeShiftSession.totalPenjualan || 0));
+            
+            await updateDoc(doc(db, "shift", activeShiftSession.id), { waktuTutup: serverTimestamp(), uangFisikAktual: val, selisih: selisih, status: "tutup" });
+            await logActivity("SHIFT_TUTUP", `Kasir menutup shift. Selisih kas: ${toRupiah(selisih)}`);
+            alert(`Shift Ditutup. Selisih: ${toRupiah(selisih)}`);
+            document.getElementById('shift-modal').classList.add('hidden'); activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false);
+        } catch(err) { alert("Error: " + err.message); } 
+        finally { btnSubmit.disabled = false; btnSubmit.textContent = "Tutup Shift"; document.getElementById('shift-form').reset(); }
     };
-    document.getElementById('shift-form').reset(); document.getElementById('shift-modal').classList.remove('hidden');
+    document.getElementById('shift-modal').classList.remove('hidden');
 };
 
 // ==========================================
@@ -506,7 +520,7 @@ window.setFilterKategori = (cat) => { filterKategoriAktif = cat; renderKatalogKa
 window.tambahKeKeranjang = (id) => {
     const item = databaseBarang.find(i => i.id === id); if(!item || (item.stok||0) <= 0) return alert("Stok habis!");
     const existing = keranjang.find(k => k.id === id);
-    if (existing) { if(existing.qty >= item.stok) return alert("Melebihi stok!"); existing.qty++; } else { keranjang.push({ id: item.id, nama: item.nama, harga: item.harga||0, qty: 1 }); }
+    if (existing) { if(existing.qty >= item.stok) return alert("Melebihi stok maksimal!"); existing.qty++; } else { keranjang.push({ id: item.id, nama: item.nama, harga: item.harga||0, qty: 1 }); }
     playBeep(); renderKeranjang();
 };
 
@@ -514,18 +528,21 @@ window.ubahQtyCart = async (id, delta) => {
     const index = keranjang.findIndex(k => k.id === id); if(index === -1) return;
     const itemDb = databaseBarang.find(i => i.id === id);
     
+    // BUG FIX 1: Pemblokiran manipulasi penambahan "Barang Hantu" (Barang dihapus Admin, tapi masih nyangkut di keranjang kasir)
+    if (delta > 0 && !itemDb) {
+        return alert("Peringatan Keamanan: Barang ini telah dihapus oleh Admin dari Master Data Gudang. Anda tidak bisa menambahkan kuantitasnya lagi.");
+    }
+    
     keranjang[index].qty += delta;
     
     if (keranjang[index].qty <= 0) { 
         const removedItem = keranjang[index]; keranjang.splice(index, 1); 
         await logActivity("CART_HAPUS_ITEM", `Kasir membuang [${removedItem.nama}] dari keranjang belanja.`); 
     } 
-    // BUG FIX 2: Mencegah keranjang macet jika item tiba-tiba dihapus oleh admin dari master data.
     else if (itemDb && keranjang[index].qty > (itemDb.stok||0)) { 
         keranjang[index].qty = itemDb.stok||0; 
         alert(`Stok maksimal untuk produk ${itemDb.nama} tercapai!`);
     }
-    
     playBeep(); renderKeranjang();
 };
 
@@ -578,14 +595,13 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
     try {
         if (navigator.onLine) {
             trxData.waktu = serverTimestamp();
+            // BUG FIX 2: Fallback waktu lokal untuk online, agar transaksi tidak berkedip (hilang sementara) di tabel riwayat
+            trxData.waktuLokal = new Date().toISOString(); 
+            
             await addDoc(salesRef, trxData);
-            
-            // BUG FIX 1: Try Catch agar checkout tidak batal gara-gara ada barang yang terhapus
             for (const item of keranjang) { 
-                try { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); } 
-                catch(e) { console.warn("Barang tidak ada di Master Data lagi saat checkout."); }
+                try { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); } catch(err) {} 
             }
-            
             await updateDoc(doc(db, "shift", activeShiftSession.id), { totalPenjualan: increment(globalGrandTotal) });
             if (activeMember) { const addPoin = Math.floor(globalGrandTotal / 10000); if (addPoin > 0) await updateDoc(doc(db, "members", activeMember.id), { poin: increment(addPoin) }); }
             await logActivity("CHECKOUT_ONLINE", `Penjualan Rp ${toRupiah(globalGrandTotal)} diproses.`); 
@@ -642,16 +658,27 @@ itemForm.addEventListener('submit', async (e) => {
     e.preventDefault(); 
     if (!navigator.onLine) return alert("Peringatan: Anda membutuhkan koneksi internet untuk menambah atau mengubah master barang.");
     
-    const id = document.getElementById('item-id').value;
-    const data = { barcode: document.getElementById('item-barcode').value.trim(), nama: document.getElementById('item-name').value.trim(), kategori: document.getElementById('item-category').value.trim() || 'Umum', harga: parseFloat(document.getElementById('item-price').value)||0, stok: parseInt(document.getElementById('item-stock').value)||0 };
-    if(id) { 
-        await updateDoc(doc(db, "barang", id), data); 
-        await logActivity("GUDANG_UBAH", `Memperbarui produk [${data.nama}]. Stok: ${data.stok}, Harga: ${toRupiah(data.harga)}`); 
-    } else { 
-        await addDoc(itemsRef, data); 
-        await logActivity("GUDANG_TAMBAH", `Memasukkan produk baru [${data.nama}] qty: ${data.stok}`); 
+    // BUG FIX 3: Disable form ganda (Double-Submit Protection)
+    const btnSubmit = document.getElementById('btn-submit');
+    const origText = btnSubmit.textContent;
+    btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan...";
+    
+    try {
+        const id = document.getElementById('item-id').value;
+        const data = { barcode: document.getElementById('item-barcode').value.trim(), nama: document.getElementById('item-name').value.trim(), kategori: document.getElementById('item-category').value.trim() || 'Umum', harga: parseFloat(document.getElementById('item-price').value)||0, stok: parseInt(document.getElementById('item-stock').value)||0 };
+        if(id) { 
+            await updateDoc(doc(db, "barang", id), data); 
+            await logActivity("GUDANG_UBAH", `Memperbarui produk [${data.nama}]. Stok: ${data.stok}, Harga: ${toRupiah(data.harga)}`); 
+        } else { 
+            await addDoc(itemsRef, data); 
+            await logActivity("GUDANG_TAMBAH", `Memasukkan produk baru [${data.nama}] qty: ${data.stok}`); 
+        }
+        window.resetForm();
+    } catch(err) {
+        alert("Gagal memproses data: " + err.message);
+    } finally {
+        btnSubmit.disabled = false; btnSubmit.textContent = origText;
     }
-    window.resetForm();
 });
 
 window.editBarang = (id) => {
@@ -742,7 +769,6 @@ document.getElementById('btn-export-excel').addEventListener('click', () => {
     
     const dataExcel = dataPenjualanTerfilter.map(trx => { 
         const itemsStr = Array.isArray(trx.items) ? trx.items.map(i => `${i.nama||'Item'} (${i.qty}x)`).join(', ') : '';
-        // BUG FIX 3: Tanggal Excel diperbaiki agar rapi (tidak mencetak format ISO untuk data offline)
         const waktuStr = trx.waktu && trx.waktu.seconds ? new Date(trx.waktu.seconds * 1000).toLocaleString('id-ID') : (trx.waktuLokal ? new Date(trx.waktuLokal).toLocaleString('id-ID') : '-');
         
         return { 
