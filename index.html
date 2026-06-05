@@ -13,7 +13,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
-        // Injeksi Palet Warna Asli Mantine Dark Mode
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -350,6 +349,7 @@
         import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment, serverTimestamp, where, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+        // HARAP MASUKKAN FIREBASE CONFIG ANDA DI SINI
         const firebaseConfig = {
             apiKey: "AIzaSyAsLKh24L8KxN8vqUgLQujmrfeVzc0F9YM",
             authDomain: "pos-system-ef6ee.firebaseapp.com",
@@ -370,7 +370,8 @@
         let currentUserRole = "kasir"; let activeShiftSession = null; let currentUserId = null;
         let selectedPaymentMethod = "Tunai"; let activeMember = null; 
 
-        const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka);
+        // [BUG FIX 3] Safely format to Rupiah
+        const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka || 0);
         const formatTanggal = (timestamp) => { 
             if(!timestamp) return 'Offline/Pending...'; 
             if(typeof timestamp === 'string') return new Date(timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
@@ -378,14 +379,13 @@
             return 'Memproses...';
         };
 
-        // LOAD LOCAL CACHE DI AWAL AGAR ANTI-BLACKOUT SAAT OFFLINE
         const cachedItems = localStorage.getItem("pos_cached_items");
         if (cachedItems) { databaseBarang = JSON.parse(cachedItems); }
         const cachedShift = localStorage.getItem("pos_cached_shift");
         if (cachedShift) { activeShiftSession = JSON.parse(cachedShift); }
 
         // ==========================================================================
-        // PATCH 1: TRUE OFFLINE-FIRST (INDEXEDDB) DENGAN ENGINE BARU
+        // TRUE OFFLINE-FIRST (INDEXEDDB) ENGINE
         // ==========================================================================
         const OFFLINE_DB_NAME = "POS_Offline_Database";
         const OFFLINE_STORE_NAME = "pending_transactions";
@@ -404,6 +404,20 @@
             });
         }
 
+        async function loadOfflineTransactions() {
+            if (!window.indexedDB) return [];
+            try {
+                const idb = await initIndexedDB();
+                const tx = idb.transaction(OFFLINE_STORE_NAME, "readonly");
+                const store = tx.objectStore(OFFLINE_STORE_NAME);
+                return new Promise(resolve => {
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => resolve([]);
+                });
+            } catch(e) { return []; }
+        }
+
         async function saveTransactionOffline(saleData) {
             try {
                 const idb = await initIndexedDB();
@@ -412,7 +426,7 @@
                 store.add(saleData);
                 await tx.complete;
                 return true;
-            } catch (error) { console.error("Gagal simpan lokal:", error); return false; }
+            } catch (error) { return false; }
         }
 
         async function syncOfflineTransactions() {
@@ -427,64 +441,52 @@
 
                 request.onsuccess = async () => {
                     const pendingSales = request.result;
-                    if (pendingSales.length === 0) return;
+                    if (pendingSales.length === 0) { applyFiltersAndStats(); return; }
 
                     console.log(`📡 Menghubungkan ulang server. Sinkronisasi ${pendingSales.length} data...`);
                     for (const sale of pendingSales) {
                         const localId = sale.localId;
-                        delete sale.localId; 
+                        delete sale.localId; delete sale.isOfflinePending;
                         sale.waktu = serverTimestamp(); 
 
-                        // 1. Upload Transaksi Utama
                         await addDoc(salesRef, sale); 
                         
-                        // FIX PATCH 1A: Potong stok asli di Firebase saat sinkronisasi online
                         for (const item of sale.items) {
                             await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) });
                         }
 
-                        // FIX PATCH 1B: Tambah omset shift asli di Firebase saat sinkronisasi online
-                        if (sale.shiftId) {
-                            await updateDoc(doc(db, "shift", sale.shiftId), { totalPenjualan: increment(sale.totalAkhir) });
-                        }
+                        if (sale.shiftId) { await updateDoc(doc(db, "shift", sale.shiftId), { totalPenjualan: increment(sale.totalAkhir) }); }
+                        if (sale.memberId) { const addPoin = Math.floor(sale.totalAkhir / 10000); if (addPoin > 0) await updateDoc(doc(db, "members", sale.memberId), { poin: increment(addPoin) }); }
 
-                        // FIX PATCH 1C: Sinkronisasi poin member jika ada
-                        if (sale.memberId) {
-                            const addPoin = Math.floor(sale.totalAkhir / 10000);
-                            if (addPoin > 0) await updateDoc(doc(db, "members", sale.memberId), { poin: increment(addPoin) });
-                        }
-
-                        // Hapus antrean browser
                         const deleteTx = idb.transaction(OFFLINE_STORE_NAME, "readwrite");
                         deleteTx.objectStore(OFFLINE_STORE_NAME).delete(localId);
                     }
                     await logActivity("SYNC_OFFLINE", `Sukses mengunggah ${pendingSales.length} transaksi offline ke server.`);
                     alert(`🎉 Koneksi Stabil! ${pendingSales.length} data penjualan berhasil disingkronisasi ke database pusat.`);
+                    applyFiltersAndStats();
                 };
             } catch(e) { console.error("Gagal sinkron:", e); }
         }
 
         window.addEventListener('online', syncOfflineTransactions);
-        window.addEventListener('offline', () => { document.getElementById('offline-indicator').classList.remove('hidden'); });
+        window.addEventListener('offline', () => { 
+            document.getElementById('offline-indicator').classList.remove('hidden'); 
+            applyFiltersAndStats(); 
+        });
 
         // ==========================================================================
-        // PATCH 5: AUDIT TRAIL / LOG AKTIVITAS STAF (ANTI-FRAUD)
+        // AUDIT TRAIL / LOG AKTIVITAS STAF
         // ==========================================================================
         async function logActivity(actionType, actionDetails) {
             if (!navigator.onLine) return; 
             try {
                 const userEmail = auth.currentUser ? auth.currentUser.email.split('@')[0] : "Sistem";
-                await addDoc(auditLogsRef, {
-                    user: userEmail,
-                    action: actionType,
-                    detail: actionDetails,
-                    timestamp: serverTimestamp()
-                });
-            } catch (error) { console.error("Gagal amankan Audit Log:", error); }
+                await addDoc(auditLogsRef, { user: userEmail, action: actionType, detail: actionDetails, timestamp: serverTimestamp() });
+            } catch (error) {}
         }
 
         // ==========================================================================
-        // CORE APP MANAGEMENT
+        // BEEP & BARCODE ENGINE
         // ==========================================================================
         function playBeep() {
             try {
@@ -513,6 +515,9 @@
             }
         });
 
+        // ==========================================================================
+        // AUTH & DASHBOARD INITIALIZATION
+        // ==========================================================================
         const authLoading = document.getElementById('auth-loading'); const loginScreen = document.getElementById('login-screen'); const appScreen = document.getElementById('app-screen');
         
         onAuthStateChanged(auth, async (user) => {
@@ -520,7 +525,6 @@
             if (user) {
                 currentUserId = user.uid; loginScreen.classList.add('hidden'); appScreen.classList.remove('hidden');
                 
-                // Render data dari local cache terlebih dahulu agar instan
                 renderKatalogKasir(); renderGudangList(); renderLowStock();
                 if(activeShiftSession) updateShiftUI(true);
 
@@ -553,20 +557,17 @@
             if(confirm("Keluar dari sistem?")) signOut(auth).then(() => { keranjang = []; renderKeranjang(); localStorage.clear(); }); 
         });
 
+        // ==========================================================================
         // SHIFT MANAGEMENT
+        // ==========================================================================
         function checkActiveShift(uid) {
             onSnapshot(query(shiftsRef, where("userId", "==", uid), where("status", "==", "buka"), limit(1)), (snapshot) => {
                 if (!snapshot.empty) { 
                     snapshot.forEach(doc => { activeShiftSession = { id: doc.id, ...doc.data() }; }); 
                     localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
                     updateShiftUI(true); 
-                } 
-                else { 
-                    if (navigator.onLine) {
-                        activeShiftSession = null; 
-                        localStorage.removeItem("pos_cached_shift");
-                        updateShiftUI(false); 
-                    }
+                } else if(navigator.onLine) { 
+                    activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false); 
                 }
             });
         }
@@ -575,21 +576,12 @@
             const w = document.getElementById('shift-status-widget');
             if (isActive) {
                 w.className = "bg-green-900/20 border border-green-800/50 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4";
-                w.innerHTML = `
-                    <div class="text-sm text-green-400">
-                        <p class="font-bold flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Sesi Aktif: ${auth.currentUser.email.split('@')[0].toUpperCase()}</p>
-                        <p class="text-green-500/80 mt-1 text-xs font-medium">Modal Awal: ${toRupiah(activeShiftSession.modalAwal)} | Omset: ${toRupiah(activeShiftSession.totalPenjualan || 0)}</p>
-                    </div>
-                    <button onclick="window.triggerTutupShift()" class="px-5 py-2.5 text-xs font-bold text-gray-100 bg-dark-5 hover:bg-dark-4 rounded-xl">Tutup Sesi 🔒</button>`;
-                document.getElementById('kasir-core-content').classList.remove('opacity-40', 'pointer-events-none');
-                document.getElementById('kasir-cart-content').classList.remove('opacity-40', 'pointer-events-none');
+                w.innerHTML = `<div class="text-sm text-green-400"><p class="font-bold flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Sesi Aktif: ${auth.currentUser.email.split('@')[0].toUpperCase()}</p><p class="text-green-500/80 mt-1 text-xs font-medium">Modal Awal: ${toRupiah(activeShiftSession.modalAwal)} | Omset: ${toRupiah(activeShiftSession.totalPenjualan || 0)}</p></div><button onclick="window.triggerTutupShift()" class="px-5 py-2.5 text-xs font-bold text-gray-100 bg-dark-5 hover:bg-dark-4 rounded-xl">Tutup Sesi 🔒</button>`;
+                document.getElementById('kasir-core-content').classList.remove('opacity-40', 'pointer-events-none'); document.getElementById('kasir-cart-content').classList.remove('opacity-40', 'pointer-events-none');
             } else {
                 w.className = "bg-dark-8 border border-dark-4 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4";
-                w.innerHTML = `
-                    <div class="text-sm text-dark-0"><p class="font-bold flex items-center gap-2">🔒 Sesi Belum Dibuka</p><p class="text-dark-2 mt-1 text-xs">Buka shift terlebih dahulu.</p></div>
-                    <button onclick="window.triggerBukaShift()" class="px-5 py-2.5 text-xs font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl">Mulai Shift 🔑</button>`;
-                document.getElementById('kasir-core-content').classList.add('opacity-40', 'pointer-events-none');
-                document.getElementById('kasir-cart-content').classList.add('opacity-40', 'pointer-events-none');
+                w.innerHTML = `<div class="text-sm text-dark-0"><p class="font-bold flex items-center gap-2">🔒 Sesi Belum Dibuka</p><p class="text-dark-2 mt-1 text-xs">Buka shift terlebih dahulu.</p></div><button onclick="window.triggerBukaShift()" class="px-5 py-2.5 text-xs font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl">Mulai Shift 🔑</button>`;
+                document.getElementById('kasir-core-content').classList.add('opacity-40', 'pointer-events-none'); document.getElementById('kasir-cart-content').classList.add('opacity-40', 'pointer-events-none');
             }
         }
 
@@ -597,13 +589,12 @@
             document.getElementById('shift-modal-title').textContent = "Buka Shift"; document.getElementById('shift-input-label').textContent = "Modal Fisik (Rp)";
             document.getElementById('btn-close-shift-modal').classList.add('hidden'); document.getElementById('btn-shift-submit').textContent = "Buka";
             document.getElementById('shift-form').onsubmit = async (e) => {
-                e.preventDefault(); const val = parseFloat(document.getElementById('shift-cash-input').value);
+                e.preventDefault(); const val = parseFloat(document.getElementById('shift-cash-input').value) || 0;
                 const docRef = await addDoc(shiftsRef, { userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, status: "buka" });
                 activeShiftSession = { id: docRef.id, userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], modalAwal: val, totalPenjualan: 0, status: "buka" };
                 localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
                 await logActivity("SHIFT_BUKA", `Kasir membuka shift dengan modal ${toRupiah(val)}`);
-                document.getElementById('shift-modal').classList.add('hidden');
-                updateShiftUI(true);
+                document.getElementById('shift-modal').classList.add('hidden'); updateShiftUI(true);
             };
             document.getElementById('shift-form').reset(); document.getElementById('shift-modal').classList.remove('hidden');
         };
@@ -613,7 +604,7 @@
             document.getElementById('btn-close-shift-modal').classList.remove('hidden'); document.getElementById('btn-shift-submit').textContent = "Tutup Shift";
             document.getElementById('btn-close-shift-modal').onclick = () => document.getElementById('shift-modal').classList.add('hidden');
             document.getElementById('shift-form').onsubmit = async (e) => {
-                e.preventDefault(); const val = parseFloat(document.getElementById('shift-cash-input').value);
+                e.preventDefault(); const val = parseFloat(document.getElementById('shift-cash-input').value) || 0;
                 const selisih = val - (activeShiftSession.modalAwal + (activeShiftSession.totalPenjualan || 0));
                 await updateDoc(doc(db, "shift", activeShiftSession.id), { waktuTutup: serverTimestamp(), uangFisikAktual: val, selisih: selisih, status: "tutup" });
                 await logActivity("SHIFT_TUTUP", `Kasir menutup shift. Selisih kas: ${toRupiah(selisih)}`);
@@ -623,7 +614,6 @@
             document.getElementById('shift-form').reset(); document.getElementById('shift-modal').classList.remove('hidden');
         };
 
-        // NAVIGATION TABS
         const tabsBtns = document.querySelectorAll('.nav-tab'); const contents = document.querySelectorAll('.tab-content');
         tabsBtns.forEach(tab => { tab.addEventListener('click', () => switchTab(tab.id.replace('-btn', ''))); });
         function switchTab(id) {
@@ -633,15 +623,13 @@
             if (id === 'dashboard' && chartInstance) setTimeout(() => chartInstance.update(), 100);
         }
 
-        // REALTIME DATABASE LISTENERS DENGAN FITUR AUTO LOCAL-CACHE
         function initRealtimeListeners() {
             unsubscribeItems = onSnapshot(query(itemsRef, orderBy("nama", "asc")), (snapshot) => { 
-                databaseBarang = []; 
-                snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() })); 
-                localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang)); // FIX PATCH 3: Simpan data produk ke memori internal
+                databaseBarang = []; snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() })); 
+                localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang)); 
                 renderKatalogKasir(); renderGudangList(); renderLowStock(); 
             });
-            unsubscribeSales = onSnapshot(query(salesRef, orderBy("waktu", "desc")), (snapshot) => { riwayatPenjualan = []; snapshot.forEach(doc => riwayatPenjualan.push({ id: doc.id, ...doc.data() })); applyFiltersAndStats(); renderRiwayatTable(); });
+            unsubscribeSales = onSnapshot(query(salesRef, orderBy("waktu", "desc")), (snapshot) => { riwayatPenjualan = []; snapshot.forEach(doc => riwayatPenjualan.push({ id: doc.id, ...doc.data() })); applyFiltersAndStats(); });
             if (currentUserRole === 'admin') {
                 unsubscribeShifts = onSnapshot(query(shiftsRef, orderBy("waktuBuka", "desc")), (snapshot) => { dataShiftAll = []; snapshot.forEach(doc => dataShiftAll.push({ id: doc.id, ...doc.data() })); renderShiftLogs(); });
                 unsubscribeAudit = onSnapshot(query(auditLogsRef, orderBy("timestamp", "desc"), limit(50)), (snapshot) => { auditLogsData = []; snapshot.forEach(doc => auditLogsData.push({ id: doc.id, ...doc.data() })); renderAuditLogs(); });
@@ -658,13 +646,21 @@
             dateStartInput.value = startStr; dateEndInput.value = endStr; applyFiltersAndStats();
         };
 
-        function applyFiltersAndStats() {
+        // [BUG FIX 4] Filter stats include Offline transactions from IDB
+        async function applyFiltersAndStats() {
             const startVal = dateStartInput.value; const endVal = dateEndInput.value;
             let startTs = startVal ? new Date(startVal + "T00:00:00").getTime() : 0; let endTs = endVal ? new Date(endVal + "T23:59:59").getTime() : Infinity;
             
-            dataPenjualanTerfilter = riwayatPenjualan.filter(sale => {
-                if (!sale.waktu) return false;
-                const ms = sale.waktu.seconds ? sale.waktu.seconds * 1000 : new Date(sale.waktu).getTime();
+            let allSales = [...riwayatPenjualan];
+            if (!navigator.onLine) {
+                const offlineSales = await loadOfflineTransactions();
+                allSales = [...offlineSales.reverse(), ...allSales]; // Prepend pending data
+            }
+
+            dataPenjualanTerfilter = allSales.filter(sale => {
+                const w = sale.waktu || sale.waktuLokal;
+                if (!w) return false;
+                const ms = w.seconds ? w.seconds * 1000 : new Date(w).getTime();
                 return ms >= startTs && ms <= endTs;
             });
 
@@ -673,6 +669,8 @@
 
             document.getElementById('dash-omset').textContent = toRupiah(totalOmset); document.getElementById('dash-transaksi').textContent = totalTrx; document.getElementById('dash-items').innerHTML = `${totalItems} <span class="text-lg font-medium text-dark-2">Item</span>`;
             const sortedProduk = Object.entries(produkCounts).sort((a,b) => b[1] - a[1]).slice(0,5); renderChart(sortedProduk.map(p => p[0]), sortedProduk.map(p => p[1]));
+            
+            renderRiwayatTable();
         }
 
         function renderChart(labels, values) {
@@ -688,7 +686,6 @@
             list.innerHTML = lowStockItems.map(i => `<div class="flex justify-between items-center bg-dark-8 p-3 rounded-xl border border-dark-4"><span class="text-xs font-semibold text-gray-200">${i.nama}</span><span class="px-2.5 py-1 text-[10px] font-bold rounded-md ${i.stok===0?'bg-red-900/40 text-red-400 border border-red-900':'bg-amber-900/40 text-amber-400 border border-amber-900'}">Stok: ${i.stok}</span></div>`).join('');
         }
 
-        // METODE PEMBAYARAN UI MANAGER
         const payMethods = { 'Tunai': document.getElementById('pay-method-cash'), 'QRIS': document.getElementById('pay-method-qris'), 'Debit': document.getElementById('pay-method-debit'), 'Transfer': document.getElementById('pay-method-tf') };
         Object.entries(payMethods).forEach(([method, btn]) => {
             btn.addEventListener('click', () => {
@@ -704,7 +701,6 @@
             });
         });
 
-        // HOLD & RECALL BILL SYSTEM
         document.getElementById('btn-hold-bill').addEventListener('click', () => {
             if (keranjang.length === 0) return alert("Keranjang kosong!");
             let holdName = prompt("Nama Penanda (cth: Meja 5 / Bpk Andi):"); if (holdName === null) return;
@@ -742,7 +738,6 @@
 
         window.deleteHeldBill = (id) => { const heldBills = JSON.parse(localStorage.getItem('pos_held_bills') || '[]'); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills.filter(b => b.id !== id))); renderHoldModalList(); updateHoldCountBadge(); };
 
-        // MEMBERSHIP REGISTER & LOOKUP
         document.getElementById('btn-check-member').addEventListener('click', async () => {
             const phone = document.getElementById('member-search-input').value.trim(); if (!phone) return;
             document.getElementById('btn-check-member').disabled = true; document.getElementById('btn-check-member').textContent = "...";
@@ -762,7 +757,6 @@
 
         function showActiveMemberUI() { document.getElementById('member-select-zone').classList.add('hidden'); document.getElementById('member-active-zone').classList.remove('hidden'); document.getElementById('btn-remove-member').classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${activeMember.nama.toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0}`; }
 
-        // KASIR KATALOG VIEW & ENGINE
         document.getElementById('kasir-search').addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase(); renderKatalogKasir(); });
         function renderKatalogKasir() {
             const categoriesSet = new Set(databaseBarang.map(i => i.kategori));
@@ -792,8 +786,8 @@
             keranjang[index].qty += delta;
             if (keranjang[index].qty <= 0) { 
                 const removedItem = keranjang[index];
-                await logActivity("CART_HAPUS_ITEM", `Kasir menghapus [${removedItem.nama}] dari keranjang belanja.`); 
                 keranjang.splice(index, 1); 
+                await logActivity("CART_HAPUS_ITEM", `Kasir membuang [${removedItem.nama}] dari keranjang belanja.`); 
             } 
             else if (keranjang[index].qty > itemDb.stok) { keranjang[index].qty = itemDb.stok; }
             playBeep(); renderKeranjang();
@@ -815,6 +809,7 @@
             hitungUangKembalian();
         }
 
+        // [BUG FIX 2 & 3] Perbaikan kalkulasi & Checkout Validation
         function hitungUangKembalian() {
             globalSubtotal = keranjang.reduce((acc, i) => acc + (i.harga * i.qty), 0);
             globalDiskon = parseFloat(document.getElementById('cart-discount').value) || 0;
@@ -823,23 +818,24 @@
 
             const btnCheckout = document.getElementById('btn-checkout');
             if (selectedPaymentMethod === 'Tunai') {
-                const cashPaidVal = parseFloat(document.getElementById('cash-paid').value) || 0;
+                const cashPaidVal = parseFloat(document.getElementById('cash-paid').value) || 0; // Fix Bug NaN
                 document.getElementById('cash-return').textContent = toRupiah(Math.max(0, cashPaidVal - globalGrandTotal));
-                if (cashPaidVal >= globalGrandTotal && globalGrandTotal > 0) { btnCheckout.disabled = false; btnCheckout.className = "w-full py-3 bg-mantine-blue text-white font-bold rounded-xl text-xs uppercase cursor-pointer"; } else { btnCheckout.disabled = true; btnCheckout.className = "w-full py-3 bg-dark-5 text-dark-3 font-bold rounded-xl cursor-not-allowed text-xs uppercase"; }
+                // Fix Bug Diskon 100% (grand total = 0). Asal keranjang > 0, bisa dilanjutkan.
+                if (cashPaidVal >= globalGrandTotal && keranjang.length > 0) { btnCheckout.disabled = false; btnCheckout.className = "w-full py-3 bg-mantine-blue text-white font-bold rounded-xl text-xs uppercase cursor-pointer"; } else { btnCheckout.disabled = true; btnCheckout.className = "w-full py-3 bg-dark-5 text-dark-3 font-bold rounded-xl cursor-not-allowed text-xs uppercase"; }
             } else {
                 document.getElementById('cash-return').textContent = "Rp 0";
-                if(globalGrandTotal > 0) { btnCheckout.disabled = false; btnCheckout.className = "w-full py-3 bg-mantine-blue text-white font-bold rounded-xl text-xs uppercase cursor-pointer"; } else { btnCheckout.disabled = true; btnCheckout.className = "w-full py-3 bg-dark-5 text-dark-3 font-bold rounded-xl cursor-not-allowed text-xs uppercase"; }
+                if(keranjang.length > 0) { btnCheckout.disabled = false; btnCheckout.className = "w-full py-3 bg-mantine-blue text-white font-bold rounded-xl text-xs uppercase cursor-pointer"; } else { btnCheckout.disabled = true; btnCheckout.className = "w-full py-3 bg-dark-5 text-dark-3 font-bold rounded-xl cursor-not-allowed text-xs uppercase"; }
             }
         }
 
         // ==========================================================================
-        // PROSES TRANSAKSI (GABUNGAN ENGINE ONLINE & OFFLINE)
+        // PROSES CHECKOUT FINAL
         // ==========================================================================
         document.getElementById('btn-checkout').addEventListener('click', async () => {
             if(keranjang.length === 0 || !activeShiftSession) return;
             const btnCheckout = document.getElementById('btn-checkout'); btnCheckout.disabled = true; btnCheckout.textContent = "MEMPROSES...";
             
-            const cashPaidVal = selectedPaymentMethod === 'Tunai' ? parseFloat(document.getElementById('cash-paid').value) : globalGrandTotal;
+            const cashPaidVal = selectedPaymentMethod === 'Tunai' ? (parseFloat(document.getElementById('cash-paid').value) || 0) : globalGrandTotal;
             const refCode = document.getElementById('payment-ref-code') ? document.getElementById('payment-ref-code').value.trim() : '';
 
             const trxData = {
@@ -848,46 +844,42 @@
 
             try {
                 if (navigator.onLine) {
-                    // TRANSAKSI ONLINE NORMAL
                     trxData.waktu = serverTimestamp();
                     await addDoc(salesRef, trxData);
                     for (const item of keranjang) { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); }
                     await updateDoc(doc(db, "shift", activeShiftSession.id), { totalPenjualan: increment(globalGrandTotal) });
                     if (activeMember) { const addPoin = Math.floor(globalGrandTotal / 10000); if (addPoin > 0) await updateDoc(doc(db, "members", activeMember.id), { poin: increment(addPoin) }); }
-                    
                     await logActivity("CHECKOUT_ONLINE", `Penjualan Rp ${toRupiah(globalGrandTotal)} diproses.`); 
                 } else {
-                    // FIX PATCH 2: TRANSAKSI OFFLINE EMULASI SECARA NYATA DI UI
                     trxData.waktuLokal = new Date().toISOString();
                     trxData.isOfflinePending = true;
                     await saveTransactionOffline(trxData);
                     
-                    // Potong stok lokal di memori secara instan agar katalog akurat
                     for (const item of keranjang) {
                         const found = databaseBarang.find(x => x.id === item.id);
                         if (found) found.stok = Math.max(0, found.stok - item.qty);
                     }
                     localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang));
 
-                    // Tambah saldo laci lokal secara instan
                     activeShiftSession.totalPenjualan = (activeShiftSession.totalPenjualan || 0) + globalGrandTotal;
                     localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
                     
                     updateShiftUI(true); renderKatalogKasir(); renderGudangList(); renderLowStock();
                     alert("⚠️ KONEKSI TERPUTUS! Transaksi dicetak & diamankan di browser. Stok & Omset laci disesuaikan secara lokal.");
+                    applyFiltersAndStats(); // Segarkan tampilan dashboard untuk data offline
                 }
 
                 cetakStrukThermal({...trxData, waktu: { seconds: Date.now()/1000 }}); 
-                
                 keranjang = []; document.getElementById('cart-discount').value = ""; document.getElementById('cash-paid').value = ""; document.getElementById('btn-remove-member').click(); renderKeranjang();
             } catch(err) { alert("Error: " + err.message); } finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Transaksi"; hitungUangKembalian(); }
         });
 
         function cetakStrukThermal(data) {
             const printArea = document.getElementById('print-area');
+            const tglStruk = data.waktuLokal ? new Date(data.waktuLokal) : (data.waktu && data.waktu.seconds ? new Date(data.waktu.seconds * 1000) : new Date());
             printArea.innerHTML = `
                 <div style="text-align:center; margin-bottom:10px; font-family:monospace; color:black;">
-                    <h3 style="margin:0; font-size:16px;">⚡ TOKO MODERN PRO ⚡</h3><p style="margin:2px 0; font-size:10px;">Kasir: ${data.namaKasir.toUpperCase()}</p><p style="margin:2px 0; font-size:10px;">${new Date().toLocaleString('id-ID')}</p>
+                    <h3 style="margin:0; font-size:16px;">⚡ TOKO MODERN PRO ⚡</h3><p style="margin:2px 0; font-size:10px;">Kasir: ${data.namaKasir.toUpperCase()}</p><p style="margin:2px 0; font-size:10px;">${tglStruk.toLocaleString('id-ID')}</p>
                 </div><hr style="border-top:1px dashed black; margin:5px 0;">
                 <div style="margin-bottom:10px; font-family:monospace; color:black;">${data.items.map(i => `<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px;"><span>${i.nama} (x${i.qty})</span><span>${toRupiah(i.harga * i.qty)}</span></div>`).join('')}</div>
                 <hr style="border-top:1px dashed black; margin:5px 0;">
@@ -903,9 +895,6 @@
             window.print();
         }
 
-        // ==========================================================================
-        // GUDANG INVENTARIS ENGINE
-        // ==========================================================================
         const itemForm = document.getElementById('item-form');
         itemForm.addEventListener('submit', async (e) => {
             e.preventDefault(); const id = document.getElementById('item-id').value;
@@ -920,27 +909,14 @@
             window.resetForm();
         });
 
-        // FIX PATCH 4: Sistem pemanggilan ID saja untuk menghindari tabrakan string karakter khusus
         window.editBarang = (id) => {
-            const item = databaseBarang.find(x => x.id === id);
-            if (!item) return;
-            document.getElementById('form-title').textContent = "Ubah Data Barang"; 
-            document.getElementById('item-id').value = item.id; 
-            document.getElementById('item-barcode').value = item.barcode || ""; 
-            document.getElementById('item-name').value = item.nama; 
-            document.getElementById('item-category').value = item.kategori; 
-            document.getElementById('item-price').value = item.harga; 
-            document.getElementById('item-stock').value = item.stok; 
-            document.getElementById('btn-cancel').classList.remove('hidden');
+            const item = databaseBarang.find(x => x.id === id); if (!item) return;
+            document.getElementById('form-title').textContent = "Ubah Data Barang"; document.getElementById('item-id').value = item.id; document.getElementById('item-barcode').value = item.barcode || ""; document.getElementById('item-name').value = item.nama; document.getElementById('item-category').value = item.kategori; document.getElementById('item-price').value = item.harga; document.getElementById('item-stock').value = item.stok; document.getElementById('btn-cancel').classList.remove('hidden');
         };
 
         window.hapusBarang = async (id) => { 
-            const item = databaseBarang.find(x => x.id === id);
-            if(!item) return;
-            if(confirm(`Hapus produk ${item.nama} secara permanen?`)) { 
-                await logActivity("GUDANG_HAPUS", `Menghapus produk [${item.nama}] dari master data.`); 
-                await deleteDoc(doc(db, "barang", id)); 
-            } 
+            const item = databaseBarang.find(x => x.id === id); if(!item) return;
+            if(confirm(`Hapus produk ${item.nama} secara permanen?`)) { await logActivity("GUDANG_HAPUS", `Menghapus produk [${item.nama}] dari master data.`); await deleteDoc(doc(db, "barang", id)); } 
         };
 
         window.resetForm = () => { document.getElementById('form-title').textContent = "Tambah Barang Baru"; itemForm.reset(); document.getElementById('item-id').value = ""; document.getElementById('btn-cancel').classList.add('hidden'); };
@@ -956,13 +932,10 @@
                 </div>`).join('');
         }
 
-        // ==========================================================================
-        // RENDER RIWAYAT, REKONSILISASI & AUDIT VIEW (PANEL ADMIN)
-        // ==========================================================================
         function renderRiwayatTable() {
             const tbody = document.getElementById('riwayat-list'); if(!tbody) return;
-            if(riwayatPenjualan.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-xs text-dark-2 italic">Belum ada transaksi terdaftar.</td></tr>`; return; }
-            tbody.innerHTML = riwayatPenjualan.map(trx => {
+            if(dataPenjualanTerfilter.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-xs text-dark-2 italic">Belum ada transaksi terdaftar.</td></tr>`; return; }
+            tbody.innerHTML = dataPenjualanTerfilter.map(trx => {
                 const itemsStr = trx.items ? trx.items.map(i => `${i.nama} (${i.qty}x)`).join(', ') : '';
                 return `
                     <tr class="hover:bg-dark-5/40">
@@ -970,12 +943,16 @@
                         <td class="px-6 py-4 text-xs text-gray-200 max-w-xs truncate font-medium" title="${itemsStr}">${itemsStr}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-xs text-dark-1 font-medium"><span class="px-2 py-0.5 bg-dark-5 rounded text-gray-300 font-semibold text-[11px]">${trx.metodePembayaran || 'Tunai'}</span></td>
                         <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-100 font-bold">${toRupiah(trx.totalAkhir)}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-xs"><button onclick="window.reprintTrx('${trx.id}')" class="px-2.5 py-1.5 bg-dark-5 hover:bg-dark-4 text-dark-0 rounded-md font-medium">Struk 🖨️</button></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-xs"><button onclick="window.reprintTrx('${trx.id || trx.localId}')" class="px-2.5 py-1.5 bg-dark-5 hover:bg-dark-4 text-dark-0 rounded-md font-medium">Struk 🖨️</button></td>
                     </tr>`;
             }).join('');
         }
 
-        window.reprintTrx = async (id) => { const docSnap = await getDoc(doc(db, "penjualan", id)); if(docSnap.exists()) { cetakStrukThermal(docSnap.data()); } };
+        window.reprintTrx = async (id) => { 
+            const offlineTrx = dataPenjualanTerfilter.find(t => t.localId === id || t.id === id);
+            if (offlineTrx) { cetakStrukThermal(offlineTrx); } 
+            else { const docSnap = await getDoc(doc(db, "penjualan", id)); if(docSnap.exists()) { cetakStrukThermal(docSnap.data()); } }
+        };
 
         function renderShiftLogs() {
             const tbody = document.getElementById('shift-log-list'); if(!tbody) return;
@@ -1004,11 +981,16 @@
                 </tr>`).join('');
         }
 
+        // [BUG FIX 1] Pemanggilan variabel element Input Tanggal (DOM) secara dinamis agar Excel bekerja lancar
         document.getElementById('btn-export-excel').addEventListener('click', () => {
             if (dataPenjualanTerfilter.length === 0) return alert("Data kosong.");
+            
+            const startInputDOM = document.getElementById('filter-date-start');
+            const fileNameDate = startInputDOM.value || 'Semua';
+            
             const dataExcel = dataPenjualanTerfilter.map(trx => { return { 'Waktu': trx.waktu && trx.waktu.seconds ? new Date(trx.waktu.seconds * 1000).toLocaleString('id-ID') : '-', 'Daftar Barang': trx.items ? trx.items.map(i => `${i.nama} (${i.qty}x)`).join(', ') : '', 'Metode Pembayaran': trx.metodePembayaran || 'Tunai', 'Subtotal': trx.subtotal, 'Diskon': trx.diskon || 0, 'Grand Total': trx.totalAkhir, 'Uang Masuk/Bayar': trx.uangBayar || 0, 'Kembalian': trx.kembalian || 0 }; });
             const worksheet = XLSX.utils.json_to_sheet(dataExcel); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Omset");
-            XLSX.writeFile(workbook, `Laporan_POS_${dateStartInput.value || 'Semua'}.xlsx`);
+            XLSX.writeFile(workbook, `Laporan_POS_${fileNameDate}.xlsx`);
         });
     </script>
 </body>
