@@ -3,69 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS - Manajemen Stok Barang</title>
-    <!-- Tailwind CSS untuk UI Minimalis & Responsif -->
+    <title>POS Modern - Kasir & Stok</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen">
 
-    <div class="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
-        
-        <!-- Header -->
-        <header class="mb-8 border-b border-gray-200 pb-4">
-            <h1 class="text-2xl font-semibold text-gray-900 tracking-tight">POS Minimalis</h1>
-            <p class="text-sm text-gray-500 mt-1">Sistem Manajemen Database Barang</p>
-        </header>
-
-        <!-- Form Tambah/Edit (Create & Update) -->
-        <section class="bg-white p-5 sm:p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
-            <h2 class="text-lg font-medium mb-4 text-gray-800" id="form-title">Tambah Barang Baru</h2>
-            
-            <form id="item-form" class="space-y-4">
-                <input type="hidden" id="item-id">
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">Nama Barang</label>
-                    <input type="text" id="item-name" required placeholder="Contoh: Gas LPG 3kg" 
-                        class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200">
-                </div>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Harga Jual (Rp)</label>
-                        <input type="number" id="item-price" required placeholder="0" min="0"
-                            class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Stok Tersedia</label>
-                        <input type="number" id="item-stock" required placeholder="0" min="0"
-                            class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200">
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center gap-8">
+                    <span class="text-xl font-bold text-gray-900 tracking-tight">PointOfSale.</span>
+                    <div class="flex h-full space-x-1 pt-2">
+                        <button id="tab-kasir-btn" class="border-b-2 border-blue-600 text-blue-600 px-3 text-sm font-medium h-full transition-all">
+                            🎯 Menu Kasir
+                        </button>
+                        <button id="tab-gudang-btn" class="border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 px-3 text-sm font-medium h-full transition-all">
+                            📦 Gudang (CRUD)
+                        </button>
                     </div>
                 </div>
-                
-                <div class="flex justify-end pt-3">
-                    <button type="button" id="btn-cancel" class="hidden mr-3 px-5 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Batal</button>
-                    <button type="submit" id="btn-submit" class="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors">Simpan Barang</button>
-                </div>
-            </form>
-        </section>
-
-        <!-- Daftar Barang (Read & Delete) -->
-        <section>
-            <h2 class="text-lg font-medium mb-4 text-gray-800">Daftar Barang</h2>
-            <!-- Wadah List Barang -->
-            <div id="item-list" class="space-y-3">
-                <div class="text-center text-gray-400 py-8 text-sm">Memuat database...</div>
             </div>
-        </section>
+        </div>
+    </nav>
 
-    </div>
+    <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
 
-    <!-- Firebase SDK (Tipe Module) -->
+        <div id="tab-kasir" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Katalog Produk</h2>
+                <div id="kasir-katalog" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-fit sticky top-24">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Keranjang Belanja</h2>
+                
+                <div id="cart-list" class="space-y-3 max-h-60 overflow-y-auto mb-4 pr-1">
+                    </div>
+
+                <hr class="border-gray-100 my-4">
+
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between text-gray-500">
+                        <span>Total Item</span>
+                        <span id="cart-total-qty" class="font-medium text-gray-800">0</span>
+                    </div>
+                    <div class="flex justify-between text-base font-bold text-gray-900 pt-1">
+                        <span>Total Harga</span>
+                        <span id="cart-total-price">Rp 0</span>
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Uang Dibayar (Rp)</label>
+                        <input type="number" id="cash-paid" placeholder="Masukkan nominal" min="0"
+                            class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                    </div>
+                    <div class="flex justify-between text-sm font-semibold bg-gray-50 p-3 rounded-xl">
+                        <span class="text-gray-500">Kembalian</span>
+                        <span id="cash-return" class="text-gray-900">Rp 0</span>
+                    </div>
+                    <button id="btn-checkout" disabled
+                        class="w-full py-3 bg-gray-300 text-gray-500 font-medium rounded-xl cursor-not-allowed transition-all shadow-sm">
+                        Proses Bayar (Potong Stok)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="tab-gudang" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div>
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm sticky top-24">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4" id="form-title">Tambah Barang Baru</h2>
+                    <form id="item-form" class="space-y-4">
+                        <input type="hidden" id="item-id">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Nama Barang</label>
+                            <input type="text" id="item-name" required placeholder="Contoh: Gas LPG 3kg" 
+                                class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Harga Jual (Rp)</label>
+                            <input type="number" id="item-price" required placeholder="0" min="0"
+                                class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Stok Awal</label>
+                            <input type="number" id="item-stock" required placeholder="0" min="0"
+                                class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                        </div>
+                        <div class="flex gap-2 pt-2">
+                            <button type="button" id="btn-cancel" class="hidden flex-1 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">Batal</button>
+                            <button type="submit" id="btn-submit" class="flex-1 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm transition-colors">Simpan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Master Data Barang</h2>
+                <div id="gudang-list" class="space-y-3">
+                    </div>
+            </div>
+        </div>
+
+    </main>
+
     <script type="module">
-        // Import fungsi Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } 
+        import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment } 
         from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ==========================================
@@ -80,16 +128,223 @@
             appId: "1:1090528334356:web:ef7bddb8fe623427538d01"
         };
 
-        // Inisialisasi Firebase & Firestore
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        
-        // Referensi Koleksi 'barang' (Akan dibuat otomatis jika belum ada)
         const itemsCollection = collection(db, "barang");
-        // Urutkan berdasarkan nama
         const q = query(itemsCollection, orderBy("nama", "asc"));
 
-        // Seleksi Elemen DOM
+        // State Aplikasi Global
+        let databaseBarang = [];
+        let keranjang = [];
+
+        // Helper Format Rupiah
+        const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka);
+
+        // ================= TAB NAVIGATION LOGIC =================
+        const tabKasirBtn = document.getElementById('tab-kasir-btn');
+        const tabGudangBtn = document.getElementById('tab-gudang-btn');
+        const tabKasir = document.getElementById('tab-kasir');
+        const tabGudang = document.getElementById('tab-gudang');
+
+        tabKasirBtn.addEventListener('click', () => {
+            tabKasir.classList.remove('hidden');
+            tabGudang.classList.add('hidden');
+            tabKasirBtn.className = "border-b-2 border-blue-600 text-blue-600 px-3 text-sm font-medium h-full transition-all";
+            tabGudangBtn.className = "border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 px-3 text-sm font-medium h-full transition-all";
+        });
+
+        tabGudangBtn.addEventListener('click', () => {
+            tabGudang.classList.remove('hidden');
+            tabKasir.classList.add('hidden');
+            tabGudangBtn.className = "border-b-2 border-blue-600 text-blue-600 px-3 text-sm font-medium h-full transition-all";
+            tabKasirBtn.className = "border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 px-3 text-sm font-medium h-full transition-all";
+        });
+
+
+        // ================= REAL-TIME DATA SYNC =================
+        onSnapshot(q, (snapshot) => {
+            databaseBarang = [];
+            snapshot.forEach(docSnap => {
+                databaseBarang.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            renderKatalogKasir();
+            renderGudangList();
+            sinkronisasiKeranjang(); // Menyesuaikan keranjang jika stok di Firebase berubah
+        });
+
+
+        // ================= LOGIC MENU KASIR =================
+        function renderKatalogKasir() {
+            const katalogEl = document.getElementById('kasir-katalog');
+            katalogEl.innerHTML = '';
+
+            if(databaseBarang.length === 0) {
+                katalogEl.innerHTML = `<div class="col-span-2 text-center py-8 text-gray-400 text-sm bg-white rounded-xl border border-gray-100">Belum ada barang di database. Masuk ke tab Gudang untuk menambah.</div>`;
+                return;
+            }
+
+            databaseBarang.forEach(barang => {
+                const isHabis = barang.stok <= 0;
+                const card = document.createElement('div');
+                card.className = `bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center transition-all ${isHabis ? 'opacity-60' : 'hover:shadow-md'}`;
+                card.innerHTML = `
+                    <div>
+                        <h3 class="font-medium text-gray-900">${barang.nama}</h3>
+                        <p class="text-sm font-semibold text-blue-600 mt-1">${toRupiah(barang.harga)}</p>
+                        <span class="inline-block text-xs mt-2 px-2 py-0.5 ${isHabis ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-600'} rounded-md">Stok: ${barang.stok}</span>
+                    </div>
+                    <button class="btn-add-cart px-4 py-2 text-xs font-semibold rounded-xl transition-all ${isHabis ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}" 
+                        data-id="${barang.id}" ${isHabis ? 'disabled' : ''}>${isHabis ? 'Habis' : 'Tambah'}</button>
+                `;
+                katalogEl.appendChild(card);
+            });
+
+            document.querySelectorAll('.btn-add-cart').forEach(btn => {
+                btn.addEventListener('click', (e) => tambahKeKeranjang(e.target.dataset.id));
+            });
+        }
+
+        function tambahKeKeranjang(id) {
+            const barang = databaseBarang.find(b => b.id === id);
+            const itemDiCart = keranjang.find(item => item.id === id);
+
+            if (itemDiCart) {
+                if (itemDiCart.qty >= barang.stok) {
+                    alert("Jumlah belanja melebihi batas stok tersedia!");
+                    return;
+                }
+                itemDiCart.qty++;
+            } else {
+                keranjang.push({ id: barang.id, nama: barang.nama, harga: barang.harga, qty: 1 });
+            }
+            renderKeranjang();
+        }
+
+        function ubahQtyKeranjang(id, perubahan) {
+            const item = keranjang.find(i => i.id === id);
+            const barang = databaseBarang.find(b => b.id === id);
+
+            item.qty += perubahan;
+            if (item.qty > barang.stok) {
+                alert("Jumlah belanja melebihi batas stok tersedia!");
+                item.qty = barang.stok;
+            }
+            if (item.qty <= 0) {
+                keranjang = keranjang.filter(i => i.id !== id);
+            }
+            renderKeranjang();
+        }
+
+        function sinkronisasiKeranjang() {
+            // Memastikan jika ada perubahan stok global, keranjang ikut menyesuaikan agar tidak over-stock
+            keranjang.forEach((item, index) => {
+                const barang = databaseBarang.find(b => b.id === item.id);
+                if (!barang) {
+                    keranjang.splice(index, 1);
+                } else if (item.qty > barang.stok) {
+                    item.qty = barang.stok;
+                    if(item.qty <= 0) keranjang.splice(index, 1);
+                }
+            });
+            renderKeranjang();
+        }
+
+        function renderKeranjang() {
+            const cartListEl = document.getElementById('cart-list');
+            cartListEl.innerHTML = '';
+
+            if (keranjang.length === 0) {
+                cartListEl.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs">Keranjang masih kosong</div>`;
+                hitungTotal(0);
+                return;
+            }
+
+            let totalHarga = 0;
+            let totalQty = 0;
+
+            keranjang.forEach(item => {
+                totalHarga += (item.harga * item.qty);
+                totalQty += item.qty;
+
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between text-sm bg-gray-50 p-3 rounded-xl";
+                div.innerHTML = `
+                    <div class="flex-1 pr-2">
+                        <h4 class="font-medium text-gray-800 line-clamp-1">${item.nama}</h4>
+                        <span class="text-xs text-gray-500">${toRupiah(item.harga)}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="w-6 h-6 bg-white border border-gray-200 rounded-md font-bold text-gray-600 hover:bg-gray-100 flex items-center justify-center text-xs" onclick="window.ubahQty('${item.id}', -1)">-</button>
+                        <span class="w-6 text-center font-medium">${item.qty}</span>
+                        <button class="w-6 h-6 bg-white border border-gray-200 rounded-md font-bold text-gray-600 hover:bg-gray-100 flex items-center justify-center text-xs" onclick="window.ubahQty('${item.id}', 1)">+</button>
+                    </div>
+                `;
+                cartListEl.appendChild(div);
+            });
+
+            document.getElementById('cart-total-qty').textContent = totalQty;
+            hitungTotal(totalHarga);
+        }
+        window.ubahQty = ubahQtyKeranjang; // tempel ke global window agar onclick terbaca modul
+
+        const cashPaidInput = document.getElementById('cash-paid');
+        const cashReturnEl = document.getElementById('cash-return');
+        const btnCheckout = document.getElementById('btn-checkout');
+        let globalTotalHarga = 0;
+
+        function hitungTotal(total) {
+            globalTotalHarga = total;
+            document.getElementById('cart-total-price').textContent = toRupiah(total);
+            cekValidasiBayar();
+        }
+
+        cashPaidInput.addEventListener('input', cekValidasiBayar);
+
+        function cekValidasiBayar() {
+            const nilaiBayar = Number(cashPaidInput.value);
+            
+            if (globalTotalHarga > 0 && nilaiBayar >= globalTotalHarga) {
+                const kembalian = nilaiBayar - globalTotalHarga;
+                cashReturnEl.textContent = toRupiah(kembalian);
+                
+                btnCheckout.disabled = false;
+                btnCheckout.className = "w-full py-3 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all shadow-md cursor-pointer";
+            } else {
+                cashReturnEl.textContent = "Rp 0";
+                btnCheckout.disabled = true;
+                btnCheckout.className = "w-full py-3 bg-gray-300 text-gray-500 font-medium rounded-xl cursor-not-allowed transition-all shadow-sm";
+            }
+        }
+
+        // AKSI CHECKOUT: Update stok otomatis di Firebase secara aman
+        btnCheckout.addEventListener('click', async () => {
+            btnCheckout.disabled = true;
+            btnCheckout.textContent = "Memproses Transaksi...";
+
+            try {
+                // Loop item di keranjang untuk potong stok menggunakan increment(-qty)
+                for (const item of keranjang) {
+                    const docRef = doc(db, "barang", item.id);
+                    await updateDoc(docRef, {
+                        stok: increment(-item.qty)
+                    });
+                }
+
+                alert("Transaksi Berhasil! Stok database telah terpotong otomatis.");
+                keranjang = [];
+                cashPaidInput.value = '';
+                renderKeranjang();
+            } catch (error) {
+                console.error("Gagal checkout: ", error);
+                alert("Terjadi kesalahan sistem saat memotong stok.");
+            } finally {
+                btnCheckout.textContent = "Proses Bayar (Potong Stok)";
+                cekValidasiBayar();
+            }
+        });
+
+
+        // ================= LOGIC MENU GUDANG (CRUD) =================
         const form = document.getElementById('item-form');
         const nameInput = document.getElementById('item-name');
         const priceInput = document.getElementById('item-price');
@@ -98,64 +353,49 @@
         const btnCancel = document.getElementById('btn-cancel');
         const btnSubmit = document.getElementById('btn-submit');
         const formTitle = document.getElementById('form-title');
-        const itemList = document.getElementById('item-list');
+        const gudangListEl = document.getElementById('gudang-list');
 
         let isEditing = false;
 
-        // 1. READ: Ambil dan Tampilkan Data (Real-time)
-        onSnapshot(q, (snapshot) => {
-            itemList.innerHTML = ''; // Bersihkan list
+        function renderGudangList() {
+            gudangListEl.innerHTML = '';
             
-            if(snapshot.empty) {
-                itemList.innerHTML = `
-                    <div class="text-center bg-white border border-gray-100 rounded-xl py-8 text-sm text-gray-500 shadow-sm">
-                        Belum ada barang di database.
-                    </div>`;
+            if(databaseBarang.length === 0) {
+                gudangListEl.innerHTML = `<div class="text-center bg-white border border-gray-100 rounded-2xl py-8 text-sm text-gray-400 shadow-sm">Belum ada barang di database.</div>`;
                 return;
             }
             
-            snapshot.forEach(docSnap => {
-                const data = docSnap.data();
-                const id = docSnap.id;
-                
-                // Format Harga ke Rupiah
-                const formatHarga = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(data.harga);
-                
-                // Render UI Card untuk setiap barang
-                const itemCard = document.createElement('div');
-                itemCard.className = "bg-white p-4 sm:p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md transition-shadow duration-200";
-                itemCard.innerHTML = `
+            databaseBarang.forEach(barang => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4";
+                card.innerHTML = `
                     <div>
-                        <h3 class="font-medium text-gray-900 text-base">${data.nama}</h3>
+                        <h3 class="font-medium text-gray-900">${barang.nama}</h3>
                         <div class="flex items-center gap-3 mt-1">
-                            <span class="text-sm font-semibold text-blue-600">${formatHarga}</span>
-                            <span class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-md">Stok: ${data.stok}</span>
+                            <span class="text-sm font-semibold text-blue-600">${toRupiah(barang.harga)}</span>
+                            <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md">Sisa Stok: ${barang.stok}</span>
                         </div>
                     </div>
                     <div class="flex gap-2 self-end sm:self-auto">
-                        <button class="btn-edit px-4 py-2 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors" 
-                            data-id="${id}" data-nama="${data.nama}" data-harga="${data.harga}" data-stok="${data.stok}">Edit</button>
-                        <button class="btn-delete px-4 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors" 
-                            data-id="${id}">Hapus</button>
+                        <button class="btn-edit px-4 py-2 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors" 
+                            data-id="${barang.id}" data-nama="${barang.nama}" data-harga="${barang.harga}" data-stok="${barang.stok}">Edit</button>
+                        <button class="btn-delete px-4 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-xl transition-colors" 
+                            data-id="${barang.id}">Hapus</button>
                     </div>
                 `;
-                itemList.appendChild(itemCard);
+                gudangListEl.appendChild(card);
             });
 
-            // Pasang event listener ke tombol Edit & Hapus yang baru di-render
             document.querySelectorAll('.btn-edit').forEach(btn => {
                 btn.addEventListener('click', (e) => setEditState(e.target.dataset));
             });
             document.querySelectorAll('.btn-delete').forEach(btn => {
                 btn.addEventListener('click', (e) => hapusBarang(e.target.dataset.id));
             });
-        });
+        }
 
-        // 2 & 3. CREATE / UPDATE: Simpan Data ke Firebase
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const btnOriginalText = btnSubmit.textContent;
             btnSubmit.textContent = "Menyimpan...";
             btnSubmit.disabled = true;
 
@@ -175,14 +415,13 @@
                 resetForm();
             } catch (error) {
                 console.error("Error: ", error);
-                alert("Gagal menyimpan data ke database. Cek koneksi atau rules Firebase Anda.");
+                alert("Gagal memproses data.");
             } finally {
-                btnSubmit.textContent = btnOriginalText;
+                btnSubmit.textContent = "Simpan";
                 btnSubmit.disabled = false;
             }
         });
 
-        // FUNGSI: Siapkan Form untuk Edit
         function setEditState(dataset) {
             isEditing = true;
             idInput.value = dataset.id;
@@ -190,35 +429,30 @@
             priceInput.value = dataset.harga;
             stockInput.value = dataset.stok;
             
-            formTitle.textContent = "Edit Barang";
-            btnSubmit.textContent = "Update Barang";
+            formTitle.textContent = "Edit Produk";
+            btnSubmit.textContent = "Update";
             btnSubmit.classList.replace('bg-blue-600', 'bg-emerald-600');
             btnSubmit.classList.replace('hover:bg-blue-700', 'hover:bg-emerald-700');
             btnCancel.classList.remove('hidden');
             nameInput.focus();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 4. DELETE: Hapus Data
         async function hapusBarang(id) {
-            if(confirm("Apakah Anda yakin ingin menghapus barang ini?")) {
+            if(confirm("Apakah Anda yakin ingin menghapus barang ini secara permanen dari database?")) {
                 try {
-                    const docRef = doc(db, "barang", id);
-                    await deleteDoc(docRef);
+                    await deleteDoc(doc(db, "barang", id));
                 } catch (error) {
-                    console.error("Error: ", error);
                     alert("Gagal menghapus data.");
                 }
             }
         }
 
-        // FUNGSI: Kembalikan Form ke Semula
         function resetForm() {
             isEditing = false;
             idInput.value = '';
             form.reset();
             formTitle.textContent = "Tambah Barang Baru";
-            btnSubmit.textContent = "Simpan Barang";
+            btnSubmit.textContent = "Simpan";
             btnSubmit.classList.replace('bg-emerald-600', 'bg-blue-600');
             btnSubmit.classList.replace('hover:bg-emerald-700', 'hover:bg-blue-700');
             btnCancel.classList.add('hidden');
