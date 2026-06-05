@@ -350,7 +350,6 @@
         import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment, serverTimestamp, where, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // HARAP MASUKKAN FIREBASE CONFIG ANDA DI SINI!
         const firebaseConfig = {
             apiKey: "AIzaSyAsLKh24L8KxN8vqUgLQujmrfeVzc0F9YM",
             authDomain: "pos-system-ef6ee.firebaseapp.com",
@@ -379,8 +378,14 @@
             return 'Memproses...';
         };
 
+        // LOAD LOCAL CACHE DI AWAL AGAR ANTI-BLACKOUT SAAT OFFLINE
+        const cachedItems = localStorage.getItem("pos_cached_items");
+        if (cachedItems) { databaseBarang = JSON.parse(cachedItems); }
+        const cachedShift = localStorage.getItem("pos_cached_shift");
+        if (cachedShift) { activeShiftSession = JSON.parse(cachedShift); }
+
         // ==========================================================================
-        // 1. TRUE OFFLINE-FIRST (INDEXEDDB)
+        // PATCH 1: TRUE OFFLINE-FIRST (INDEXEDDB) DENGAN ENGINE BARU
         // ==========================================================================
         const OFFLINE_DB_NAME = "POS_Offline_Database";
         const OFFLINE_STORE_NAME = "pending_transactions";
@@ -406,15 +411,13 @@
                 const store = tx.objectStore(OFFLINE_STORE_NAME);
                 store.add(saleData);
                 await tx.complete;
-                console.warn("⚠️ Offline: Transaksi diselamatkan di IndexedDB lokal.");
                 return true;
             } catch (error) { console.error("Gagal simpan lokal:", error); return false; }
         }
 
         async function syncOfflineTransactions() {
             if (!navigator.onLine) return;
-            const offlineIndicator = document.getElementById('offline-indicator');
-            offlineIndicator.classList.add('hidden'); // Sembunyikan badge offline
+            document.getElementById('offline-indicator').classList.add('hidden');
 
             try {
                 const idb = await initIndexedDB();
@@ -426,37 +429,49 @@
                     const pendingSales = request.result;
                     if (pendingSales.length === 0) return;
 
-                    console.log(`📡 Koneksi pulih. Sinkronisasi ${pendingSales.length} transaksi...`);
+                    console.log(`📡 Menghubungkan ulang server. Sinkronisasi ${pendingSales.length} data...`);
                     for (const sale of pendingSales) {
                         const localId = sale.localId;
-                        delete sale.localId; // hapus id bawaan browser
-                        sale.waktu = serverTimestamp(); // konversi waktu offline jadi waktu server
+                        delete sale.localId; 
+                        sale.waktu = serverTimestamp(); 
 
-                        await addDoc(salesRef, sale); // Upload ke Firebase
+                        // 1. Upload Transaksi Utama
+                        await addDoc(salesRef, sale); 
                         
-                        // Hapus dari browser
+                        // FIX PATCH 1A: Potong stok asli di Firebase saat sinkronisasi online
+                        for (const item of sale.items) {
+                            await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) });
+                        }
+
+                        // FIX PATCH 1B: Tambah omset shift asli di Firebase saat sinkronisasi online
+                        if (sale.shiftId) {
+                            await updateDoc(doc(db, "shift", sale.shiftId), { totalPenjualan: increment(sale.totalAkhir) });
+                        }
+
+                        // FIX PATCH 1C: Sinkronisasi poin member jika ada
+                        if (sale.memberId) {
+                            const addPoin = Math.floor(sale.totalAkhir / 10000);
+                            if (addPoin > 0) await updateDoc(doc(db, "members", sale.memberId), { poin: increment(addPoin) });
+                        }
+
+                        // Hapus antrean browser
                         const deleteTx = idb.transaction(OFFLINE_STORE_NAME, "readwrite");
                         deleteTx.objectStore(OFFLINE_STORE_NAME).delete(localId);
                     }
-                    await logActivity("SYNC_OFFLINE", `Berhasil sinkronisasi ${pendingSales.length} transaksi tertunda.`);
-                    alert(`✅ Aplikasi kembali Online! ${pendingSales.length} transaksi offline berhasil diunggah.`);
+                    await logActivity("SYNC_OFFLINE", `Sukses mengunggah ${pendingSales.length} transaksi offline ke server.`);
+                    alert(`🎉 Koneksi Stabil! ${pendingSales.length} data penjualan berhasil disingkronisasi ke database pusat.`);
                 };
             } catch(e) { console.error("Gagal sinkron:", e); }
         }
 
-        // Listener Sinyal Internet Browser
         window.addEventListener('online', syncOfflineTransactions);
-        window.addEventListener('offline', () => {
-            document.getElementById('offline-indicator').classList.remove('hidden');
-        });
-        // Check di awal load
-        if(!navigator.onLine) document.getElementById('offline-indicator').classList.remove('hidden');
+        window.addEventListener('offline', () => { document.getElementById('offline-indicator').classList.remove('hidden'); });
 
         // ==========================================================================
-        // 5. AUDIT TRAIL / LOG AKTIVITAS STAF (ANTI-FRAUD)
+        // PATCH 5: AUDIT TRAIL / LOG AKTIVITAS STAF (ANTI-FRAUD)
         // ==========================================================================
         async function logActivity(actionType, actionDetails) {
-            if (!navigator.onLine) return; // Jika offline abaikan log demi kecepatan
+            if (!navigator.onLine) return; 
             try {
                 const userEmail = auth.currentUser ? auth.currentUser.email.split('@')[0] : "Sistem";
                 await addDoc(auditLogsRef, {
@@ -469,7 +484,7 @@
         }
 
         // ==========================================================================
-        // CORE APP LOGIC
+        // CORE APP MANAGEMENT
         // ==========================================================================
         function playBeep() {
             try {
@@ -504,8 +519,17 @@
             authLoading.classList.add('hidden');
             if (user) {
                 currentUserId = user.uid; loginScreen.classList.add('hidden'); appScreen.classList.remove('hidden');
-                const userDocSnap = await getDoc(doc(db, "pengguna", user.uid));
-                if (userDocSnap.exists()) { currentUserRole = userDocSnap.data().role || "kasir"; } else { currentUserRole = "kasir"; await setDoc(doc(db, "pengguna", user.uid), { email: user.email, role: "kasir", nama: user.email.split('@')[0] }); }
+                
+                // Render data dari local cache terlebih dahulu agar instan
+                renderKatalogKasir(); renderGudangList(); renderLowStock();
+                if(activeShiftSession) updateShiftUI(true);
+
+                if (navigator.onLine) {
+                    const userDocSnap = await getDoc(doc(db, "pengguna", user.uid));
+                    if (userDocSnap.exists()) { currentUserRole = userDocSnap.data().role || "kasir"; } 
+                    else { currentUserRole = "kasir"; await setDoc(doc(db, "pengguna", user.uid), { email: user.email, role: "kasir", nama: user.email.split('@')[0] }); }
+                }
+                
                 document.getElementById('user-display-name').textContent = user.email.split('@')[0];
                 document.getElementById('user-display-role').textContent = currentUserRole === 'admin' ? 'Administrator' : 'Kasir Staff';
                 applyRoleAccess(); initRealtimeListeners(); checkActiveShift(user.uid); updateHoldCountBadge(); syncOfflineTransactions();
@@ -526,14 +550,24 @@
 
         document.getElementById('btn-logout').addEventListener('click', () => { 
             if (activeShiftSession) { alert("Tutup shift kasir sebelum keluar!"); switchTab('kasir'); return; }
-            if(confirm("Keluar dari sistem?")) signOut(auth).then(() => { keranjang = []; renderKeranjang(); }); 
+            if(confirm("Keluar dari sistem?")) signOut(auth).then(() => { keranjang = []; renderKeranjang(); localStorage.clear(); }); 
         });
 
-        // SHIFT LOGIC
+        // SHIFT MANAGEMENT
         function checkActiveShift(uid) {
             onSnapshot(query(shiftsRef, where("userId", "==", uid), where("status", "==", "buka"), limit(1)), (snapshot) => {
-                if (!snapshot.empty) { snapshot.forEach(doc => { activeShiftSession = { id: doc.id, ...doc.data() }; }); updateShiftUI(true); } 
-                else { activeShiftSession = null; updateShiftUI(false); }
+                if (!snapshot.empty) { 
+                    snapshot.forEach(doc => { activeShiftSession = { id: doc.id, ...doc.data() }; }); 
+                    localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
+                    updateShiftUI(true); 
+                } 
+                else { 
+                    if (navigator.onLine) {
+                        activeShiftSession = null; 
+                        localStorage.removeItem("pos_cached_shift");
+                        updateShiftUI(false); 
+                    }
+                }
             });
         }
 
@@ -564,9 +598,12 @@
             document.getElementById('btn-close-shift-modal').classList.add('hidden'); document.getElementById('btn-shift-submit').textContent = "Buka";
             document.getElementById('shift-form').onsubmit = async (e) => {
                 e.preventDefault(); const val = parseFloat(document.getElementById('shift-cash-input').value);
-                await addDoc(shiftsRef, { userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, status: "buka" });
+                const docRef = await addDoc(shiftsRef, { userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, status: "buka" });
+                activeShiftSession = { id: docRef.id, userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], modalAwal: val, totalPenjualan: 0, status: "buka" };
+                localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
                 await logActivity("SHIFT_BUKA", `Kasir membuka shift dengan modal ${toRupiah(val)}`);
                 document.getElementById('shift-modal').classList.add('hidden');
+                updateShiftUI(true);
             };
             document.getElementById('shift-form').reset(); document.getElementById('shift-modal').classList.remove('hidden');
         };
@@ -581,7 +618,7 @@
                 await updateDoc(doc(db, "shift", activeShiftSession.id), { waktuTutup: serverTimestamp(), uangFisikAktual: val, selisih: selisih, status: "tutup" });
                 await logActivity("SHIFT_TUTUP", `Kasir menutup shift. Selisih kas: ${toRupiah(selisih)}`);
                 alert(`Shift Ditutup. Selisih: ${toRupiah(selisih)}`);
-                document.getElementById('shift-modal').classList.add('hidden'); activeShiftSession = null; updateShiftUI(false);
+                document.getElementById('shift-modal').classList.add('hidden'); activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false);
             };
             document.getElementById('shift-form').reset(); document.getElementById('shift-modal').classList.remove('hidden');
         };
@@ -596,13 +633,17 @@
             if (id === 'dashboard' && chartInstance) setTimeout(() => chartInstance.update(), 100);
         }
 
-        // REALTIME DATABASE LISTENERS
+        // REALTIME DATABASE LISTENERS DENGAN FITUR AUTO LOCAL-CACHE
         function initRealtimeListeners() {
-            unsubscribeItems = onSnapshot(query(itemsRef, orderBy("nama", "asc")), (snapshot) => { databaseBarang = []; snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() })); renderKatalogKasir(); renderGudangList(); renderLowStock(); });
+            unsubscribeItems = onSnapshot(query(itemsRef, orderBy("nama", "asc")), (snapshot) => { 
+                databaseBarang = []; 
+                snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() })); 
+                localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang)); // FIX PATCH 3: Simpan data produk ke memori internal
+                renderKatalogKasir(); renderGudangList(); renderLowStock(); 
+            });
             unsubscribeSales = onSnapshot(query(salesRef, orderBy("waktu", "desc")), (snapshot) => { riwayatPenjualan = []; snapshot.forEach(doc => riwayatPenjualan.push({ id: doc.id, ...doc.data() })); applyFiltersAndStats(); renderRiwayatTable(); });
             if (currentUserRole === 'admin') {
                 unsubscribeShifts = onSnapshot(query(shiftsRef, orderBy("waktuBuka", "desc")), (snapshot) => { dataShiftAll = []; snapshot.forEach(doc => dataShiftAll.push({ id: doc.id, ...doc.data() })); renderShiftLogs(); });
-                // Tambahan: Listener untuk Audit Logs
                 unsubscribeAudit = onSnapshot(query(auditLogsRef, orderBy("timestamp", "desc"), limit(50)), (snapshot) => { auditLogsData = []; snapshot.forEach(doc => auditLogsData.push({ id: doc.id, ...doc.data() })); renderAuditLogs(); });
             }
         }
@@ -647,7 +688,7 @@
             list.innerHTML = lowStockItems.map(i => `<div class="flex justify-between items-center bg-dark-8 p-3 rounded-xl border border-dark-4"><span class="text-xs font-semibold text-gray-200">${i.nama}</span><span class="px-2.5 py-1 text-[10px] font-bold rounded-md ${i.stok===0?'bg-red-900/40 text-red-400 border border-red-900':'bg-amber-900/40 text-amber-400 border border-amber-900'}">Stok: ${i.stok}</span></div>`).join('');
         }
 
-        // PEMBAYARAN METHOD UI
+        // METODE PEMBAYARAN UI MANAGER
         const payMethods = { 'Tunai': document.getElementById('pay-method-cash'), 'QRIS': document.getElementById('pay-method-qris'), 'Debit': document.getElementById('pay-method-debit'), 'Transfer': document.getElementById('pay-method-tf') };
         Object.entries(payMethods).forEach(([method, btn]) => {
             btn.addEventListener('click', () => {
@@ -663,7 +704,7 @@
             });
         });
 
-        // HOLD & RECALL BILL
+        // HOLD & RECALL BILL SYSTEM
         document.getElementById('btn-hold-bill').addEventListener('click', () => {
             if (keranjang.length === 0) return alert("Keranjang kosong!");
             let holdName = prompt("Nama Penanda (cth: Meja 5 / Bpk Andi):"); if (holdName === null) return;
@@ -701,7 +742,7 @@
 
         window.deleteHeldBill = (id) => { const heldBills = JSON.parse(localStorage.getItem('pos_held_bills') || '[]'); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills.filter(b => b.id !== id))); renderHoldModalList(); updateHoldCountBadge(); };
 
-        // MEMBERSHIP UI
+        // MEMBERSHIP REGISTER & LOOKUP
         document.getElementById('btn-check-member').addEventListener('click', async () => {
             const phone = document.getElementById('member-search-input').value.trim(); if (!phone) return;
             document.getElementById('btn-check-member').disabled = true; document.getElementById('btn-check-member').textContent = "...";
@@ -721,7 +762,7 @@
 
         function showActiveMemberUI() { document.getElementById('member-select-zone').classList.add('hidden'); document.getElementById('member-active-zone').classList.remove('hidden'); document.getElementById('btn-remove-member').classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${activeMember.nama.toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0}`; }
 
-        // KASIR KATALOG & SEARCH
+        // KASIR KATALOG VIEW & ENGINE
         document.getElementById('kasir-search').addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase(); renderKatalogKasir(); });
         function renderKatalogKasir() {
             const categoriesSet = new Set(databaseBarang.map(i => i.kategori));
@@ -751,7 +792,7 @@
             keranjang[index].qty += delta;
             if (keranjang[index].qty <= 0) { 
                 const removedItem = keranjang[index];
-                await logActivity("CART_HAPUS_ITEM", `Kasir menghapus [${removedItem.nama}] dari keranjang belanja.`); // AUDIT TRAIL 
+                await logActivity("CART_HAPUS_ITEM", `Kasir menghapus [${removedItem.nama}] dari keranjang belanja.`); 
                 keranjang.splice(index, 1); 
             } 
             else if (keranjang[index].qty > itemDb.stok) { keranjang[index].qty = itemDb.stok; }
@@ -792,7 +833,7 @@
         }
 
         // ==========================================================================
-        // PROSES TRANSAKSI (GABUNGAN OFFLINE & ONLINE)
+        // PROSES TRANSAKSI (GABUNGAN ENGINE ONLINE & OFFLINE)
         // ==========================================================================
         document.getElementById('btn-checkout').addEventListener('click', async () => {
             if(keranjang.length === 0 || !activeShiftSession) return;
@@ -807,25 +848,36 @@
 
             try {
                 if (navigator.onLine) {
-                    // TRANSAKSI ONLINE (Standar)
+                    // TRANSAKSI ONLINE NORMAL
                     trxData.waktu = serverTimestamp();
                     await addDoc(salesRef, trxData);
                     for (const item of keranjang) { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); }
                     await updateDoc(doc(db, "shift", activeShiftSession.id), { totalPenjualan: increment(globalGrandTotal) });
                     if (activeMember) { const addPoin = Math.floor(globalGrandTotal / 10000); if (addPoin > 0) await updateDoc(doc(db, "members", activeMember.id), { poin: increment(addPoin) }); }
                     
-                    await logActivity("CHECKOUT_ONLINE", `Penjualan Rp ${toRupiah(globalGrandTotal)} diproses kasir.`); // AUDIT TRAIL
+                    await logActivity("CHECKOUT_ONLINE", `Penjualan Rp ${toRupiah(globalGrandTotal)} diproses.`); 
                 } else {
-                    // TRANSAKSI OFFLINE (IndexedDB)
+                    // FIX PATCH 2: TRANSAKSI OFFLINE EMULASI SECARA NYATA DI UI
                     trxData.waktuLokal = new Date().toISOString();
                     trxData.isOfflinePending = true;
                     await saveTransactionOffline(trxData);
-                    // Poin dan stok DB akan diupdate nanti saat sinkronisasi, untuk UI bisa dibiarkan (akan reset)
-                    alert("⚠️ KONEKSI TERPUTUS! Transaksi disimpan di memori HP/Komputer. Akan dikirim saat internet hidup.");
-                    await logActivity("CHECKOUT_OFFLINE", `Penjualan Offline Rp ${toRupiah(globalGrandTotal)} di-hold di lokal.`); // AUDIT TRAIL
+                    
+                    // Potong stok lokal di memori secara instan agar katalog akurat
+                    for (const item of keranjang) {
+                        const found = databaseBarang.find(x => x.id === item.id);
+                        if (found) found.stok = Math.max(0, found.stok - item.qty);
+                    }
+                    localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang));
+
+                    // Tambah saldo laci lokal secara instan
+                    activeShiftSession.totalPenjualan = (activeShiftSession.totalPenjualan || 0) + globalGrandTotal;
+                    localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
+                    
+                    updateShiftUI(true); renderKatalogKasir(); renderGudangList(); renderLowStock();
+                    alert("⚠️ KONEKSI TERPUTUS! Transaksi dicetak & diamankan di browser. Stok & Omset laci disesuaikan secara lokal.");
                 }
 
-                cetakStrukThermal({...trxData, waktu: { seconds: Date.now()/1000 }}); // Cetak Struk selalu bisa offline/online
+                cetakStrukThermal({...trxData, waktu: { seconds: Date.now()/1000 }}); 
                 
                 keranjang = []; document.getElementById('cart-discount').value = ""; document.getElementById('cash-paid').value = ""; document.getElementById('btn-remove-member').click(); renderKeranjang();
             } catch(err) { alert("Error: " + err.message); } finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Transaksi"; hitungUangKembalian(); }
@@ -852,7 +904,7 @@
         }
 
         // ==========================================================================
-        // GUDANG & AUDIT TRAIL LOGIC
+        // GUDANG INVENTARIS ENGINE
         // ==========================================================================
         const itemForm = document.getElementById('item-form');
         itemForm.addEventListener('submit', async (e) => {
@@ -860,21 +912,33 @@
             const data = { barcode: document.getElementById('item-barcode').value.trim(), nama: document.getElementById('item-name').value.trim(), kategori: document.getElementById('item-category').value.trim(), harga: parseFloat(document.getElementById('item-price').value), stok: parseInt(document.getElementById('item-stock').value) };
             if(id) { 
                 await updateDoc(doc(db, "barang", id), data); 
-                await logActivity("GUDANG_UBAH", `Memperbarui produk [${data.nama}]. Stok jadi ${data.stok}, Harga ${toRupiah(data.harga)}`); // AUDIT TRAIL
+                await logActivity("GUDANG_UBAH", `Memperbarui produk [${data.nama}]. Stok: ${data.stok}, Harga: ${toRupiah(data.harga)}`); 
             } else { 
                 await addDoc(itemsRef, data); 
-                await logActivity("GUDANG_TAMBAH", `Memasukkan produk baru [${data.nama}] qty: ${data.stok}`); // AUDIT TRAIL
+                await logActivity("GUDANG_TAMBAH", `Memasukkan produk baru [${data.nama}] qty: ${data.stok}`); 
             }
             window.resetForm();
         });
 
-        window.editBarang = (id, bcode, nama, kategori, harga, stok) => {
-            document.getElementById('form-title').textContent = "Ubah Data Barang"; document.getElementById('item-id').value = id; document.getElementById('item-barcode').value = bcode || ""; document.getElementById('item-name').value = nama; document.getElementById('item-category').value = kategori; document.getElementById('item-price').value = harga; document.getElementById('item-stock').value = stok; document.getElementById('btn-cancel').classList.remove('hidden');
+        // FIX PATCH 4: Sistem pemanggilan ID saja untuk menghindari tabrakan string karakter khusus
+        window.editBarang = (id) => {
+            const item = databaseBarang.find(x => x.id === id);
+            if (!item) return;
+            document.getElementById('form-title').textContent = "Ubah Data Barang"; 
+            document.getElementById('item-id').value = item.id; 
+            document.getElementById('item-barcode').value = item.barcode || ""; 
+            document.getElementById('item-name').value = item.nama; 
+            document.getElementById('item-category').value = item.kategori; 
+            document.getElementById('item-price').value = item.harga; 
+            document.getElementById('item-stock').value = item.stok; 
+            document.getElementById('btn-cancel').classList.remove('hidden');
         };
 
-        window.hapusBarang = async (id, nama) => { 
-            if(confirm(`Hapus produk ${nama} permanen?`)) { 
-                await logActivity("GUDANG_HAPUS", `Menghapus produk [${nama}] dari master data.`); // AUDIT TRAIL
+        window.hapusBarang = async (id) => { 
+            const item = databaseBarang.find(x => x.id === id);
+            if(!item) return;
+            if(confirm(`Hapus produk ${item.nama} secara permanen?`)) { 
+                await logActivity("GUDANG_HAPUS", `Menghapus produk [${item.nama}] dari master data.`); 
                 await deleteDoc(doc(db, "barang", id)); 
             } 
         };
@@ -888,16 +952,16 @@
             container.innerHTML = databaseBarang.map(i => `
                 <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div><span class="text-[9px] font-bold text-dark-2 mb-0.5 block">${i.barcode ? '📟 '+i.barcode : i.kategori}</span><h3 class="font-bold text-gray-100 text-sm">${i.nama}</h3><div class="flex items-center gap-3 mt-1.5"><span class="text-sm font-extrabold text-mantine-blue">${toRupiah(i.harga)}</span><span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-dark-5 text-dark-0 rounded-md border border-dark-4 ${i.stok<=5?'!bg-red-900/30 !text-red-400':''}">Stok: ${i.stok}</span></div></div>
-                    <div class="flex gap-2"><button onclick="window.editBarang('${i.id}', '${i.barcode||''}', \`${i.nama}\`, '${i.kategori}', ${i.harga}, ${i.stok})" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-xl">Ubah</button><button onclick="window.hapusBarang('${i.id}', \`${i.nama}\`)" class="px-3 py-2 bg-red-950/20 text-red-400 border border-red-950 text-xs font-bold rounded-xl">Hapus</button></div>
+                    <div class="flex gap-2"><button onclick="window.editBarang('${i.id}')" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-xl">Ubah</button><button onclick="window.hapusBarang('${i.id}')" class="px-3 py-2 bg-red-950/20 text-red-400 border border-red-950 text-xs font-bold rounded-xl">Hapus</button></div>
                 </div>`).join('');
         }
 
         // ==========================================================================
-        // RENDER RIWAYAT, SHIFT LOGS, & AUDIT LOGS (ADMIN AREA)
+        // RENDER RIWAYAT, REKONSILISASI & AUDIT VIEW (PANEL ADMIN)
         // ==========================================================================
         function renderRiwayatTable() {
             const tbody = document.getElementById('riwayat-list'); if(!tbody) return;
-            if(riwayatPenjualan.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-xs text-dark-2 italic">Belum ada transaksi terdaftar.</td></tr>`; return; }
+            if(riwayatPenjualan.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-xs text-dark-2 italic">Belum ada transaksi terdaftar.</td></tr>`; return; }
             tbody.innerHTML = riwayatPenjualan.map(trx => {
                 const itemsStr = trx.items ? trx.items.map(i => `${i.nama} (${i.qty}x)`).join(', ') : '';
                 return `
