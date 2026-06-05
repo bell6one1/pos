@@ -37,6 +37,9 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         * { transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease; }
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.6; }
+        
+        /* GARANSI ANTI MACET UNTUK PERPINDAHAN TAB */
+        .hidden { display: none !important; } 
     </style>
 </head>
 <body class="bg-dark-7 text-dark-0 font-sans antialiased min-h-screen selection:bg-mantine-blue selection:text-white">
@@ -112,7 +115,7 @@
                             <div class="w-6 h-6 rounded-md bg-mantine-blue text-white flex items-center justify-center text-xs">⚡</div> POS Enterprise
                         </span>
                         <div class="flex h-full space-x-2 pt-2 min-w-max">
-                            <button id="tab-dashboard-btn" class="nav-tab border-b-2 border-mantine-blue text-mantine-blue px-3 text-sm font-medium h-full flex items-center gap-2"><span>📊</span> Dashboard</button>
+                            <button id="tab-dashboard-btn" class="nav-tab border-b-2 border-transparent text-dark-1 hover:text-gray-100 px-3 text-sm font-medium h-full flex items-center gap-2"><span>📊</span> Dashboard</button>
                             <button id="tab-kasir-btn" class="nav-tab border-b-2 border-transparent text-dark-1 hover:text-gray-100 px-3 text-sm font-medium h-full flex items-center gap-2"><span>🎯</span> Kasir</button>
                             <button id="tab-gudang-btn" class="nav-tab border-b-2 border-transparent text-dark-1 hover:text-gray-100 px-3 text-sm font-medium h-full flex items-center gap-2"><span>📦</span> Gudang</button>
                             <button id="tab-riwayat-btn" class="nav-tab border-b-2 border-transparent text-dark-1 hover:text-gray-100 px-3 text-sm font-medium h-full flex items-center gap-2"><span>🧾</span> Riwayat & Audit</button>
@@ -134,7 +137,7 @@
 
         <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
 
-            <div id="tab-dashboard" class="tab-content space-y-6">
+            <div id="tab-dashboard" class="tab-content hidden space-y-6">
                 <div class="bg-dark-6 p-5 rounded-xl border border-dark-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div class="flex flex-wrap items-center gap-2 bg-dark-8 p-1 rounded-lg border border-dark-4">
                         <button onclick="window.setShortcutTanggal('hari-ini')" class="px-4 py-2 text-xs font-medium bg-dark-5 text-gray-100 shadow-sm rounded-md">Hari Ini</button>
@@ -293,7 +296,7 @@
                 <div>
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                         <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide">Riwayat Transaksi Penjualan</h2>
-                        <button id="btn-export-excel" class="hidden px-4 py-2 text-xs font-semibold text-white bg-green-700 hover:bg-green-600 rounded-lg flex items-center gap-2">Export Excel</button>
+                        <button id="btn-export-excel" class="px-4 py-2 text-xs font-semibold text-white bg-green-700 hover:bg-green-600 rounded-lg flex items-center gap-2">Export Excel</button>
                     </div>
                     <div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden">
                         <div class="overflow-x-auto no-scrollbar">
@@ -370,17 +373,15 @@
         let currentUserRole = "kasir"; let activeShiftSession = null; let currentUserId = null;
         let selectedPaymentMethod = "Tunai"; let activeMember = null; 
 
-        // [PROTEKSI BUG] Mengamankan NumberFormatter jika data rusak
         const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka || 0);
         
-        // [PROTEKSI BUG] Mengamankan Date Parser jika data waktu null/corrupt
         const formatTanggal = (timestamp) => { 
             if(!timestamp) return 'Pending...'; 
             try {
                 if(typeof timestamp === 'string') return new Date(timestamp).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
                 if(timestamp.seconds) return new Date(timestamp.seconds * 1000).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
                 if(timestamp instanceof Date) return timestamp.toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
-                return 'Memproses...';
+                return '-';
             } catch(e) { return '-'; }
         };
 
@@ -391,7 +392,7 @@
         if (cachedShift) { try { activeShiftSession = JSON.parse(cachedShift); } catch(e){} }
 
         // ==========================================================================
-        // TRUE OFFLINE-FIRST (INDEXEDDB) ENGINE
+        // INDEXEDDB OFFLINE ENGINE
         // ==========================================================================
         const OFFLINE_DB_NAME = "POS_Offline_Database";
         const OFFLINE_STORE_NAME = "pending_transactions";
@@ -467,22 +468,16 @@
                         const deleteTx = idb.transaction(OFFLINE_STORE_NAME, "readwrite");
                         deleteTx.objectStore(OFFLINE_STORE_NAME).delete(localId);
                     }
-                    await logActivity("SYNC_OFFLINE", `Sukses mengunggah ${pendingSales.length} transaksi offline ke server.`);
-                    alert(`🎉 Koneksi Stabil! ${pendingSales.length} data penjualan berhasil disingkronisasi ke database pusat.`);
+                    await logActivity("SYNC_OFFLINE", `Sukses mengunggah ${pendingSales.length} transaksi offline.`);
+                    alert(`🎉 Koneksi Stabil! ${pendingSales.length} data penjualan offline berhasil diunggah.`);
                     applyFiltersAndStats();
                 };
-            } catch(e) { console.error("Gagal sinkron:", e); }
+            } catch(e) {}
         }
 
         window.addEventListener('online', syncOfflineTransactions);
-        window.addEventListener('offline', () => { 
-            document.getElementById('offline-indicator').classList.remove('hidden'); 
-            applyFiltersAndStats(); 
-        });
+        window.addEventListener('offline', () => { document.getElementById('offline-indicator').classList.remove('hidden'); applyFiltersAndStats(); });
 
-        // ==========================================================================
-        // AUDIT TRAIL / LOG AKTIVITAS STAF
-        // ==========================================================================
         async function logActivity(actionType, actionDetails) {
             if (!navigator.onLine) return; 
             try {
@@ -491,9 +486,6 @@
             } catch (error) {}
         }
 
-        // ==========================================================================
-        // BEEP & BARCODE ENGINE
-        // ==========================================================================
         function playBeep() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -514,10 +506,7 @@
                 if (b && b.stok > 0) { window.tambahKeKeranjang(b.id); document.getElementById('kasir-search').value = ""; kataKunciPencarian = ""; renderKatalogKasir(); }
                 barcodeBuffer = "";
             } else {
-                if (e.key.length === 1) {
-                    barcodeBuffer += e.key; clearTimeout(barcodeTimeout);
-                    barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 100); 
-                }
+                if (e.key.length === 1) { barcodeBuffer += e.key; clearTimeout(barcodeTimeout); barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 100); }
             }
         });
 
@@ -539,14 +528,12 @@
                         const userDocSnap = await getDoc(doc(db, "pengguna", user.uid));
                         if (userDocSnap.exists()) { 
                             currentUserRole = userDocSnap.data().role || "kasir"; 
-                            localStorage.setItem("pos_user_role", currentUserRole); // Cache role
+                            localStorage.setItem("pos_user_role", currentUserRole); 
                         } else { 
                             currentUserRole = "kasir"; 
                             await setDoc(doc(db, "pengguna", user.uid), { email: user.email, role: "kasir", nama: user.email.split('@')[0] }); 
                         }
-                    } catch(e) {
-                        currentUserRole = localStorage.getItem("pos_user_role") || "kasir";
-                    }
+                    } catch(e) { currentUserRole = localStorage.getItem("pos_user_role") || "kasir"; }
                 } else {
                     currentUserRole = localStorage.getItem("pos_user_role") || "kasir";
                 }
@@ -557,9 +544,46 @@
             } else { appScreen.classList.add('hidden'); loginScreen.classList.remove('hidden'); stopRealtimeListeners(); activeShiftSession = null; currentUserId = null; }
         });
 
+        // ==========================================================================
+        // REVISI SYSTEM TAB MENU (ANTI-MACET)
+        // ==========================================================================
+        const tabsBtns = document.querySelectorAll('.nav-tab'); const contents = document.querySelectorAll('.tab-content');
+        
+        function switchTab(id) {
+            // Sembunyikan semua tab content
+            contents.forEach(c => c.classList.add('hidden')); 
+            
+            // Reset warna tombol tab
+            tabsBtns.forEach(t => {
+                t.classList.remove('border-mantine-blue', 'text-mantine-blue');
+                t.classList.add('border-transparent', 'text-dark-1');
+            });
+
+            // Tampilkan tab yang dipilih
+            const targetContent = document.getElementById(`tab-${id}`); 
+            if(targetContent) targetContent.classList.remove('hidden');
+            
+            // Warnai tombol tab yang aktif
+            const targetBtn = document.getElementById(`tab-${id}-btn`); 
+            if(targetBtn) {
+                targetBtn.classList.remove('border-transparent', 'text-dark-1');
+                targetBtn.classList.add('border-mantine-blue', 'text-mantine-blue');
+            }
+
+            if (id === 'dashboard' && chartInstance) setTimeout(() => chartInstance.update(), 100);
+        }
+
+        tabsBtns.forEach(tab => { tab.addEventListener('click', () => switchTab(tab.id.replace('-btn', ''))); });
+
         function applyRoleAccess() {
             const arr = ['tab-dashboard-btn', 'tab-gudang-btn', 'btn-export-excel', 'admin-shift-log-section'];
-            arr.forEach(id => { const el = document.getElementById(id); if (currentUserRole === "admin") el.classList.remove('hidden'); else el.classList.add('hidden'); });
+            arr.forEach(id => { 
+                const el = document.getElementById(id); 
+                if (el) {
+                    if (currentUserRole === "admin") el.classList.remove('hidden'); 
+                    else el.classList.add('hidden'); 
+                }
+            });
             switchTab(currentUserRole === "admin" ? 'dashboard' : 'kasir');
         }
 
@@ -574,9 +598,6 @@
             if(confirm("Keluar dari sistem?")) signOut(auth).then(() => { keranjang = []; renderKeranjang(); localStorage.clear(); }); 
         });
 
-        // ==========================================================================
-        // SHIFT MANAGEMENT
-        // ==========================================================================
         function checkActiveShift(uid) {
             onSnapshot(query(shiftsRef, where("userId", "==", uid), where("status", "==", "buka"), limit(1)), (snapshot) => {
                 if (!snapshot.empty) { 
@@ -631,18 +652,6 @@
             document.getElementById('shift-form').reset(); document.getElementById('shift-modal').classList.remove('hidden');
         };
 
-        const tabsBtns = document.querySelectorAll('.nav-tab'); const contents = document.querySelectorAll('.tab-content');
-        tabsBtns.forEach(tab => { tab.addEventListener('click', () => switchTab(tab.id.replace('-btn', ''))); });
-        function switchTab(id) {
-            contents.forEach(c => c.classList.add('hidden')); tabsBtns.forEach(t => t.className = "nav-tab border-b-2 border-transparent text-dark-1 hover:text-gray-100 px-3 text-sm font-medium h-full flex items-center gap-2");
-            const targetContent = document.getElementById(`tab-${id}`); if(targetContent) targetContent.classList.remove('hidden');
-            const targetBtn = document.getElementById(`tab-${id}-btn`); if(targetBtn) targetBtn.className = "nav-tab border-b-2 border-mantine-blue text-mantine-blue px-3 text-sm font-medium h-full flex items-center gap-2";
-            if (id === 'dashboard' && chartInstance) setTimeout(() => chartInstance.update(), 100);
-        }
-
-        // ==========================================================================
-        // REALTIME DATABASE & DASHBOARD STATS
-        // ==========================================================================
         function initRealtimeListeners() {
             unsubscribeItems = onSnapshot(query(itemsRef, orderBy("nama", "asc")), (snapshot) => { 
                 databaseBarang = []; snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() })); 
@@ -675,14 +684,10 @@
             let endTs = endVal ? new Date(endVal + "T23:59:59").getTime() : Infinity;
             
             let allSales = [...riwayatPenjualan];
-            if (!navigator.onLine) {
-                const offlineSales = await loadOfflineTransactions();
-                allSales = [...offlineSales.reverse(), ...allSales]; 
-            }
+            if (!navigator.onLine) { const offlineSales = await loadOfflineTransactions(); allSales = [...offlineSales.reverse(), ...allSales]; }
 
             dataPenjualanTerfilter = allSales.filter(sale => {
-                const w = sale.waktu || sale.waktuLokal;
-                if (!w) return false;
+                const w = sale.waktu || sale.waktuLokal; if (!w) return false;
                 const ms = w.seconds ? w.seconds * 1000 : new Date(w).getTime();
                 return ms >= startTs && ms <= endTs;
             });
@@ -690,9 +695,7 @@
             let totalOmset = 0; let totalTrx = dataPenjualanTerfilter.length; let totalItems = 0; let produkCounts = {};
             dataPenjualanTerfilter.forEach(sale => { 
                 totalOmset += sale.totalAkhir || 0; 
-                if (Array.isArray(sale.items)) { 
-                    sale.items.forEach(i => { totalItems += i.qty || 0; produkCounts[i.nama||'Item'] = (produkCounts[i.nama||'Item'] || 0) + i.qty; }); 
-                } 
+                if (Array.isArray(sale.items)) { sale.items.forEach(i => { totalItems += i.qty || 0; produkCounts[i.nama||'Item'] = (produkCounts[i.nama||'Item'] || 0) + i.qty; }); } 
             });
 
             document.getElementById('dash-omset').textContent = toRupiah(totalOmset); document.getElementById('dash-transaksi').textContent = totalTrx; document.getElementById('dash-items').innerHTML = `${totalItems} <span class="text-lg font-medium text-dark-2">Item</span>`;
@@ -702,9 +705,7 @@
         }
 
         function renderChart(labels, values) {
-            // [BUG FIX 1] Pencegahan Crash jika CDN Chart.js Gagal Termuat saat Offline
             if (typeof Chart === 'undefined') return; 
-            
             const ctx = document.getElementById('chartProdukTerlaris'); if(!ctx) return; if (chartInstance) chartInstance.destroy();
             if (labels.length === 0) { labels = ["Belum ada data"]; values = [0]; }
             chartInstance = new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Qty Terjual', data: values, backgroundColor: '#1971c2', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#909296', font: { family: 'Inter', size: 11 } } }, y: { grid: { color: '#373A40' }, ticks: { color: '#909296', font: { family: 'Inter', size: 11 }, precision: 0 } } } } });
@@ -743,7 +744,6 @@
         });
 
         document.getElementById('btn-recall-bill').addEventListener('click', () => { renderHoldModalList(); document.getElementById('hold-modal').classList.remove('hidden'); });
-
         function updateHoldCountBadge() { document.getElementById('hold-count-badge').textContent = JSON.parse(localStorage.getItem('pos_held_bills') || '[]').length; }
 
         function renderHoldModalList() {
@@ -857,9 +857,6 @@
             }
         }
 
-        // ==========================================================================
-        // PROSES CHECKOUT FINAL
-        // ==========================================================================
         document.getElementById('btn-checkout').addEventListener('click', async () => {
             if(keranjang.length === 0 || !activeShiftSession) return;
             const btnCheckout = document.getElementById('btn-checkout'); btnCheckout.disabled = true; btnCheckout.textContent = "MEMPROSES...";
@@ -899,7 +896,7 @@
 
                 cetakStrukThermal({...trxData, waktu: { seconds: Date.now()/1000 }}); 
                 keranjang = []; document.getElementById('cart-discount').value = ""; document.getElementById('cash-paid').value = ""; document.getElementById('btn-remove-member').click(); renderKeranjang();
-                applyFiltersAndStats(); // Segarkan tampilan dashboard untuk data offline
+                applyFiltersAndStats(); 
             } catch(err) { alert("Error: " + err.message); } finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Transaksi"; hitungUangKembalian(); }
         });
 
@@ -961,9 +958,6 @@
                 </div>`).join('');
         }
 
-        // ==========================================================================
-        // RENDER RIWAYAT, REKONSILISASI & AUDIT VIEW (PANEL ADMIN)
-        // ==========================================================================
         function renderRiwayatTable() {
             const tbody = document.getElementById('riwayat-list'); if(!tbody) return;
             if(dataPenjualanTerfilter.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-xs text-dark-2 italic">Belum ada transaksi terdaftar.</td></tr>`; return; }
@@ -981,7 +975,7 @@
         }
 
         window.reprintTrx = async (id) => { 
-            const offlineTrx = dataPenjualanTerfilter.find(t => t.localId === id || t.id === id);
+            const offlineTrx = dataPenjualanTerfilter.find(t => t.localId == id || t.id == id);
             if (offlineTrx) { cetakStrukThermal(offlineTrx); } 
             else { const docSnap = await getDoc(doc(db, "penjualan", id)); if(docSnap.exists()) { cetakStrukThermal(docSnap.data()); } }
         };
@@ -1013,25 +1007,13 @@
                 </tr>`).join('');
         }
 
-        // [BUG FIX EXCEL] Pemanggilan variabel input dengan benar
         document.getElementById('btn-export-excel').addEventListener('click', () => {
             if (dataPenjualanTerfilter.length === 0) return alert("Data kosong.");
-            
             const startInputDOM = document.getElementById('filter-date-start');
             const fileNameDate = startInputDOM ? (startInputDOM.value || 'Semua') : 'Semua';
-            
             const dataExcel = dataPenjualanTerfilter.map(trx => { 
                 const itemsStr = Array.isArray(trx.items) ? trx.items.map(i => `${i.nama||'Item'} (${i.qty}x)`).join(', ') : '';
-                return { 
-                    'Waktu': trx.waktu && trx.waktu.seconds ? new Date(trx.waktu.seconds * 1000).toLocaleString('id-ID') : (trx.waktuLokal || '-'), 
-                    'Daftar Barang': itemsStr, 
-                    'Metode Pembayaran': trx.metodePembayaran || 'Tunai', 
-                    'Subtotal': trx.subtotal || 0, 
-                    'Diskon': trx.diskon || 0, 
-                    'Grand Total': trx.totalAkhir || 0, 
-                    'Uang Masuk/Bayar': trx.uangBayar || 0, 
-                    'Kembalian': trx.kembalian || 0 
-                }; 
+                return { 'Waktu': trx.waktu && trx.waktu.seconds ? new Date(trx.waktu.seconds * 1000).toLocaleString('id-ID') : (trx.waktuLokal || '-'), 'Daftar Barang': itemsStr, 'Metode Pembayaran': trx.metodePembayaran || 'Tunai', 'Subtotal': trx.subtotal || 0, 'Diskon': trx.diskon || 0, 'Grand Total': trx.totalAkhir || 0, 'Uang Masuk/Bayar': trx.uangBayar || 0, 'Kembalian': trx.kembalian || 0 }; 
             });
             const worksheet = XLSX.utils.json_to_sheet(dataExcel); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Omset");
             XLSX.writeFile(workbook, `Laporan_POS_${fileNameDate}.xlsx`);
@@ -1039,7 +1021,7 @@
 		
 		if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(reg => console.log('SW Registered')).catch(err => console.log('SW Fail', err));
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Fail', err));
             });
         }
     </script>
