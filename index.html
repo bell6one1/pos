@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS Modern - Fitur Lengkap v6</title>
+    <title>POS Modern - Fitur Lengkap v7</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -56,7 +56,13 @@
                             <button id="tab-riwayat-btn" class="nav-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 px-2 sm:px-3 text-sm font-medium h-full transition-all">🧾 Riwayat</button>
                         </div>
                     </div>
-                    <button id="btn-logout" class="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors shrink-0">Keluar 🚪</button>
+                    <div class="flex items-center gap-3 shrink-0">
+                        <div class="text-right hidden sm:block">
+                            <p id="user-display-name" class="text-xs font-semibold text-gray-700">Memuat...</p>
+                            <p id="user-display-role" class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Kasir</p>
+                        </div>
+                        <button id="btn-logout" class="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">Keluar 🚪</button>
+                    </div>
                 </div>
             </div>
         </nav>
@@ -172,7 +178,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment, serverTimestamp } 
+        import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment, serverTimestamp } 
         from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } 
         from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -203,10 +209,12 @@
         let filterKategoriAktif = "Semua";
         let kataKunciPencarian = "";
         
-        // State Kalkulasi Keranjang
         let globalSubtotal = 0;
         let globalDiskon = 0;
         let globalGrandTotal = 0;
+        
+        // State Role Pengguna
+        let currentUserRole = "kasir"; 
 
         const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka);
         const formatTanggal = (timestamp) => {
@@ -214,16 +222,57 @@
             return new Date(timestamp.seconds * 1000).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
         };
 
-        // ================= AUTHENTICATION =================
+        // ================= AUTHENTICATION & ROLE ENGINE =================
         const authLoading = document.getElementById('auth-loading');
         const loginScreen = document.getElementById('login-screen');
         const appScreen = document.getElementById('app-screen');
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             authLoading.classList.add('hidden');
-            if (user) { loginScreen.classList.add('hidden'); appScreen.classList.remove('hidden'); initRealtimeListeners(); } 
-            else { appScreen.classList.add('hidden'); loginScreen.classList.remove('hidden'); stopRealtimeListeners(); }
+            if (user) {
+                loginScreen.classList.add('hidden');
+                appScreen.classList.remove('hidden');
+                
+                // Ambil atau buat data role user di Firestore
+                const userDocRef = doc(db, "pengguna", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                
+                if (userDocSnap.exists()) {
+                    currentUserRole = userDocSnap.data().role || "kasir";
+                } else {
+                    // Jika akun baru, otomatis daftarkan sebagai kasir
+                    currentUserRole = "kasir";
+                    await setDoc(userDocRef, { email: user.email, role: "kasir", nama: user.email.split('@')[0] });
+                }
+
+                // Tampilkan info akun di navbar
+                document.getElementById('user-display-name').textContent = user.email.split('@')[0];
+                document.getElementById('user-display-role').textContent = currentUserRole;
+
+                applyRoleAccess();
+                initRealtimeListeners();
+            } else {
+                appScreen.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+                stopRealtimeListeners();
+            }
         });
+
+        function applyRoleAccess() {
+            const dashboardBtn = document.getElementById('tab-dashboard-btn');
+            const gudangBtn = document.getElementById('tab-gudang-btn');
+
+            if (currentUserRole === "admin") {
+                dashboardBtn.classList.remove('hidden');
+                gudangBtn.classList.remove('hidden');
+                switchTab('dashboard'); // Admin default ke Dashboard
+            } else {
+                // Sembunyikan fitur sensitif untuk Kasir
+                dashboardBtn.classList.add('hidden');
+                gudangBtn.classList.add('hidden');
+                switchTab('kasir'); // Kasir langsung diarahkan ke halaman transaksi
+            }
+        }
 
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -247,16 +296,19 @@
         }
         function stopRealtimeListeners() { if(unsubscribeItems) unsubscribeItems(); if(unsubscribeSales) unsubscribeSales(); }
 
-        // ================= NAVIGATION =================
+        // ================= NAVIGATION ENGINE =================
         const tabs = ['dashboard', 'kasir', 'gudang', 'riwayat'];
         tabs.forEach(tab => {
-            document.getElementById(`tab-${tab}-btn`).addEventListener('click', (e) => {
-                document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-                document.querySelectorAll('.nav-tab').forEach(btn => btn.className = "nav-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 px-2 sm:px-3 text-sm font-medium h-full transition-all");
-                document.getElementById(`tab-${tab}`).classList.remove('hidden');
-                e.target.className = "nav-tab border-b-2 border-blue-600 text-blue-600 px-2 sm:px-3 text-sm font-medium h-full transition-all";
-            });
+            document.getElementById(`tab-${tab}-btn`).addEventListener('click', () => switchTab(tab));
         });
+
+        function switchTab(targetTab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-tab').forEach(btn => btn.className = "nav-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 px-2 sm:px-3 text-sm font-medium h-full transition-all");
+            
+            document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
+            document.getElementById(`tab-${targetTab}-btn`).className = "nav-tab border-b-2 border-blue-600 text-blue-600 px-2 sm:px-3 text-sm font-medium h-full transition-all";
+        }
 
         // ================= FILTER & KATALOG KASIR =================
         document.getElementById('kasir-search').addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase().trim(); renderKatalogKasir(); });
@@ -309,10 +361,7 @@
             }); renderKeranjang();
         }
 
-        discountInput.addEventListener('input', () => { 
-            globalDiskon = Number(discountInput.value) || 0; 
-            kalkulasiTotal(); 
-        });
+        discountInput.addEventListener('input', () => { globalDiskon = Number(discountInput.value) || 0; kalkulasiTotal(); });
 
         function renderKeranjang() {
             const el = document.getElementById('cart-list');
@@ -340,14 +389,8 @@
         }
 
         function kalkulasiTotal() {
-            // Cegah diskon melebihi subtotal
-            if (globalDiskon > globalSubtotal) {
-                globalDiskon = globalSubtotal;
-                discountInput.value = globalDiskon;
-            }
-            
+            if (globalDiskon > globalSubtotal) { globalDiskon = globalSubtotal; discountInput.value = globalDiskon; }
             globalGrandTotal = Math.max(0, globalSubtotal - globalDiskon);
-            
             document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal);
             document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
             cekBayar();
@@ -371,21 +414,11 @@
             const kembalian = uangBayar - globalGrandTotal;
             try {
                 for (const item of keranjang) { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); }
-                const dataPenjualan = { 
-                    waktu: serverTimestamp(), 
-                    items: keranjang, 
-                    subtotal: globalSubtotal,
-                    diskon: globalDiskon,
-                    totalAkhir: globalGrandTotal, 
-                    uangBayar: uangBayar, 
-                    kembalian: kembalian 
-                };
+                const dataPenjualan = { waktu: serverTimestamp(), items: keranjang, subtotal: globalSubtotal, diskon: globalDiskon, totalAkhir: globalGrandTotal, uangBayar: uangBayar, kembalian: kembalian };
                 const docRef = await addDoc(salesRef, dataPenjualan);
                 cetakStruk({ id: docRef.id, ...dataPenjualan, waktu: new Date() });
                 
-                // Reset State
-                keranjang = []; cashInput.value = ''; discountInput.value = ''; globalDiskon = 0; 
-                renderKeranjang();
+                keranjang = []; cashInput.value = ''; discountInput.value = ''; globalDiskon = 0; renderKeranjang();
             } catch (err) { alert("Gagal memproses transaksi!"); }
             finally { btnCheckout.textContent = "Proses Bayar & Cetak"; }
         });
@@ -397,17 +430,9 @@
             data.items.forEach(item => { itemHtml += `<div style="display:flex; justify-content:space-between; font-size:12px; margin-top:5px;"><span>${item.nama} (x${item.qty})</span><span>${toRupiah(item.harga * item.qty)}</span></div>`; });
             const tglStruk = data.waktu && data.waktu.seconds ? new Date(data.waktu.seconds * 1000) : new Date();
             
-            // Tampilkan baris diskon hanya jika ada diskon
             let diskonHtml = '';
             if (data.diskon > 0) {
-                diskonHtml = `
-                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:5px; color:#555;">
-                        <span>Subtotal</span><span>${toRupiah(data.subtotal || data.totalAkhir)}</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:2px; color:#555;">
-                        <span>Diskon</span><span>-${toRupiah(data.diskon)}</span>
-                    </div>
-                `;
+                diskonHtml = `<div style="display:flex; justify-content:space-between; font-size:12px; margin-top:5px; color:#555;"><span>Subtotal</span><span>${toRupiah(data.subtotal || data.totalAkhir)}</span></div><div style="display:flex; justify-content:space-between; font-size:12px; margin-top:2px; color:#555;"><span>Diskon</span><span>-${toRupiah(data.diskon)}</span></div>`;
             }
 
             printArea.innerHTML = `
@@ -424,9 +449,10 @@
 
         // ================= ANALYTICS & HISTORY =================
         function updateDashboardAnalitik() {
+            if (currentUserRole !== "admin") return; // Kasir dilewati
             let totalOmset = 0; let totalTransaksi = riwayatPenjualan.length; let totalQtyTerjual = 0; let produkKuantitasMap = {};
             riwayatPenjualan.forEach(trx => {
-                totalOmset += (trx.totalAkhir || trx.totalBelanja || 0); // Menghitung omset bersih setelah diskon
+                totalOmset += (trx.totalAkhir || trx.totalBelanja || 0);
                 if(trx.items) { trx.items.forEach(item => { totalQtyTerjual += item.qty; produkKuantitasMap[item.nama] = (produkKuantitasMap[item.nama] || 0) + item.qty; }); }
             });
             document.getElementById('dash-omset').textContent = toRupiah(totalOmset);
