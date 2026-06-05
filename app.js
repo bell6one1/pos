@@ -82,7 +82,6 @@ async function syncOfflineTransactions() {
     document.getElementById('offline-indicator').classList.add('hidden');
 
     try {
-        // 1. Sinkronisasi Data Penjualan Tertunda
         const idb = await initIndexedDB();
         const tx = idb.transaction(OFFLINE_STORE_NAME, "readwrite");
         const store = tx.objectStore(OFFLINE_STORE_NAME);
@@ -117,7 +116,6 @@ async function syncOfflineTransactions() {
                 }
             }
 
-            // 2. Sinkronisasi Data Audit Log Tertunda
             const offlineLogs = JSON.parse(localStorage.getItem('pos_offline_logs') || '[]');
             if (offlineLogs.length > 0) {
                 for (const log of offlineLogs) {
@@ -175,7 +173,8 @@ function playBeep() {
 
 let barcodeBuffer = ""; let barcodeTimeout = null;
 document.addEventListener("keydown", (e) => {
-    if (e.target.tagName === 'INPUT' && e.target.id !== 'kasir-search' && e.target.id !== 'item-barcode') return;
+    // BUG FIX 1: Abaikan scanner global jika user mengetik/scan di input form APAPUN kecuali pencarian kasir
+    if (e.target.tagName === 'INPUT' && e.target.id !== 'kasir-search') return;
     
     if (e.key === 'Enter' && barcodeBuffer.length > 0) {
         e.preventDefault();
@@ -304,7 +303,6 @@ window.triggerBukaShift = () => {
         e.preventDefault(); 
         if (!navigator.onLine) return alert("Peringatan: Tidak dapat membuka shift. Koneksi internet dibutuhkan.");
         
-        // BUG FIX 3: Disable tombol ganda saat buka shift
         const btnSubmit = document.getElementById('btn-shift-submit');
         btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan...";
         
@@ -467,7 +465,41 @@ window.loadHeldBill = (id) => {
     if (keranjang.length > 0 && !confirm("Gantikan keranjang aktif dengan orderan ini?")) return;
     const heldBills = JSON.parse(localStorage.getItem('pos_held_bills') || '[]'); const idx = heldBills.findIndex(b => b.id === id);
     if (idx > -1) {
-        const bill = heldBills[idx]; keranjang = bill.items; document.getElementById('cart-discount').value = bill.diskon || "";
+        const bill = heldBills[idx]; 
+        
+        let validatedItems = [];
+        let hasChanges = false;
+        
+        for (let item of bill.items) {
+            const dbItem = databaseBarang.find(i => i.id === item.id);
+            if (!dbItem || (dbItem.stok || 0) <= 0) {
+                hasChanges = true; 
+                continue; 
+            }
+            if (item.qty > dbItem.stok) {
+                item.qty = dbItem.stok;
+                hasChanges = true; 
+            }
+            if (item.harga !== dbItem.harga) {
+                item.harga = dbItem.harga;
+                hasChanges = true; 
+            }
+            validatedItems.push(item);
+        }
+
+        if (validatedItems.length === 0) {
+            alert("Sistem Keamanan: Semua barang dalam pesanan ini sudah dihapus atau stoknya habis di Master Data!");
+            heldBills.splice(idx, 1); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills));
+            renderHoldModalList(); updateHoldCountBadge();
+            return;
+        }
+
+        if (hasChanges) {
+            alert("Peringatan: Beberapa barang telah disesuaikan otomatis (dihapus/ubah harga/stok dikurangi) mengikuti Master Data Gudang terbaru.");
+        }
+        
+        keranjang = validatedItems; 
+        document.getElementById('cart-discount').value = bill.diskon || "";
         activeMember = bill.activeMember || null; if (activeMember) showActiveMemberUI(); else document.getElementById('btn-remove-member').click();
         heldBills.splice(idx, 1); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills));
         document.getElementById('hold-modal').classList.add('hidden'); renderKeranjang(); updateHoldCountBadge();
@@ -491,8 +523,30 @@ document.getElementById('btn-check-member').addEventListener('click', async () =
 document.getElementById('member-form').addEventListener('submit', async (e) => {
     e.preventDefault(); 
     if (!navigator.onLine) return alert("Peringatan: Tidak bisa mendaftarkan member baru saat offline.");
-    const phone = document.getElementById('member-reg-phone').value.trim(); const name = document.getElementById('member-reg-name').value.trim();
-    await setDoc(doc(db, "members", phone), { nama: name, poin: 0 }); activeMember = { id: phone, nama: name, poin: 0 }; showActiveMemberUI(); document.getElementById('member-modal').classList.add('hidden');
+    
+    const btnSubmit = e.target.querySelector('button[type="submit"]');
+    const origText = btnSubmit.textContent;
+    btnSubmit.disabled = true; btnSubmit.textContent = "Memproses...";
+    
+    try {
+        const phone = document.getElementById('member-reg-phone').value.trim(); 
+        const name = document.getElementById('member-reg-name').value.trim();
+        
+        const checkSnap = await getDoc(doc(db, "members", phone));
+        if(checkSnap.exists()) {
+            alert("GAGAL: Nomor HP ini sudah terdaftar! Poin lama pelanggan dilindungi secara paksa dari penimpaan.");
+            return;
+        }
+
+        await setDoc(doc(db, "members", phone), { nama: name, poin: 0 }); 
+        activeMember = { id: phone, nama: name, poin: 0 }; 
+        showActiveMemberUI(); 
+        document.getElementById('member-modal').classList.add('hidden');
+    } catch(err) {
+        alert("Error: " + err.message);
+    } finally {
+        btnSubmit.disabled = false; btnSubmit.textContent = origText;
+    }
 });
 
 document.getElementById('btn-remove-member').addEventListener('click', () => { activeMember = null; document.getElementById('member-select-zone').classList.remove('hidden'); document.getElementById('member-active-zone').classList.add('hidden'); document.getElementById('btn-remove-member').classList.add('hidden'); document.getElementById('member-search-input').value = ""; });
@@ -528,7 +582,6 @@ window.ubahQtyCart = async (id, delta) => {
     const index = keranjang.findIndex(k => k.id === id); if(index === -1) return;
     const itemDb = databaseBarang.find(i => i.id === id);
     
-    // BUG FIX 1: Pemblokiran manipulasi penambahan "Barang Hantu" (Barang dihapus Admin, tapi masih nyangkut di keranjang kasir)
     if (delta > 0 && !itemDb) {
         return alert("Peringatan Keamanan: Barang ini telah dihapus oleh Admin dari Master Data Gudang. Anda tidak bisa menambahkan kuantitasnya lagi.");
     }
@@ -564,7 +617,10 @@ function renderKeranjang() {
 
 function hitungUangKembalian() {
     globalSubtotal = keranjang.reduce((acc, i) => acc + ((i.harga||0) * i.qty), 0);
-    globalDiskon = Math.max(0, parseFloat(document.getElementById('cart-discount').value) || 0);
+    
+    // BUG FIX 2: Validasi absolut perhitungan diskon akuntansi agar tagihan dan catatan laba-rugi tidak minus
+    let rawDiskon = Math.max(0, parseFloat(document.getElementById('cart-discount').value) || 0);
+    globalDiskon = Math.min(globalSubtotal, rawDiskon);
     globalGrandTotal = Math.max(0, globalSubtotal - globalDiskon);
     
     document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal); document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
@@ -595,13 +651,14 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
     try {
         if (navigator.onLine) {
             trxData.waktu = serverTimestamp();
-            // BUG FIX 2: Fallback waktu lokal untuk online, agar transaksi tidak berkedip (hilang sementara) di tabel riwayat
             trxData.waktuLokal = new Date().toISOString(); 
             
             await addDoc(salesRef, trxData);
             for (const item of keranjang) { 
-                try { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); } catch(err) {} 
+                try { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); } 
+                catch(e) { console.warn("Barang tidak ada di Master Data lagi saat checkout."); }
             }
+            
             await updateDoc(doc(db, "shift", activeShiftSession.id), { totalPenjualan: increment(globalGrandTotal) });
             if (activeMember) { const addPoin = Math.floor(globalGrandTotal / 10000); if (addPoin > 0) await updateDoc(doc(db, "members", activeMember.id), { poin: increment(addPoin) }); }
             await logActivity("CHECKOUT_ONLINE", `Penjualan Rp ${toRupiah(globalGrandTotal)} diproses.`); 
@@ -658,14 +715,21 @@ itemForm.addEventListener('submit', async (e) => {
     e.preventDefault(); 
     if (!navigator.onLine) return alert("Peringatan: Anda membutuhkan koneksi internet untuk menambah atau mengubah master barang.");
     
-    // BUG FIX 3: Disable form ganda (Double-Submit Protection)
+    const id = document.getElementById('item-id').value;
+    const barcodeInput = document.getElementById('item-barcode').value.trim();
+    
+    // BUG FIX 3: Validasi Blokir Barcode Ganda agar barang tidak tertumpuk di sistem (Barcode Clashing Protection)
+    if (barcodeInput) {
+        const isDuplicate = databaseBarang.find(x => x.barcode === barcodeInput && x.id !== id);
+        if (isDuplicate) return alert(`Gagal Menyimpan: Barcode [${barcodeInput}] sudah digunakan oleh produk "${isDuplicate.nama}". Gunakan barcode lain.`);
+    }
+    
     const btnSubmit = document.getElementById('btn-submit');
     const origText = btnSubmit.textContent;
     btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan...";
     
     try {
-        const id = document.getElementById('item-id').value;
-        const data = { barcode: document.getElementById('item-barcode').value.trim(), nama: document.getElementById('item-name').value.trim(), kategori: document.getElementById('item-category').value.trim() || 'Umum', harga: parseFloat(document.getElementById('item-price').value)||0, stok: parseInt(document.getElementById('item-stock').value)||0 };
+        const data = { barcode: barcodeInput, nama: document.getElementById('item-name').value.trim(), kategori: document.getElementById('item-category').value.trim() || 'Umum', harga: parseFloat(document.getElementById('item-price').value)||0, stok: parseInt(document.getElementById('item-stock').value)||0 };
         if(id) { 
             await updateDoc(doc(db, "barang", id), data); 
             await logActivity("GUDANG_UBAH", `Memperbarui produk [${data.nama}]. Stok: ${data.stok}, Harga: ${toRupiah(data.harga)}`); 
