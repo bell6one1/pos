@@ -82,6 +82,7 @@ async function syncOfflineTransactions() {
     document.getElementById('offline-indicator').classList.add('hidden');
 
     try {
+        // 1. Sinkronisasi Data Penjualan Tertunda
         const idb = await initIndexedDB();
         const tx = idb.transaction(OFFLINE_STORE_NAME, "readwrite");
         const store = tx.objectStore(OFFLINE_STORE_NAME);
@@ -89,31 +90,41 @@ async function syncOfflineTransactions() {
 
         request.onsuccess = async () => {
             const pendingSales = request.result;
-            if (pendingSales.length === 0) { applyFiltersAndStats(); return; }
-
-            console.log(`📡 Menghubungkan ulang server. Sinkronisasi ${pendingSales.length} data...`);
             let successCount = 0;
             
-            for (const sale of pendingSales) {
-                try {
-                    const localId = sale.localId;
-                    delete sale.localId; delete sale.isOfflinePending;
-                    
-                    // BUG FIX 1: Pertahankan waktu aktual transaksi saat sinkronisasi, jangan diganti dengan waktu sekarang
-                    sale.waktu = sale.waktuLokal ? new Date(sale.waktuLokal) : serverTimestamp(); 
+            if (pendingSales.length > 0) {
+                console.log(`📡 Menghubungkan ulang server. Sinkronisasi ${pendingSales.length} data penjualan...`);
+                for (const sale of pendingSales) {
+                    try {
+                        const localId = sale.localId;
+                        delete sale.localId; delete sale.isOfflinePending;
+                        sale.waktu = sale.waktuLokal ? new Date(sale.waktuLokal) : serverTimestamp(); 
 
-                    await addDoc(salesRef, sale); 
-                    for (const item of sale.items) { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); }
-                    if (sale.shiftId) { await updateDoc(doc(db, "shift", sale.shiftId), { totalPenjualan: increment(sale.totalAkhir) }); }
-                    if (sale.memberId) { const addPoin = Math.floor(sale.totalAkhir / 10000); if (addPoin > 0) await updateDoc(doc(db, "members", sale.memberId), { poin: increment(addPoin) }); }
+                        await addDoc(salesRef, sale); 
+                        for (const item of sale.items) { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); }
+                        if (sale.shiftId) { await updateDoc(doc(db, "shift", sale.shiftId), { totalPenjualan: increment(sale.totalAkhir) }); }
+                        if (sale.memberId) { const addPoin = Math.floor(sale.totalAkhir / 10000); if (addPoin > 0) await updateDoc(doc(db, "members", sale.memberId), { poin: increment(addPoin) }); }
 
-                    const deleteTx = idb.transaction(OFFLINE_STORE_NAME, "readwrite");
-                    deleteTx.objectStore(OFFLINE_STORE_NAME).delete(localId);
-                    successCount++;
-                } catch (errInner) {
-                    console.error("Gagal sinkron 1 transaksi:", errInner);
+                        const deleteTx = idb.transaction(OFFLINE_STORE_NAME, "readwrite");
+                        deleteTx.objectStore(OFFLINE_STORE_NAME).delete(localId);
+                        successCount++;
+                    } catch (errInner) {}
                 }
             }
+
+            // 2. Sinkronisasi Data Audit Log Tertunda (ANTI-FRAUD OFFLINE SYNC)
+            const offlineLogs = JSON.parse(localStorage.getItem('pos_offline_logs') || '[]');
+            if (offlineLogs.length > 0) {
+                console.log(`📡 Sinkronisasi ${offlineLogs.length} audit logs...`);
+                for (const log of offlineLogs) {
+                    try {
+                        log.timestamp = log.timestamp ? new Date(log.timestamp) : serverTimestamp();
+                        await addDoc(auditLogsRef, log);
+                    } catch(e) {}
+                }
+                localStorage.removeItem('pos_offline_logs');
+            }
+
             if(successCount > 0) {
                 await logActivity("SYNC_OFFLINE", `Sukses mengunggah ${successCount} transaksi offline.`);
                 alert(`🎉 Koneksi Stabil! ${successCount} data penjualan offline berhasil diunggah.`);
@@ -127,13 +138,23 @@ window.addEventListener('online', syncOfflineTransactions);
 window.addEventListener('offline', () => { document.getElementById('offline-indicator').classList.remove('hidden'); applyFiltersAndStats(); });
 
 // ==========================================
-// AUDIT LOGS & PERANGKAT KERAS
+// AUDIT LOGS & PERANGKAT KERAS (FIXED ANTI-FRAUD)
 // ==========================================
 async function logActivity(actionType, actionDetails) {
-    if (!navigator.onLine) return; 
+    const userEmail = auth.currentUser ? auth.currentUser.email.split('@')[0] : "Sistem";
+    const logObj = { user: userEmail, action: actionType, detail: actionDetails };
+
+    if (!navigator.onLine) {
+        logObj.timestamp = new Date().toISOString();
+        const offlineLogs = JSON.parse(localStorage.getItem('pos_offline_logs') || '[]');
+        offlineLogs.push(logObj);
+        localStorage.setItem('pos_offline_logs', JSON.stringify(offlineLogs));
+        return; 
+    }
+    
     try {
-        const userEmail = auth.currentUser ? auth.currentUser.email.split('@')[0] : "Sistem";
-        await addDoc(auditLogsRef, { user: userEmail, action: actionType, detail: actionDetails, timestamp: serverTimestamp() });
+        logObj.timestamp = serverTimestamp();
+        await addDoc(auditLogsRef, logObj);
     } catch (error) {}
 }
 
@@ -153,11 +174,29 @@ document.addEventListener("keydown", (e) => {
     if (e.target.tagName === 'INPUT' && e.target.id !== 'kasir-search' && e.target.id !== 'item-barcode') return;
     if (e.key === 'Enter' && barcodeBuffer.length > 0) {
         e.preventDefault();
-        const b = databaseBarang.find(x => x.barcode === barcodeBuffer);
-        if (b && b.stok > 0) { window.tambahKeKeranjang(b.id); document.getElementById('kasir-search').value = ""; kataKunciPencarian = ""; renderKatalogKasir(); }
+        const b = databaseBarang.find(x => x.barcode === barcodeBuffer || x.id === barcodeBuffer);
+        
+        if (b) { 
+            if ((b.stok||0) > 0) {
+                window.tambahKeKeranjang(b.id); 
+            } else {
+                alert(`Stok produk [${b.nama}] habis!`);
+            }
+        }
+        
+        // BUG FIX: Selalu paksa kosongkan input jika asalnya dari pencarian agar UI tidak macet
+        if (e.target.id === 'kasir-search') { 
+            e.target.value = ""; 
+            kataKunciPencarian = ""; 
+            renderKatalogKasir(); 
+        }
         barcodeBuffer = "";
     } else {
-        if (e.key.length === 1) { barcodeBuffer += e.key; clearTimeout(barcodeTimeout); barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 100); }
+        if (e.key.length === 1) { 
+            barcodeBuffer += e.key; 
+            clearTimeout(barcodeTimeout); 
+            barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 100); 
+        }
     }
 });
 
@@ -200,15 +239,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 document.getElementById('btn-logout').addEventListener('click', async () => { 
     if (activeShiftSession) { alert("Tutup shift kasir sebelum keluar!"); switchTab('kasir'); return; }
     if(confirm("Keluar dari sistem?")) {
-        // BUG FIX 2: Mencegah tombol logout macet/hang jika ditekan saat koneksi internet putus
-        try {
-            await signOut(auth);
-        } catch (e) {
-            console.warn("Logout saat Offline. Menghapus sesi lokal secara paksa.");
-        } finally {
-            keranjang = []; 
-            localStorage.clear(); 
-            location.reload(); 
+        try { await signOut(auth); } catch (e) {} finally {
+            keranjang = []; localStorage.clear(); location.reload(); 
         }
     } 
 });
@@ -665,7 +697,7 @@ function renderShiftLogs() {
             <td class="px-4 py-3 text-dark-1">${toRupiah(s.modalAwal)}</td>
             <td class="px-4 py-3 text-dark-1">${toRupiah(s.totalPenjualan || 0)}</td>
             <td class="px-4 py-3 text-dark-1">${s.status==='buka'?'-':toRupiah(s.uangFisikAktual)}</td>
-            <td class="px-4 py-3">${s.status==='buka'?'<span class="text-green-400 font-bold bg-green-950/30 px-2 py-0.5 rounded border border-green-900 text-[10px]">AKTIF</span>':(s.selisih===0?'<span class="text-green-400 font-bold">Pas</span>':(s.selisih>0?`<span class="text-blue-400 font-bold">+${toRupiah(s.selisih)}</span>`:`<span class="text-red-400 font-bold">${toRupiah(s.selisih)}</span>`))}</td>
+            <td class="px-4 py-3">${s.status==='buka'?'<span class="text-green-400 font-bold bg-green-950/30 px-2 py-0.5 rounded border border-green-900 text-[10px]">AKTIF</span>':((s.selisih||0)===0?'<span class="text-green-400 font-bold">Pas</span>':((s.selisih||0)>0?`<span class="text-blue-400 font-bold">+${toRupiah(s.selisih||0)}</span>`:`<span class="text-red-400 font-bold">${toRupiah(s.selisih||0)}</span>`))}</td>
         </tr>`).join('');
 }
 
