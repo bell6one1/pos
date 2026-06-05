@@ -3,17 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS Modern - Premium UI V11</title>
+    <title>POS Modern - Mantine Dark UI</title>
+    <!-- Font Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
+        // Injeksi Palet Warna Asli Mantine Dark Mode
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    boxShadow: { 'premium': '0 4px 20px -4px rgba(0, 0, 0, 0.05), 0 0 3px rgba(0,0,0,0.02)' }
+                    colors: {
+                        dark: {
+                            0: '#C1C2C5', // Text primary
+                            1: '#A6A7AB', // Text muted
+                            2: '#909296',
+                            3: '#5C5F66',
+                            4: '#373A40', // Borders
+                            5: '#2C2E33', // Hover backgrounds
+                            6: '#25262B', // Cards/Modals (Mantine Paper)
+                            7: '#1A1B1E', // App Background
+                            8: '#141517', // Inputs
+                            9: '#101113',
+                        },
+                        mantine: {
+                            blue: '#1971c2', // Primary button
+                            hover: '#1864ab'
+                        }
+                    },
+                    boxShadow: { 'premium': '0 4px 20px -4px rgba(0, 0, 0, 0.5), 0 0 3px rgba(0,0,0,0.2)' }
                 }
             }
         }
@@ -22,270 +43,274 @@
         @media print {
             body * { visibility: hidden; }
             #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 100%; max-width: 300px; padding: 10px; font-family: monospace; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; max-width: 300px; padding: 10px; font-family: monospace; background: white !important; color: black !important; }
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* Smooth transitions for all elements */
-        * { transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+        * { transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease; }
+        
+        /* Dark Mode Input Overrides */
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.6; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen selection:bg-indigo-100 selection:text-indigo-900">
+<body class="bg-dark-7 text-dark-0 font-sans antialiased min-h-screen selection:bg-mantine-blue selection:text-white">
 
-    <div id="auth-loading" class="fixed inset-0 bg-slate-50/90 backdrop-blur-sm flex flex-col items-center justify-center z-[100]">
-        <div class="w-8 h-8 border-[3px] border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-sm text-slate-500 mt-4 font-medium tracking-wide">Menghubungkan ke sistem...</p>
+    <!-- ================= STATE LOADING AWAL ================= -->
+    <div id="auth-loading" class="fixed inset-0 bg-dark-7/90 backdrop-blur-sm flex flex-col items-center justify-center z-[100]">
+        <div class="w-8 h-8 border-[3px] border-mantine-blue border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-sm text-dark-1 mt-4 font-medium tracking-wide">Menghubungkan ke sistem...</p>
     </div>
 
-    <div id="shift-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-[80] p-4 transition-opacity">
-        <div class="bg-white p-7 rounded-2xl shadow-2xl w-full max-w-sm transform transition-all">
-            <h3 id="shift-modal-title" class="text-lg font-bold text-slate-900 mb-1">Mulai Shift Kasir</h3>
-            <p id="shift-modal-desc" class="text-sm text-slate-500 mb-6 leading-relaxed">Masukkan saldo uang fisik awal yang ada di laci kasir saat ini.</p>
+    <!-- ================= MODAL MANAJEMEN SHIFT ================= -->
+    <div id="shift-modal" class="hidden fixed inset-0 bg-dark-9/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4 transition-opacity">
+        <div class="bg-dark-6 p-7 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-sm transform transition-all">
+            <h3 id="shift-modal-title" class="text-lg font-bold text-gray-100 mb-1">Mulai Shift Kasir</h3>
+            <p id="shift-modal-desc" class="text-sm text-dark-1 mb-6 leading-relaxed">Masukkan saldo uang fisik awal yang ada di laci kasir saat ini.</p>
             <form id="shift-form" class="space-y-5">
                 <div>
-                    <label id="shift-input-label" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Modal Uang Awal (Rp)</label>
-                    <input type="number" id="shift-cash-input" required placeholder="Contoh: 500000" min="0" class="w-full px-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400">
+                    <label id="shift-input-label" class="block text-xs font-semibold text-dark-2 uppercase tracking-wider mb-2">Modal Uang Awal (Rp)</label>
+                    <input type="number" id="shift-cash-input" required placeholder="Contoh: 500000" min="0" class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl focus:bg-dark-9 focus:ring-1 focus:ring-mantine-blue focus:border-mantine-blue outline-none transition-all placeholder:text-dark-3 text-gray-100">
                 </div>
                 <div class="flex gap-3 pt-2">
-                    <button type="button" id="btn-close-shift-modal" class="hidden flex-1 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl">Batal</button>
-                    <button type="submit" id="btn-shift-submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-lg shadow-indigo-600/20 active:transform active:scale-[0.98]">Buka Shift</button>
+                    <button type="button" id="btn-close-shift-modal" class="hidden flex-1 py-2.5 text-sm font-medium text-dark-0 bg-dark-5 border border-dark-4 hover:bg-dark-4 rounded-xl">Batal</button>
+                    <button type="submit" id="btn-shift-submit" class="flex-1 py-2.5 bg-mantine-blue hover:bg-mantine-hover text-white font-medium text-sm rounded-xl active:transform active:scale-[0.98]">Buka Shift</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div id="login-screen" class="hidden fixed inset-0 bg-slate-50 flex items-center justify-center z-[90] p-4">
-        <div class="bg-white p-8 sm:p-10 rounded-3xl shadow-premium border border-slate-100/50 w-full max-w-sm">
+    <!-- ================= HALAMAN LOGIN ================= -->
+    <div id="login-screen" class="hidden fixed inset-0 bg-dark-7 flex items-center justify-center z-[90] p-4">
+        <div class="bg-dark-6 p-8 sm:p-10 rounded-2xl shadow-premium border border-dark-4 w-full max-w-sm">
             <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 mb-4">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-dark-5 border border-dark-4 text-mantine-blue mb-4">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 </div>
-                <h1 class="text-2xl font-bold text-slate-900 tracking-tight">PointOfSale.</h1>
-                <p class="text-sm text-slate-500 mt-2">Masuk untuk melanjutkan ke dashboard</p>
+                <h1 class="text-2xl font-bold text-gray-100 tracking-tight">PointOfSale.</h1>
+                <p class="text-sm text-dark-1 mt-2">Masuk untuk melanjutkan ke dashboard</p>
             </div>
             <form id="login-form" class="space-y-5">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Email Akses</label>
-                    <input type="email" id="login-email" required placeholder="nama@toko.com" class="w-full px-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400">
+                    <label class="block text-xs font-semibold text-dark-2 uppercase tracking-wider mb-2">Email Akses</label>
+                    <input type="email" id="login-email" required placeholder="nama@toko.com" class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl focus:bg-dark-9 focus:ring-1 focus:ring-mantine-blue focus:border-mantine-blue outline-none transition-all placeholder:text-dark-3 text-gray-100">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Kata Sandi</label>
-                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400">
+                    <label class="block text-xs font-semibold text-dark-2 uppercase tracking-wider mb-2">Kata Sandi</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl focus:bg-dark-9 focus:ring-1 focus:ring-mantine-blue focus:border-mantine-blue outline-none transition-all placeholder:text-dark-3 text-gray-100">
                 </div>
-                <button type="submit" id="btn-login-submit" class="w-full py-3 mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-xl shadow-lg shadow-indigo-600/20 active:transform active:scale-[0.98]">Masuk Aplikasi</button>
+                <button type="submit" id="btn-login-submit" class="w-full py-3 mt-2 bg-mantine-blue hover:bg-mantine-hover text-white font-medium text-sm rounded-xl active:transform active:scale-[0.98]">Masuk Aplikasi</button>
             </form>
         </div>
     </div>
 
+    <!-- ================= CORE APLIKASI ================= -->
     <div id="app-screen" class="hidden">
-        <nav class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-50">
+        <!-- Top Navigation (Mantine Header Style) -->
+        <nav class="bg-dark-7/90 backdrop-blur-md border-b border-dark-4 sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between h-16 items-center">
                     <div class="flex h-full items-center gap-4 sm:gap-8 overflow-x-auto no-scrollbar">
-                        <span class="text-xl font-bold text-slate-900 tracking-tight pr-2 hidden md:inline flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center text-xs">⚡</div>
+                        <span class="text-xl font-bold text-gray-100 tracking-tight pr-2 hidden md:inline flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-md bg-mantine-blue text-white flex items-center justify-center text-xs">⚡</div>
                             POS.
                         </span>
                         <div class="flex h-full space-x-2 pt-2 min-w-max">
-                            <button id="tab-dashboard-btn" class="nav-tab border-b-2 border-indigo-600 text-indigo-600 px-3 text-sm font-medium h-full flex items-center gap-2"><span>📊</span> Dashboard</button>
-                            <button id="tab-kasir-btn" class="nav-tab border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 px-3 text-sm font-medium h-full flex items-center gap-2"><span>🎯</span> Kasir</button>
-                            <button id="tab-gudang-btn" class="nav-tab border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 px-3 text-sm font-medium h-full flex items-center gap-2"><span>📦</span> Gudang</button>
-                            <button id="tab-riwayat-btn" class="nav-tab border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 px-3 text-sm font-medium h-full flex items-center gap-2"><span>🧾</span> Riwayat</button>
+                            <button id="tab-dashboard-btn" class="nav-tab border-b-2 border-mantine-blue text-mantine-blue px-3 text-sm font-medium h-full flex items-center gap-2"><span>📊</span> Dashboard</button>
+                            <button id="tab-kasir-btn" class="nav-tab border-b-2 border-transparent text-dark-1 hover:text-gray-100 hover:border-dark-4 px-3 text-sm font-medium h-full flex items-center gap-2"><span>🎯</span> Kasir</button>
+                            <button id="tab-gudang-btn" class="nav-tab border-b-2 border-transparent text-dark-1 hover:text-gray-100 hover:border-dark-4 px-3 text-sm font-medium h-full flex items-center gap-2"><span>📦</span> Gudang</button>
+                            <button id="tab-riwayat-btn" class="nav-tab border-b-2 border-transparent text-dark-1 hover:text-gray-100 hover:border-dark-4 px-3 text-sm font-medium h-full flex items-center gap-2"><span>🧾</span> Riwayat</button>
                         </div>
                     </div>
                     <div class="flex items-center gap-4 shrink-0">
                         <div class="text-right hidden sm:block">
-                            <p id="user-display-name" class="text-sm font-semibold text-slate-800 leading-tight">Memuat...</p>
-                            <p id="user-display-role" class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-0.5">Kasir</p>
+                            <p id="user-display-name" class="text-sm font-semibold text-gray-100 leading-tight">Memuat...</p>
+                            <p id="user-display-role" class="text-[10px] font-bold text-mantine-blue uppercase tracking-widest mt-0.5">Kasir</p>
                         </div>
-                        <button id="btn-logout" class="px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-lg transition-colors">Keluar 🚪</button>
+                        <button id="btn-logout" class="px-3 py-2 text-sm font-medium text-dark-0 bg-dark-6 border border-dark-4 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 rounded-lg transition-colors">Keluar 🚪</button>
                     </div>
                 </div>
             </div>
         </nav>
 
+        <!-- Main Container -->
         <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
 
+            <!-- ================= TAB DASHBOARD ================= -->
             <div id="tab-dashboard" class="tab-content space-y-6">
-                <div class="bg-white p-5 rounded-2xl shadow-premium border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div class="flex flex-wrap items-center gap-2 bg-slate-50/50 p-1 rounded-xl border border-slate-100">
-                        <button onclick="window.setShortcutTanggal('hari-ini')" class="px-4 py-2 text-xs font-medium bg-white text-slate-700 shadow-sm rounded-lg">Hari Ini</button>
-                        <button onclick="window.setShortcutTanggal('7-hari')" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">7 Hari</button>
-                        <button onclick="window.setShortcutTanggal('bulan-ini')" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Bulan Ini</button>
-                        <button onclick="window.setShortcutTanggal('semua')" class="px-4 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg">Semua Waktu</button>
+                <!-- Panel Filter Tanggal -->
+                <div class="bg-dark-6 p-5 rounded-xl border border-dark-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-2 bg-dark-8 p-1 rounded-lg border border-dark-4">
+                        <button onclick="window.setShortcutTanggal('hari-ini')" class="px-4 py-2 text-xs font-medium bg-dark-5 text-gray-100 shadow-sm rounded-md">Hari Ini</button>
+                        <button onclick="window.setShortcutTanggal('7-hari')" class="px-4 py-2 text-xs font-medium text-dark-1 hover:bg-dark-5 hover:text-gray-100 rounded-md">7 Hari</button>
+                        <button onclick="window.setShortcutTanggal('bulan-ini')" class="px-4 py-2 text-xs font-medium text-dark-1 hover:bg-dark-5 hover:text-gray-100 rounded-md">Bulan Ini</button>
+                        <button onclick="window.setShortcutTanggal('semua')" class="px-4 py-2 text-xs font-medium text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 rounded-md">Semua Waktu</button>
                     </div>
-                    <div class="flex items-center gap-2 text-sm text-slate-500">
-                        <input type="date" id="filter-date-start" class="px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-xs text-slate-700">
-                        <span class="font-medium text-slate-400">s/d</span>
-                        <input type="date" id="filter-date-end" class="px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-xs text-slate-700">
+                    <div class="flex items-center gap-2 text-sm text-dark-1">
+                        <input type="date" id="filter-date-start" class="px-3 py-2 bg-dark-8 border border-dark-4 rounded-lg outline-none focus:ring-1 focus:ring-mantine-blue text-xs text-gray-100">
+                        <span class="font-medium">s/d</span>
+                        <input type="date" id="filter-date-end" class="px-3 py-2 bg-dark-8 border border-dark-4 rounded-lg outline-none focus:ring-1 focus:ring-mantine-blue text-xs text-gray-100">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    <div class="bg-white p-6 rounded-2xl shadow-premium border border-slate-100 relative overflow-hidden group">
-                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"></path><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"></path></svg></div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Omset Rentang Terpilih</span>
-                        <h3 id="dash-omset" class="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">Rp 0</h3>
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"></path><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"></path></svg></div>
+                        <span class="text-xs font-bold text-dark-2 uppercase tracking-wider">Omset Rentang Terpilih</span>
+                        <h3 id="dash-omset" class="text-3xl font-extrabold text-gray-100 mt-2 tracking-tight">Rp 0</h3>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-premium border border-slate-100 relative overflow-hidden group">
-                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg></div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Jumlah Transaksi</span>
-                        <h3 id="dash-transaksi" class="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">0</h3>
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"></path></svg></div>
+                        <span class="text-xs font-bold text-dark-2 uppercase tracking-wider">Jumlah Transaksi</span>
+                        <h3 id="dash-transaksi" class="text-3xl font-extrabold text-gray-100 mt-2 tracking-tight">0</h3>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-premium border border-slate-100 relative overflow-hidden group">
-                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"></path></svg></div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Item Terjual</span>
-                        <h3 id="dash-items" class="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">0 <span class="text-lg font-medium text-slate-400">Item</span></h3>
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"></path></svg></div>
+                        <span class="text-xs font-bold text-dark-2 uppercase tracking-wider">Total Item Terjual</span>
+                        <h3 id="dash-items" class="text-3xl font-extrabold text-gray-100 mt-2 tracking-tight">0 <span class="text-lg font-medium text-dark-2">Item</span></h3>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-premium border border-slate-100">
-                        <h2 class="text-sm font-bold text-slate-800 mb-6 uppercase tracking-wide flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-indigo-500"></div> Top 5 Produk Terlaris</h2>
+                    <div class="lg:col-span-2 bg-dark-6 p-6 rounded-xl border border-dark-4">
+                        <h2 class="text-sm font-bold text-gray-100 mb-6 uppercase tracking-wide flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-mantine-blue"></div> Top 5 Produk Terlaris</h2>
                         <div class="relative w-full h-64 md:h-80"><canvas id="chartProdukTerlaris"></canvas></div>
                     </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-premium border border-slate-100 flex flex-col">
-                        <h2 class="text-sm font-bold text-slate-800 mb-4 uppercase tracking-wide flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div> Stok Kritis (&lt; 5)</h2>
-                        <div id="dash-low-stock-list" class="space-y-3 overflow-y-auto max-h-64 md:max-h-80 pr-1 no-scrollbar flex-1">
-                            </div>
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 flex flex-col">
+                        <h2 class="text-sm font-bold text-gray-100 mb-4 uppercase tracking-wide flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div> Stok Kritis (&lt; 5)</h2>
+                        <div id="dash-low-stock-list" class="space-y-3 overflow-y-auto max-h-64 md:max-h-80 pr-1 no-scrollbar flex-1"></div>
                     </div>
                 </div>
             </div>
 
+            <!-- ================= TAB KASIR ================= -->
             <div id="tab-kasir" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 <div class="lg:col-span-2 space-y-6">
-                    <div id="shift-status-widget" class="bg-indigo-50/50 border border-indigo-100/50 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-sm">
-                        <div class="text-sm text-indigo-900">
-                            <p class="font-bold flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Sesi Shift Belum Dibuka</p>
-                            <p class="text-indigo-600/80 mt-1 text-xs">Buka shift terlebih dahulu untuk mengaktifkan sistem kasir.</p>
+                    <!-- Widget Informasi Status Shift -->
+                    <div id="shift-status-widget" class="bg-dark-6 border border-dark-4 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="text-sm text-dark-0">
+                            <p class="font-bold flex items-center gap-2"><svg class="w-4 h-4 text-mantine-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Sesi Shift Belum Dibuka</p>
+                            <p class="text-dark-2 mt-1 text-xs">Buka shift terlebih dahulu untuk mengaktifkan sistem kasir.</p>
                         </div>
-                        <button id="btn-trigger-shift" class="px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/20 transition-all">Mulai Buka Shift 🔑</button>
+                        <button id="btn-trigger-shift" class="px-5 py-2.5 text-xs font-semibold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl transition-all">Mulai Buka Shift</button>
                     </div>
 
                     <div id="kasir-core-content" class="space-y-5 opacity-40 pointer-events-none transition-all duration-300">
-                        <div class="bg-white p-2 rounded-2xl shadow-premium border border-slate-100 flex flex-col sm:flex-row gap-2">
+                        <div class="bg-dark-6 p-2 rounded-xl border border-dark-4 flex flex-col sm:flex-row gap-2">
                             <div class="relative flex-1">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">🔍</div>
-                                <input type="text" id="kasir-search" placeholder="Cari nama produk..." 
-                                    class="w-full pl-10 pr-4 py-3 text-sm bg-transparent outline-none text-slate-700 placeholder:text-slate-400">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-dark-3">🔍</div>
+                                <input type="text" id="kasir-search" placeholder="Cari nama produk..." class="w-full pl-10 pr-4 py-2.5 text-sm bg-transparent outline-none text-gray-100 placeholder:text-dark-2">
                             </div>
-                            <div class="w-px bg-slate-100 hidden sm:block"></div>
+                            <div class="w-px bg-dark-4 hidden sm:block"></div>
                             <div id="kasir-categories" class="flex gap-2 overflow-x-auto no-scrollbar py-2 px-2 sm:max-w-xs items-center"></div>
                         </div>
-                        
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Katalog Produk</h2>
-                        </div>
+                        <div class="flex items-center justify-between"><h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide">Katalog Produk</h2></div>
                         <div id="kasir-katalog" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"></div>
                     </div>
                 </div>
                 
-                <div class="bg-white rounded-3xl shadow-premium border border-slate-100 flex flex-col h-[calc(100vh-8rem)] sticky top-24 opacity-40 pointer-events-none transition-all duration-300" id="kasir-cart-content">
-                    <div class="p-6 border-b border-slate-100 bg-slate-50/50 rounded-t-3xl">
-                        <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide flex justify-between items-center">
+                <!-- Keranjang -->
+                <div class="bg-dark-6 rounded-xl border border-dark-4 flex flex-col h-[calc(100vh-8rem)] sticky top-24 opacity-40 pointer-events-none transition-all duration-300" id="kasir-cart-content">
+                    <div class="p-5 border-b border-dark-4 bg-dark-6 rounded-t-xl">
+                        <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide flex justify-between items-center">
                             Keranjang Belanja
-                            <span id="cart-total-qty-badge" class="bg-indigo-100 text-indigo-700 py-1 px-2.5 rounded-lg text-xs">0 Item</span>
+                            <span id="cart-total-qty-badge" class="bg-mantine-blue/20 text-blue-400 py-1 px-2.5 rounded-md text-xs">0 Item</span>
                         </h2>
                     </div>
                     
-                    <div id="cart-list" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar bg-slate-50/30"></div>
+                    <div id="cart-list" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar bg-dark-7"></div>
                     
-                    <div class="p-6 bg-white border-t border-slate-100 rounded-b-3xl space-y-4">
+                    <div class="p-5 bg-dark-6 border-t border-dark-4 rounded-b-xl space-y-4">
                         <div class="space-y-2.5 text-sm">
-                            <div class="flex justify-between text-slate-500 font-medium"><span>Subtotal</span><span id="cart-subtotal" class="text-slate-700">Rp 0</span></div>
+                            <div class="flex justify-between text-dark-0 font-medium"><span>Subtotal</span><span id="cart-subtotal" class="text-gray-100">Rp 0</span></div>
                             <div class="flex items-center justify-between">
-                                <label class="text-slate-500 font-medium text-sm">Diskon (Rp)</label>
-                                <input type="number" id="cart-discount" placeholder="0" min="0" class="w-28 px-3 py-1.5 text-right text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <label class="text-dark-0 font-medium text-sm">Diskon (Rp)</label>
+                                <input type="number" id="cart-discount" placeholder="0" min="0" class="w-28 px-3 py-1.5 text-right text-sm bg-dark-8 border border-dark-4 rounded-md focus:border-mantine-blue outline-none text-gray-100">
                             </div>
                         </div>
-                        
-                        <div class="flex justify-between items-end pt-4 border-t border-slate-100">
-                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Akhir</span>
-                            <span id="cart-grand-total" class="text-2xl font-extrabold text-slate-900 tracking-tight">Rp 0</span>
+                        <div class="flex justify-between items-end pt-4 border-t border-dark-4">
+                            <span class="text-xs font-bold text-dark-2 uppercase tracking-widest">Total Akhir</span>
+                            <span id="cart-grand-total" class="text-2xl font-extrabold text-mantine-blue tracking-tight">Rp 0</span>
                         </div>
-
                         <div class="pt-2 space-y-3">
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 text-sm font-medium">Rp</div>
-                                <input type="number" id="cash-paid" placeholder="Uang Tunai Diterima" min="0" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 text-slate-800 font-medium">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-dark-2 text-sm font-medium">Rp</div>
+                                <input type="number" id="cash-paid" placeholder="Uang Tunai Diterima" min="0" class="w-full pl-10 pr-4 py-3 bg-dark-8 border border-dark-4 rounded-xl focus:border-mantine-blue outline-none transition-all placeholder:text-dark-3 text-gray-100 font-medium">
                             </div>
-                            <div class="flex justify-between items-center text-sm p-3 bg-slate-50 border border-slate-100 rounded-xl">
-                                <span class="font-medium text-slate-500">Kembalian</span>
-                                <span id="cash-return" class="font-bold text-slate-800">Rp 0</span>
+                            <div class="flex justify-between items-center text-sm p-3 bg-dark-8 border border-dark-4 rounded-xl">
+                                <span class="font-medium text-dark-1">Kembalian</span>
+                                <span id="cash-return" class="font-bold text-gray-100">Rp 0</span>
                             </div>
-                            <button id="btn-checkout" disabled class="w-full py-3.5 bg-slate-200 text-slate-400 font-bold rounded-xl cursor-not-allowed transition-all uppercase tracking-wide text-xs">Selesaikan & Cetak</button>
+                            <button id="btn-checkout" disabled class="w-full py-3.5 bg-dark-5 text-dark-3 font-bold rounded-xl cursor-not-allowed transition-all uppercase tracking-wide text-xs">Selesaikan Transaksi</button>
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- ================= TAB GUDANG ================= -->
             <div id="tab-gudang" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div>
-                    <div class="bg-white p-6 rounded-2xl shadow-premium border border-slate-100 sticky top-24">
-                        <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-6" id="form-title">Tambah Barang Baru</h2>
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 sticky top-24">
+                        <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide mb-6" id="form-title">Tambah Barang Baru</h2>
                         <form id="item-form" class="space-y-4">
                             <input type="hidden" id="item-id">
-                            <div><label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Nama Barang</label><input type="text" id="item-name" required class="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"></div>
-                            <div><label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Kategori</label><input type="text" id="item-category" required class="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"></div>
+                            <div><label class="block text-xs font-semibold text-dark-1 mb-1.5 uppercase tracking-wider">Nama Barang</label><input type="text" id="item-name" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl outline-none focus:border-mantine-blue text-gray-100"></div>
+                            <div><label class="block text-xs font-semibold text-dark-1 mb-1.5 uppercase tracking-wider">Kategori</label><input type="text" id="item-category" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl outline-none focus:border-mantine-blue text-gray-100"></div>
                             <div class="grid grid-cols-2 gap-3">
-                                <div><label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Harga (Rp)</label><input type="number" id="item-price" required min="0" class="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"></div>
-                                <div><label class="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Stok</label><input type="number" id="item-stock" required min="0" class="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"></div>
+                                <div><label class="block text-xs font-semibold text-dark-1 mb-1.5 uppercase tracking-wider">Harga (Rp)</label><input type="number" id="item-price" required min="0" class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl outline-none focus:border-mantine-blue text-gray-100"></div>
+                                <div><label class="block text-xs font-semibold text-dark-1 mb-1.5 uppercase tracking-wider">Stok</label><input type="number" id="item-stock" required min="0" class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl outline-none focus:border-mantine-blue text-gray-100"></div>
                             </div>
-                            <div class="flex gap-3 pt-4 border-t border-slate-100">
-                                <button type="button" id="btn-cancel" class="hidden flex-1 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl">Batal</button>
-                                <button type="submit" id="btn-submit" class="flex-1 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 rounded-xl">Simpan Data</button>
+                            <div class="flex gap-3 pt-4 border-t border-dark-4">
+                                <button type="button" id="btn-cancel" class="hidden flex-1 py-2.5 text-sm font-medium text-dark-0 bg-dark-5 border border-dark-4 hover:bg-dark-4 rounded-xl">Batal</button>
+                                <button type="submit" id="btn-submit" class="flex-1 py-2.5 text-sm font-medium text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl">Simpan Data</button>
                             </div>
                         </form>
                     </div>
                 </div>
                 <div class="lg:col-span-2">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Master Data Barang</h2>
-                    </div>
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide">Master Data Barang</h2></div>
                     <div id="gudang-list" class="space-y-3"></div>
                 </div>
             </div>
 
+            <!-- ================= TAB RIWAYAT TRANSAKSI ================= -->
             <div id="tab-riwayat" class="tab-content hidden space-y-8">
                 <div>
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                        <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Riwayat Transaksi</h2>
-                        <button id="btn-export-excel" class="hidden px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm shadow-emerald-600/20 flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Export Excel (.xlsx)
-                        </button>
+                        <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide">Riwayat Transaksi</h2>
+                        <button id="btn-export-excel" class="hidden px-4 py-2 text-xs font-semibold text-white bg-green-700 hover:bg-green-600 rounded-lg flex items-center gap-2">Export Excel</button>
                     </div>
-                    <div class="bg-white rounded-2xl shadow-premium border border-slate-100 overflow-hidden">
+                    <div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden">
                         <div class="overflow-x-auto no-scrollbar">
-                            <table class="min-w-full divide-y divide-slate-200 text-sm">
-                                <thead class="bg-slate-50/80">
+                            <table class="min-w-full divide-y divide-dark-4 text-sm">
+                                <thead class="bg-dark-8">
                                     <tr>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Waktu Transaksi</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Item Detail</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Total Akhir</th>
-                                        <th class="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Aksi</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-dark-1 uppercase tracking-wider">Waktu Transaksi</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-dark-1 uppercase tracking-wider">Item Detail</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-dark-1 uppercase tracking-wider">Total Akhir</th>
+                                        <th class="px-6 py-4 text-right text-xs font-bold text-dark-1 uppercase tracking-wider">Aksi</th>
                                     </tr>
                                 </thead>
-                                <tbody id="riwayat-list" class="bg-white divide-y divide-slate-100"></tbody>
+                                <tbody id="riwayat-list" class="bg-dark-6 divide-y divide-dark-4"></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
-
+                
                 <div id="admin-shift-log-section" class="hidden space-y-4">
-                    <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-6">Log Rekonsiliasi Shift</h2>
-                    <div class="bg-white rounded-2xl shadow-premium border border-slate-100 overflow-hidden">
+                    <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide mb-6">Log Rekonsiliasi Shift</h2>
+                    <div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden">
                         <div class="overflow-x-auto no-scrollbar">
-                            <table class="min-w-full divide-y divide-slate-200 text-sm">
-                                <thead class="bg-slate-50/80">
+                            <table class="min-w-full divide-y divide-dark-4 text-sm">
+                                <thead class="bg-dark-8">
                                     <tr>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Kasir / Waktu</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Modal Awal</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Sistem Penjualan</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Uang Fisik Aktual</th>
-                                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status Selisih</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-dark-1 uppercase tracking-wider">Kasir / Waktu</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-dark-1 uppercase tracking-wider">Modal Awal</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-dark-1 uppercase tracking-wider">Sistem Penjualan</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-dark-1 uppercase tracking-wider">Uang Fisik Aktual</th>
+                                        <th class="px-6 py-4 text-left text-xs font-bold text-dark-1 uppercase tracking-wider">Status Selisih</th>
                                     </tr>
                                 </thead>
-                                <tbody id="shift-log-list" class="bg-white divide-y divide-slate-100"></tbody>
+                                <tbody id="shift-log-list" class="bg-dark-6 divide-y divide-dark-4"></tbody>
                             </table>
                         </div>
                     </div>
@@ -295,14 +320,15 @@
         </main>
     </div>
 
+    <!-- AREA CETAK STRUK HIDDEN -->
     <div id="print-area" class="hidden text-black bg-white"></div>
 
+    <!-- Firebase SDK Modules -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment, serverTimestamp, where, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // HARAP MASUKKAN FIREBASE CONFIG ANDA DI SINI
         const firebaseConfig = {
             apiKey: "AIzaSyAsLKh24L8KxN8vqUgLQujmrfeVzc0F9YM",
             authDomain: "pos-system-ef6ee.firebaseapp.com",
@@ -312,9 +338,7 @@
             appId: "1:1090528334356:web:ef7bddb8fe623427538d01"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
+        const app = initializeApp(firebaseConfig); const db = getFirestore(app); const auth = getAuth(app);
         
         const itemsRef = collection(db, "barang"); const salesRef = collection(db, "penjualan"); const shiftsRef = collection(db, "shift");
         let databaseBarang = []; let riwayatPenjualan = []; let dataPenjualanTerfilter = []; let dataShiftAll = []; let keranjang = [];
@@ -325,8 +349,6 @@
 
         const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka);
         const formatTanggal = (timestamp) => { if(!timestamp) return 'Memproses...'; return new Date(timestamp.seconds * 1000).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }); };
-
-        // [SEMUA LOGIC AUTH, SHIFT, DATE RANGE, EXCEL, FIREBASE SAMA DENGAN VERSI SEBELUMNYA. KITA HANYA PERBARUI FUNGSI RENDER HTML DI BAWAH INI]
 
         const authLoading = document.getElementById('auth-loading'); const loginScreen = document.getElementById('login-screen'); const appScreen = document.getElementById('app-screen');
         onAuthStateChanged(auth, async (user) => {
@@ -354,7 +376,6 @@
         });
         document.getElementById('btn-logout').addEventListener('click', () => { if (activeShiftSession) { alert("Tutup shift kasir sebelum keluar!"); switchTab('kasir'); return; } if(confirm("Keluar dari sistem?")) signOut(auth).then(() => { keranjang = []; renderKeranjang(); }); });
 
-        // SHIFT UI OVERRIDE
         const shiftModal = document.getElementById('shift-modal'); const shiftForm = document.getElementById('shift-form'); const shiftStatusWidget = document.getElementById('shift-status-widget');
         const kasirCoreContent = document.getElementById('kasir-core-content'); const kasirCartContent = document.getElementById('kasir-cart-content');
 
@@ -366,28 +387,28 @@
 
         function updateShiftUI(isActive) {
             if (isActive) {
-                shiftStatusWidget.className = "bg-emerald-50/60 border border-emerald-200/60 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-sm";
+                shiftStatusWidget.className = "bg-green-900/20 border border-green-800/50 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4";
                 shiftStatusWidget.innerHTML = `
-                    <div class="text-sm text-emerald-900">
-                        <p class="font-bold flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div> Sesi Aktif: ${auth.currentUser.email.split('@')[0].toUpperCase()}</p>
-                        <p class="text-emerald-700 mt-1 text-xs font-medium">Modal Awal: ${toRupiah(activeShiftSession.modalAwal)} <span class="mx-2 text-emerald-300">|</span> Omset Berjalan: ${toRupiah(activeShiftSession.totalPenjualan || 0)}</p>
+                    <div class="text-sm text-green-400">
+                        <p class="font-bold flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Sesi Aktif: ${auth.currentUser.email.split('@')[0].toUpperCase()}</p>
+                        <p class="text-green-500/80 mt-1 text-xs font-medium">Modal Awal: ${toRupiah(activeShiftSession.modalAwal)} <span class="mx-2 text-green-700">|</span> Omset Berjalan: ${toRupiah(activeShiftSession.totalPenjualan || 0)}</p>
                     </div>
-                    <button onclick="window.triggerTutupShift()" class="px-5 py-2.5 text-xs font-bold text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-50 rounded-xl shadow-sm transition-all">Tutup Sesi 🔒</button>`;
+                    <button onclick="window.triggerTutupShift()" class="px-5 py-2.5 text-xs font-bold text-gray-100 bg-dark-5 border border-dark-4 hover:bg-dark-4 rounded-xl transition-all">Tutup Sesi 🔒</button>`;
                 kasirCoreContent.classList.remove('opacity-40', 'pointer-events-none'); kasirCartContent.classList.remove('opacity-40', 'pointer-events-none');
             } else {
-                shiftStatusWidget.className = "bg-indigo-50/50 border border-indigo-100/50 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-sm";
+                shiftStatusWidget.className = "bg-dark-8 border border-dark-4 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4";
                 shiftStatusWidget.innerHTML = `
-                    <div class="text-sm text-indigo-900">
-                        <p class="font-bold flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Sesi Shift Belum Dibuka</p>
-                        <p class="text-indigo-600/80 mt-1 text-xs">Buka shift terlebih dahulu untuk mengaktifkan sistem kasir.</p>
+                    <div class="text-sm text-dark-0">
+                        <p class="font-bold flex items-center gap-2"><svg class="w-4 h-4 text-mantine-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Sesi Shift Belum Dibuka</p>
+                        <p class="text-dark-2 mt-1 text-xs">Buka shift terlebih dahulu untuk mengaktifkan sistem kasir.</p>
                     </div>
-                    <button id="btn-trigger-shift" onclick="window.triggerBukaShift()" class="px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-600/20 transition-all">Mulai Buka Shift 🔑</button>`;
+                    <button id="btn-trigger-shift" onclick="window.triggerBukaShift()" class="px-5 py-2.5 text-xs font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl transition-all">Mulai Buka Shift 🔑</button>`;
                 kasirCoreContent.classList.add('opacity-40', 'pointer-events-none'); kasirCartContent.classList.add('opacity-40', 'pointer-events-none');
             }
         }
 
         window.triggerBukaShift = () => { document.getElementById('shift-modal-title').textContent = "Buka Sesi Shift"; document.getElementById('shift-modal-desc').textContent = "Pastikan jumlah fisik uang kasir sesuai."; document.getElementById('shift-input-label').textContent = "Uang Modal Fisik (Rp)"; document.getElementById('btn-shift-submit').textContent = "Buka Sesi"; document.getElementById('btn-close-shift-modal').classList.add('hidden'); document.getElementById('shift-cash-input').value = ""; shiftModal.classList.remove('hidden'); };
-        window.triggerTutupShift = () => { const expectedCash = activeShiftSession.modalAwal + (activeShiftSession.totalPenjualan || 0); document.getElementById('shift-modal-title').textContent = "Rekonsiliasi Tutup Shift"; document.getElementById('shift-modal-desc').innerHTML = `Sistem mencatat ekspektasi kas: <br><span class="text-lg font-bold text-slate-800">${toRupiah(expectedCash)}</span>`; document.getElementById('shift-input-label').textContent = "Hitung Uang Aktual (Rp)"; document.getElementById('btn-shift-submit').textContent = "Tutup Shift"; document.getElementById('btn-close-shift-modal').classList.remove('hidden'); document.getElementById('shift-cash-input').value = ""; shiftModal.classList.remove('hidden'); };
+        window.triggerTutupShift = () => { const expectedCash = activeShiftSession.modalAwal + (activeShiftSession.totalPenjualan || 0); document.getElementById('shift-modal-title').textContent = "Rekonsiliasi Tutup Shift"; document.getElementById('shift-modal-desc').innerHTML = `Sistem mencatat ekspektasi kas: <br><span class="text-lg font-bold text-gray-100">${toRupiah(expectedCash)}</span>`; document.getElementById('shift-input-label').textContent = "Hitung Uang Aktual (Rp)"; document.getElementById('btn-shift-submit').textContent = "Tutup Shift"; document.getElementById('btn-close-shift-modal').classList.remove('hidden'); document.getElementById('shift-cash-input').value = ""; shiftModal.classList.remove('hidden'); };
         document.getElementById('btn-close-shift-modal').addEventListener('click', () => shiftModal.classList.add('hidden'));
 
         shiftForm.addEventListener('submit', async (e) => {
@@ -403,7 +424,6 @@
             } catch (err) {} finally { btn.disabled = false; }
         });
 
-        // DATE RANGE LOGIC
         const dateStartInput = document.getElementById('filter-date-start'); const dateEndInput = document.getElementById('filter-date-end');
         const sekarang = new Date(); dateStartInput.value = new Date(sekarang.getFullYear(), sekarang.getMonth(), 1).toISOString().slice(0, 10); dateEndInput.value = sekarang.toISOString().slice(0, 10);
         dateStartInput.addEventListener('change', jalankanProsesFilterTanggal); dateEndInput.addEventListener('change', jalankanProsesFilterTanggal);
@@ -425,7 +445,6 @@
             updateDashboardAnalitik(); renderRiwayatList();
         }
 
-        // REAL-TIME
         function initRealtimeListeners() {
             unsubscribeItems = onSnapshot(query(itemsRef, orderBy("nama", "asc")), (snapshot) => { databaseBarang = []; snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() })); renderKategoriPills(); renderKatalogKasir(); renderGudangList(); sinkronisasiKeranjang(); updateDashboardAnalitik(); });
             unsubscribeSales = onSnapshot(query(salesRef, orderBy("waktu", "desc")), (snapshot) => { riwayatPenjualan = []; snapshot.forEach(doc => riwayatPenjualan.push({ id: doc.id, ...doc.data() })); jalankanProsesFilterTanggal(); });
@@ -433,23 +452,21 @@
         }
         function stopRealtimeListeners() { if(unsubscribeItems) unsubscribeItems(); if(unsubscribeSales) unsubscribeSales(); if(unsubscribeShifts) unsubscribeShifts(); }
 
-        // NAVIGATION OVERRIDE
         const tabs = ['dashboard', 'kasir', 'gudang', 'riwayat'];
         tabs.forEach(tab => { document.getElementById(`tab-${tab}-btn`).addEventListener('click', () => switchTab(tab)); });
         function switchTab(targetTab) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.nav-tab').forEach(btn => btn.className = "nav-tab border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 px-3 text-sm font-medium h-full flex items-center gap-2 transition-all");
+            document.querySelectorAll('.nav-tab').forEach(btn => btn.className = "nav-tab border-b-2 border-transparent text-dark-1 hover:text-gray-100 hover:border-dark-4 px-3 text-sm font-medium h-full flex items-center gap-2 transition-all");
             document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
-            document.getElementById(`tab-${targetTab}-btn`).className = "nav-tab border-b-2 border-indigo-600 text-indigo-600 px-3 text-sm font-medium h-full flex items-center gap-2 transition-all";
+            document.getElementById(`tab-${targetTab}-btn`).className = "nav-tab border-b-2 border-mantine-blue text-mantine-blue px-3 text-sm font-medium h-full flex items-center gap-2 transition-all";
         }
 
-        // KASIR UI OVERRIDE
         document.getElementById('kasir-search').addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase().trim(); renderKatalogKasir(); });
         function renderKategoriPills() {
             const container = document.getElementById('kasir-categories'); const daftarKategori = ["Semua", ...new Set(databaseBarang.map(b => b.kategori || "Umum"))];
             container.innerHTML = ""; daftarKategori.forEach(kat => {
                 const isAktif = filterKategoriAktif === kat;
-                container.innerHTML += `<button onclick="window.setFilterKategori('${kat}')" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all shrink-0 ${isAktif ? 'bg-slate-800 text-white shadow-md' : 'bg-transparent text-slate-500 hover:bg-slate-100'}">${kat}</button>`;
+                container.innerHTML += `<button onclick="window.setFilterKategori('${kat}')" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all shrink-0 ${isAktif ? 'bg-dark-5 text-gray-100 border border-dark-4' : 'bg-transparent text-dark-1 hover:bg-dark-8'}">${kat}</button>`;
             });
         }
         window.setFilterKategori = (kategori) => { filterKategoriAktif = kategori; renderKategoriPills(); renderKatalogKasir(); };
@@ -457,23 +474,23 @@
         function renderKatalogKasir() {
             const el = document.getElementById('kasir-katalog'); el.innerHTML = '';
             const dataTerfilter = databaseBarang.filter(b => ((filterKategoriAktif === "Semua") || ((b.kategori || "Umum") === filterKategoriAktif)) && b.nama.toLowerCase().includes(kataKunciPencarian));
-            if (dataTerfilter.length === 0) { el.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400 text-sm font-medium">Produk tidak ditemukan.</div>`; return; }
+            if (dataTerfilter.length === 0) { el.innerHTML = `<div class="col-span-full text-center py-10 text-dark-3 text-sm font-medium">Produk tidak ditemukan.</div>`; return; }
             dataTerfilter.forEach(b => {
                 const isHabis = b.stok <= 0; const isKritis = b.stok > 0 && b.stok <= 5;
-                let bgCard = 'bg-white hover:-translate-y-1 hover:shadow-lg border-slate-100'; let btnSt = 'bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white'; let stTxt = `Stok: ${b.stok}`;
-                if (isHabis) { bgCard = 'bg-slate-50/50 border-slate-100 opacity-60 grayscale-[50%]'; btnSt = 'bg-slate-100 text-slate-400 cursor-not-allowed'; stTxt = 'Habis'; }
+                let bgCard = 'bg-dark-6 hover:bg-dark-5 hover:-translate-y-1 border border-dark-4'; let btnSt = 'bg-mantine-blue/10 text-blue-400 hover:bg-mantine-blue hover:text-white'; let stTxt = `Stok: ${b.stok}`;
+                if (isHabis) { bgCard = 'bg-dark-7 border-dark-4 opacity-50 grayscale-[50%]'; btnSt = 'bg-dark-5 text-dark-3 cursor-not-allowed'; stTxt = 'Habis'; }
                 else if (isKritis) { stTxt = `Sisa ${b.stok}!`; }
 
                 el.innerHTML += `
-                    <div class="p-4 rounded-2xl shadow-premium border transition-all duration-200 cursor-pointer flex flex-col justify-between h-full ${bgCard}" onclick="if(!${isHabis}) window.tambahCart('${b.id}')">
+                    <div class="p-4 rounded-xl transition-all duration-200 cursor-pointer flex flex-col justify-between h-full ${bgCard}" onclick="if(!${isHabis}) window.tambahCart('${b.id}')">
                         <div>
-                            <span class="text-[9px] uppercase font-bold tracking-widest text-slate-400 mb-1 block">${b.kategori || 'Umum'}</span>
-                            <h3 class="font-bold text-slate-800 text-sm leading-snug line-clamp-2">${b.nama}</h3>
+                            <span class="text-[9px] uppercase font-bold tracking-widest text-dark-2 mb-1 block">${b.kategori || 'Umum'}</span>
+                            <h3 class="font-bold text-gray-100 text-sm leading-snug line-clamp-2">${b.nama}</h3>
                         </div>
                         <div class="mt-4 flex items-end justify-between">
                             <div>
-                                <p class="text-sm font-extrabold text-indigo-600">${toRupiah(b.harga)}</p>
-                                <span class="text-[10px] font-medium text-slate-400 mt-0.5 block">${stTxt}</span>
+                                <p class="text-sm font-extrabold text-mantine-blue">${toRupiah(b.harga)}</p>
+                                <span class="text-[10px] font-medium text-dark-2 mt-0.5 block">${stTxt}</span>
                             </div>
                             <button class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg transition-colors ${btnSt}" ${isHabis ? 'disabled' : ''}>+</button>
                         </div>
@@ -481,7 +498,6 @@
             });
         }
 
-        // CART UI OVERRIDE
         const cashInput = document.getElementById('cash-paid'); const discountInput = document.getElementById('cart-discount'); const btnCheckout = document.getElementById('btn-checkout');
         window.tambahCart = (id) => {
             const b = databaseBarang.find(x => x.id === id); const item = keranjang.find(x => x.id === id);
@@ -493,21 +509,21 @@
 
         function renderKeranjang() {
             const el = document.getElementById('cart-list'); let subtotal = 0, qty = 0;
-            if(!keranjang.length) { el.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-slate-400 space-y-2"><svg class="w-12 h-12 opacity-20" fill="currentColor" viewBox="0 0 20 20"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"></path></svg><span class="text-xs font-medium">Belum ada pesanan</span></div>`; }
+            if(!keranjang.length) { el.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-dark-3 space-y-2"><svg class="w-12 h-12 opacity-20" fill="currentColor" viewBox="0 0 20 20"><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"></path></svg><span class="text-xs font-medium">Belum ada pesanan</span></div>`; }
             else { el.innerHTML = ''; }
 
             keranjang.forEach(item => {
                 subtotal += (item.harga * item.qty); qty += item.qty;
                 el.innerHTML += `
-                    <div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                    <div class="flex items-center justify-between p-3 bg-dark-6 border border-dark-4 rounded-xl shadow-sm">
                         <div class="flex-1 pr-3">
-                            <h4 class="font-bold text-slate-800 text-xs leading-tight mb-1">${item.nama}</h4>
-                            <span class="text-[11px] font-medium text-indigo-600">${toRupiah(item.harga)}</span>
+                            <h4 class="font-bold text-gray-100 text-xs leading-tight mb-1">${item.nama}</h4>
+                            <span class="text-[11px] font-medium text-mantine-blue">${toRupiah(item.harga)}</span>
                         </div>
-                        <div class="flex items-center gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-100">
-                            <button class="w-6 h-6 flex items-center justify-center bg-white text-slate-500 rounded-md shadow-sm hover:text-indigo-600" onclick="window.ubahQty('${item.id}', -1)">-</button>
-                            <span class="w-5 text-center text-xs font-bold text-slate-700">${item.qty}</span>
-                            <button class="w-6 h-6 flex items-center justify-center bg-white text-slate-500 rounded-md shadow-sm hover:text-indigo-600" onclick="window.ubahQty('${item.id}', 1)">+</button>
+                        <div class="flex items-center gap-1.5 bg-dark-8 p-1 rounded-lg border border-dark-4">
+                            <button class="w-6 h-6 flex items-center justify-center bg-dark-6 text-dark-0 rounded-md hover:text-mantine-blue hover:bg-dark-5" onclick="window.ubahQty('${item.id}', -1)">-</button>
+                            <span class="w-5 text-center text-xs font-bold text-gray-100">${item.qty}</span>
+                            <button class="w-6 h-6 flex items-center justify-center bg-dark-6 text-dark-0 rounded-md hover:text-mantine-blue hover:bg-dark-5" onclick="window.ubahQty('${item.id}', 1)">+</button>
                         </div>
                     </div>`;
             });
@@ -525,10 +541,10 @@
             const bayar = Number(cashInput.value);
             if (keranjang.length > 0 && bayar >= globalGrandTotal) {
                 document.getElementById('cash-return').textContent = toRupiah(bayar - globalGrandTotal);
-                btnCheckout.disabled = false; btnCheckout.className = "w-full py-3.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all uppercase tracking-wide text-xs";
+                btnCheckout.disabled = false; btnCheckout.className = "w-full py-3.5 bg-mantine-blue text-white font-bold rounded-xl hover:bg-mantine-hover hover:-translate-y-0.5 transition-all uppercase tracking-wide text-xs";
             } else {
                 document.getElementById('cash-return').textContent = "Rp 0";
-                btnCheckout.disabled = true; btnCheckout.className = "w-full py-3.5 bg-slate-100 text-slate-400 font-bold rounded-xl cursor-not-allowed transition-all uppercase tracking-wide text-xs";
+                btnCheckout.disabled = true; btnCheckout.className = "w-full py-3.5 bg-dark-5 text-dark-3 font-bold rounded-xl cursor-not-allowed transition-all uppercase tracking-wide text-xs";
             }
         }
 
@@ -546,7 +562,6 @@
             } catch (err) { alert("Gagal memproses transaksi!"); } finally { btnCheckout.textContent = "SELESAIKAN PESANAN"; }
         });
 
-        // PRINT ENGINE
         window.cetakStrukDariRiwayat = (idPenjualan) => { const trx = riwayatPenjualan.find(x => x.id === idPenjualan); if(trx) cetakStruk(trx); };
         function cetakStruk(data) {
             const printArea = document.getElementById('print-area'); let itemHtml = '';
@@ -557,22 +572,21 @@
             printArea.classList.remove('hidden'); window.print(); printArea.classList.add('hidden');
         }
 
-        // CHART & HISTORY UI OVERRIDE
         function updateDashboardAnalitik() {
             const lowStockContainer = document.getElementById('dash-low-stock-list');
             if (lowStockContainer) {
                 const produkKritis = databaseBarang.filter(b => b.stok <= 5); lowStockContainer.innerHTML = '';
-                if (produkKritis.length === 0) { lowStockContainer.innerHTML = `<div class="text-center py-10 flex flex-col items-center"><div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-3"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div><p class="text-emerald-700 font-bold text-sm">Stok Aman Terkendali</p></div>`; } 
+                if (produkKritis.length === 0) { lowStockContainer.innerHTML = `<div class="text-center py-10 flex flex-col items-center"><div class="w-12 h-12 bg-green-900/30 text-green-500 rounded-full flex items-center justify-center mb-3"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div><p class="text-green-500 font-bold text-sm">Stok Aman Terkendali</p></div>`; } 
                 else {
                     produkKritis.forEach(b => {
                         const IsKosong = b.stok === 0;
                         lowStockContainer.innerHTML += `
-                            <div class="flex justify-between items-center p-3.5 rounded-xl border ${IsKosong ? 'bg-red-50/50 border-red-100' : 'bg-amber-50/50 border-amber-100'}">
+                            <div class="flex justify-between items-center p-3.5 rounded-xl border ${IsKosong ? 'bg-red-900/20 border-red-900/50' : 'bg-orange-900/20 border-orange-900/50'}">
                                 <div>
-                                    <p class="font-bold text-slate-800 text-sm">${b.nama}</p>
-                                    <p class="text-[10px] text-slate-500 font-medium uppercase tracking-wider mt-1">${b.kategori || 'Umum'}</p>
+                                    <p class="font-bold text-gray-100 text-sm">${b.nama}</p>
+                                    <p class="text-[10px] text-dark-1 font-medium uppercase tracking-wider mt-1">${b.kategori || 'Umum'}</p>
                                 </div>
-                                <span class="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider shadow-sm ${IsKosong ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">${IsKosong ? 'Habis' : `${b.stok} Tersisa`}</span>
+                                <span class="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider shadow-sm ${IsKosong ? 'bg-red-900/40 text-red-400' : 'bg-orange-900/40 text-orange-400'}">${IsKosong ? 'Habis' : `${b.stok} Tersisa`}</span>
                             </div>`;
                     });
                 }
@@ -581,78 +595,78 @@
             if (currentUserRole !== "admin") return; 
             let totalOmset = 0; let totalTransaksi = dataPenjualanTerfilter.length; let totalQtyTerjual = 0; let produkKuantitasMap = {};
             dataPenjualanTerfilter.forEach(trx => { totalOmset += (trx.totalAkhir || trx.totalBelanja || 0); if(trx.items) { trx.items.forEach(item => { totalQtyTerjual += item.qty; produkKuantitasMap[item.nama] = (produkKuantitasMap[item.nama] || 0) + item.qty; }); } });
-            document.getElementById('dash-omset').textContent = toRupiah(totalOmset); document.getElementById('dash-transaksi').textContent = totalTransaksi; document.getElementById('dash-items').innerHTML = `${totalQtyTerjual} <span class="text-lg font-medium text-slate-400">Pcs</span>`;
+            document.getElementById('dash-omset').textContent = toRupiah(totalOmset); document.getElementById('dash-transaksi').textContent = totalTransaksi; document.getElementById('dash-items').innerHTML = `${totalQtyTerjual} <span class="text-lg font-medium text-dark-2">Pcs</span>`;
 
             const topProdukArray = Object.keys(produkKuantitasMap).map(nama => ({ nama, qty: produkKuantitasMap[nama] })).sort((a, b) => b.qty - a.qty).slice(0, 5);
             const ctx = document.getElementById('chartProdukTerlaris').getContext('2d');
             if (chartInstance) chartInstance.destroy();
-            chartInstance = new Chart(ctx, { type: 'bar', data: { labels: topProdukArray.map(p => p.nama), datasets: [{ label: 'Terjual', data: topProdukArray.map(p => p.qty), backgroundColor: '#6366f1', borderRadius: 6, barThickness: 24 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border:{display:false}, ticks: { font:{family:'Inter'}, precision: 0 } }, x: { grid: { display: false }, border:{display:false}, ticks: { font:{family:'Inter'} } } } } });
+            // Penyesuaian Chart JS untuk Dark Mode
+            chartInstance = new Chart(ctx, { type: 'bar', data: { labels: topProdukArray.map(p => p.nama), datasets: [{ label: 'Terjual', data: topProdukArray.map(p => p.qty), backgroundColor: '#1971c2', borderRadius: 4, barThickness: 24 }] }, options: { responsive: true, maintainAspectRatio: false, color: '#C1C2C5', plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#373A40' }, border:{display:false}, ticks: { color: '#A6A7AB', font:{family:'Inter'}, precision: 0 } }, x: { grid: { display: false }, border:{display:false}, ticks: { color: '#A6A7AB', font:{family:'Inter'} } } } } });
         }
 
         function renderRiwayatList() {
             const el = document.getElementById('riwayat-list'); el.innerHTML = '';
-            if(dataPenjualanTerfilter.length === 0) { el.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-slate-400 font-medium">Tidak ada transaksi ditemukan.</td></tr>`; return; }
+            if(dataPenjualanTerfilter.length === 0) { el.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-dark-3 font-medium">Tidak ada transaksi ditemukan.</td></tr>`; return; }
             dataPenjualanTerfilter.forEach((trx) => {
                 const itemNames = trx.items ? trx.items.map(i => `${i.nama} (${i.qty}x)`).join(', ') : '-'; const isDiskon = trx.diskon > 0;
                 el.innerHTML += `
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-slate-600 font-medium">${formatTanggal(trx.waktu)}</td>
-                        <td class="px-6 py-4 text-slate-500 max-w-[200px] truncate" title="${itemNames}">${itemNames}</td>
+                    <tr class="hover:bg-dark-5 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-dark-0 font-medium">${formatTanggal(trx.waktu)}</td>
+                        <td class="px-6 py-4 text-dark-1 max-w-[200px] truncate" title="${itemNames}">${itemNames}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="font-bold text-slate-800">${toRupiah(trx.totalAkhir || trx.totalBelanja)}</div>
-                            ${isDiskon ? `<div class="text-[10px] text-red-500 font-bold uppercase mt-0.5">Diskon: ${toRupiah(trx.diskon)}</div>` : ''}
+                            <div class="font-bold text-gray-100">${toRupiah(trx.totalAkhir || trx.totalBelanja)}</div>
+                            ${isDiskon ? `<div class="text-[10px] text-red-400 font-bold uppercase mt-0.5">Diskon: ${toRupiah(trx.diskon)}</div>` : ''}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right"><button onclick="window.cetakStrukDariRiwayat('${trx.id}')" class="text-indigo-600 hover:text-white font-semibold bg-indigo-50 hover:bg-indigo-600 px-3 py-1.5 rounded-lg text-xs transition-colors">Cetak Struk</button></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right"><button onclick="window.cetakStrukDariRiwayat('${trx.id}')" class="text-blue-400 hover:text-white font-semibold bg-blue-900/20 hover:bg-mantine-blue px-3 py-1.5 rounded-lg text-xs transition-colors border border-blue-900/50">Cetak Struk</button></td>
                     </tr>`;
             });
         }
 
         function renderShiftLogList() {
             const el = document.getElementById('shift-log-list'); el.innerHTML = '';
-            if (dataShiftAll.length === 0) { el.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-slate-400 font-medium">Riwayat shift kosong.</td></tr>`; return; }
+            if (dataShiftAll.length === 0) { el.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-dark-3 font-medium">Riwayat shift kosong.</td></tr>`; return; }
             dataShiftAll.forEach(s => {
                 const isBuka = s.status === "buka"; const tglBukaStr = formatTanggal(s.waktuBuka); const tglTutupStr = isBuka ? 'Masih Aktif Berjalan' : formatTanggal(s.waktuTutup);
-                let selisihHtml = '<span class="text-slate-300">-</span>';
+                let selisihHtml = '<span class="text-dark-3">-</span>';
                 if (!isBuka) {
-                    if (s.selisih === 0) selisihHtml = `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-md font-bold text-[10px] uppercase">Seimbang (Rp 0)</span>`;
-                    else if (s.selisih > 0) selisihHtml = `<span class="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-md font-bold text-[10px] uppercase">Surplus (+${toRupiah(s.selisih)})</span>`;
-                    else if (s.selisih < 0) selisihHtml = `<span class="px-2.5 py-1 bg-red-100 text-red-700 rounded-md font-bold text-[10px] uppercase">Minus (${toRupiah(s.selisih)})</span>`;
+                    if (s.selisih === 0) selisihHtml = `<span class="px-2.5 py-1 bg-green-900/30 text-green-400 rounded-md font-bold text-[10px] uppercase border border-green-900/50">Seimbang (Rp 0)</span>`;
+                    else if (s.selisih > 0) selisihHtml = `<span class="px-2.5 py-1 bg-blue-900/30 text-blue-400 rounded-md font-bold text-[10px] uppercase border border-blue-900/50">Surplus (+${toRupiah(s.selisih)})</span>`;
+                    else if (s.selisih < 0) selisihHtml = `<span class="px-2.5 py-1 bg-red-900/30 text-red-400 rounded-md font-bold text-[10px] uppercase border border-red-900/50">Minus (${toRupiah(s.selisih)})</span>`;
                 }
                 el.innerHTML += `
-                    <tr class="hover:bg-slate-50 transition-colors text-sm">
+                    <tr class="hover:bg-dark-5 transition-colors text-sm">
                         <td class="px-6 py-4">
-                            <div class="font-bold text-slate-800 uppercase text-xs mb-1">${s.namaKasir}</div>
-                            <div class="text-[10px] text-slate-500 font-medium">Buka: ${tglBukaStr}</div>
-                            <div class="text-[10px] text-slate-500 font-medium">Tutup: ${tglTutupStr}</div>
+                            <div class="font-bold text-gray-100 uppercase text-xs mb-1">${s.namaKasir}</div>
+                            <div class="text-[10px] text-dark-2 font-medium">Buka: ${tglBukaStr}</div>
+                            <div class="text-[10px] text-dark-2 font-medium">Tutup: ${tglTutupStr}</div>
                         </td>
-                        <td class="px-6 py-4 text-slate-600 font-medium">${toRupiah(s.modalAwal)}</td>
-                        <td class="px-6 py-4 text-slate-600 font-medium">${toRupiah(s.totalPenjualan || 0)}</td>
-                        <td class="px-6 py-4">${isBuka ? `<span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-md font-bold text-[10px] uppercase">SHIFT BERJALAN</span>` : `<span class="font-bold text-slate-800">${toRupiah(s.uangAktual)}</span>`}</td>
+                        <td class="px-6 py-4 text-dark-0 font-medium">${toRupiah(s.modalAwal)}</td>
+                        <td class="px-6 py-4 text-dark-0 font-medium">${toRupiah(s.totalPenjualan || 0)}</td>
+                        <td class="px-6 py-4">${isBuka ? `<span class="px-2.5 py-1 bg-orange-900/30 text-orange-400 rounded-md font-bold text-[10px] uppercase border border-orange-900/50">SHIFT BERJALAN</span>` : `<span class="font-bold text-gray-100">${toRupiah(s.uangAktual)}</span>`}</td>
                         <td class="px-6 py-4">${selisihHtml}</td>
                     </tr>`;
             });
         }
 
-        // GUDANG UI OVERRIDE
         const form = document.getElementById('item-form'); let isEditing = false;
         function renderGudangList() {
             const el = document.getElementById('gudang-list'); el.innerHTML = '';
             databaseBarang.forEach(b => {
                 const isKritis = b.stok <= 5; const isKosong = b.stok === 0;
-                let bgStyle = 'bg-white border-slate-100 hover:shadow-md'; let tagStok = `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-slate-100 text-slate-600 rounded-md">Stok: ${b.stok}</span>`;
-                if (isKosong) { bgStyle = 'bg-red-50/30 border-red-100'; tagStok = `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-red-100 text-red-700 rounded-md">Habis</span>`; } 
-                else if (isKritis) { bgStyle = 'bg-amber-50/30 border-amber-100'; tagStok = `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-amber-100 text-amber-700 rounded-md">Sisa ${b.stok}</span>`; }
+                let bgStyle = 'bg-dark-6 border-dark-4 hover:border-dark-3'; let tagStok = `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-dark-5 text-dark-0 rounded-md border border-dark-4">Stok: ${b.stok}</span>`;
+                if (isKosong) { bgStyle = 'bg-red-900/10 border-red-900/30'; tagStok = `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-red-900/30 text-red-400 rounded-md border border-red-900/50">Habis</span>`; } 
+                else if (isKritis) { bgStyle = 'bg-orange-900/10 border-orange-900/30'; tagStok = `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-orange-900/30 text-orange-400 rounded-md border border-orange-900/50">Sisa ${b.stok}</span>`; }
 
                 el.innerHTML += `
-                    <div class="p-4 sm:p-5 rounded-2xl shadow-sm border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${bgStyle}">
+                    <div class="p-4 sm:p-5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${bgStyle}">
                         <div>
-                            <span class="text-[9px] uppercase font-bold tracking-widest text-slate-400 mb-0.5 block">${b.kategori || 'Umum'}</span>
-                            <h3 class="font-bold text-slate-800 text-sm">${b.nama}</h3>
-                            <div class="flex items-center gap-3 mt-2"><span class="text-sm font-extrabold text-indigo-600">${toRupiah(b.harga)}</span>${tagStok}</div>
+                            <span class="text-[9px] uppercase font-bold tracking-widest text-dark-2 mb-0.5 block">${b.kategori || 'Umum'}</span>
+                            <h3 class="font-bold text-gray-100 text-sm">${b.nama}</h3>
+                            <div class="flex items-center gap-3 mt-2"><span class="text-sm font-extrabold text-mantine-blue">${toRupiah(b.harga)}</span>${tagStok}</div>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="window.editBrg('${b.id}')" class="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">Edit</button>
-                            <button onclick="window.hapusBrg('${b.id}')" class="px-4 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">Hapus</button>
+                            <button onclick="window.editBrg('${b.id}')" class="px-4 py-2 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 border border-dark-4 rounded-xl transition-colors">Edit</button>
+                            <button onclick="window.hapusBrg('${b.id}')" class="px-4 py-2 text-xs font-bold text-red-400 bg-red-900/20 hover:bg-red-900/40 border border-red-900/50 rounded-xl transition-colors">Hapus</button>
                         </div>
                     </div>`;
             });
@@ -672,7 +686,6 @@
         window.resetForm = () => { isEditing = false; form.reset(); document.getElementById('form-title').textContent = "Tambah Barang Baru"; document.getElementById('btn-cancel').classList.add('hidden'); };
         document.getElementById('btn-cancel').addEventListener('click', window.resetForm);
 
-        // EXPORT ENGINE
         document.getElementById('btn-export-excel').addEventListener('click', () => {
             if (dataPenjualanTerfilter.length === 0) return alert("Data kosong.");
             const dataExcel = dataPenjualanTerfilter.map(trx => {
