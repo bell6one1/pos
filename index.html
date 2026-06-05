@@ -202,7 +202,7 @@
                         <div class="bg-dark-6 p-2 rounded-xl border border-dark-4 flex flex-col sm:flex-row gap-2">
                             <div class="relative flex-1">
                                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-dark-3">🔍</div>
-                                <input type="text" id="kasir-search" placeholder="Cari nama produk..." class="w-full pl-10 pr-4 py-2.5 text-sm bg-transparent outline-none text-gray-100 placeholder:text-dark-2">
+                                <input type="text" id="kasir-search" placeholder="Cari nama atau barcode..." class="w-full pl-10 pr-4 py-2.5 text-sm bg-transparent outline-none text-gray-100 placeholder:text-dark-2">
                             </div>
                             <div class="w-px bg-dark-4 hidden sm:block"></div>
                             <div id="kasir-categories" class="flex gap-2 overflow-x-auto no-scrollbar py-2 px-2 sm:max-w-xs items-center"></div>
@@ -257,6 +257,7 @@
                         <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide mb-6" id="form-title">Tambah Barang Baru</h2>
                         <form id="item-form" class="space-y-4">
                             <input type="hidden" id="item-id">
+                            <div><label class="block text-xs font-semibold text-dark-1 mb-1.5 uppercase tracking-wider">Barcode / SKU (Opsional)</label><input type="text" id="item-barcode" placeholder="Scan kode..." class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl outline-none focus:border-mantine-blue text-gray-100"></div>
                             <div><label class="block text-xs font-semibold text-dark-1 mb-1.5 uppercase tracking-wider">Nama Barang</label><input type="text" id="item-name" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl outline-none focus:border-mantine-blue text-gray-100"></div>
                             <div><label class="block text-xs font-semibold text-dark-1 mb-1.5 uppercase tracking-wider">Kategori</label><input type="text" id="item-category" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl outline-none focus:border-mantine-blue text-gray-100"></div>
                             <div class="grid grid-cols-2 gap-3">
@@ -353,6 +354,58 @@
 
         const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka);
         const formatTanggal = (timestamp) => { if(!timestamp) return 'Memproses...'; return new Date(timestamp.seconds * 1000).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }); };
+
+        // SISTEM AUDIO BEEP
+        function playBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // Nada tinggi A5
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); // Volume
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.1); // Durasi 0.1 detik
+            } catch (error) { console.error("Audio tidak didukung", error); }
+        }
+
+        // LISTENER GLOBAL BARCODE SCANNER
+        let barcodeBuffer = "";
+        let barcodeTimeout = null;
+        document.addEventListener("keydown", (e) => {
+            // Abaikan ketikan manusia biasa jika sedang mengetik di input text (kecuali di kasir search)
+            if (e.target.tagName === 'INPUT' && e.target.id !== 'kasir-search' && e.target.id !== 'item-barcode') return;
+
+            if (e.key === 'Enter' && barcodeBuffer.length > 0) {
+                e.preventDefault();
+                processBarcode(barcodeBuffer);
+                barcodeBuffer = "";
+            } else {
+                if (e.key.length === 1) { // Hanya tangkap karakter
+                    barcodeBuffer += e.key;
+                    clearTimeout(barcodeTimeout);
+                    barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 100); // 100ms threshold
+                }
+            }
+        });
+
+        function processBarcode(code) {
+            if(!activeShiftSession && currentUserRole === 'kasir') return; // Tolak scan jika shift belum buka
+            const b = databaseBarang.find(x => x.barcode === code);
+            if (b) {
+                if (b.stok > 0) {
+                    window.tambahCart(b.id);
+                    // Reset kolom pencarian otomatis
+                    document.getElementById('kasir-search').value = "";
+                    kataKunciPencarian = "";
+                    renderKatalogKasir();
+                } else {
+                    alert(`Stok produk "${b.nama}" habis!`);
+                }
+            }
+        }
 
         const authLoading = document.getElementById('auth-loading'); const loginScreen = document.getElementById('login-screen'); const appScreen = document.getElementById('app-screen');
         onAuthStateChanged(auth, async (user) => {
@@ -477,7 +530,8 @@
         
         function renderKatalogKasir() {
             const el = document.getElementById('kasir-katalog'); el.innerHTML = '';
-            const dataTerfilter = databaseBarang.filter(b => ((filterKategoriAktif === "Semua") || ((b.kategori || "Umum") === filterKategoriAktif)) && b.nama.toLowerCase().includes(kataKunciPencarian));
+            // FILTER UPDATE: Bisa mencari melalui Barcode
+            const dataTerfilter = databaseBarang.filter(b => ((filterKategoriAktif === "Semua") || ((b.kategori || "Umum") === filterKategoriAktif)) && (b.nama.toLowerCase().includes(kataKunciPencarian) || (b.barcode && b.barcode.toLowerCase().includes(kataKunciPencarian))));
             if (dataTerfilter.length === 0) { el.innerHTML = `<div class="col-span-full text-center py-10 text-dark-3 text-sm font-medium">Produk tidak ditemukan.</div>`; return; }
             dataTerfilter.forEach(b => {
                 const isHabis = b.stok <= 0; const isKritis = b.stok > 0 && b.stok <= 5;
@@ -505,9 +559,11 @@
         const cashInput = document.getElementById('cash-paid'); const discountInput = document.getElementById('cart-discount'); const btnCheckout = document.getElementById('btn-checkout');
         window.tambahCart = (id) => {
             const b = databaseBarang.find(x => x.id === id); const item = keranjang.find(x => x.id === id);
-            if (item) { if (item.qty >= b.stok) return; item.qty++; } else { keranjang.push({ id: b.id, nama: b.nama, harga: b.harga, qty: 1 }); } renderKeranjang();
+            if (item) { if (item.qty >= b.stok) return; item.qty++; } else { keranjang.push({ id: b.id, nama: b.nama, harga: b.harga, qty: 1 }); } 
+            playBeep(); // Mainkan efek suara Beep
+            renderKeranjang();
         };
-        window.ubahQty = (id, n) => { const item = keranjang.find(x => x.id === id); const b = databaseBarang.find(x => x.id === id); item.qty += n; if (item.qty > b.stok) item.qty = b.stok; if (item.qty <= 0) keranjang = keranjang.filter(x => x.id !== id); renderKeranjang(); };
+        window.ubahQty = (id, n) => { const item = keranjang.find(x => x.id === id); const b = databaseBarang.find(x => x.id === id); item.qty += n; if (item.qty > b.stok) item.qty = b.stok; if (item.qty <= 0) keranjang = keranjang.filter(x => x.id !== id); playBeep(); renderKeranjang(); };
         function sinkronisasiKeranjang() { keranjang.forEach((item, i) => { const b = databaseBarang.find(x => x.id === item.id); if (!b) keranjang.splice(i, 1); else if (item.qty > b.stok) { item.qty = b.stok; if(item.qty<=0) keranjang.splice(i, 1); } }); renderKeranjang(); }
         discountInput.addEventListener('input', () => { globalDiskon = Number(discountInput.value) || 0; kalkulasiTotal(); });
 
@@ -661,10 +717,13 @@
                 if (isKosong) { bgStyle = 'bg-red-900/10 border-red-900/30'; tagStok = `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-red-900/30 text-red-400 rounded-md border border-red-900/50">Habis</span>`; } 
                 else if (isKritis) { bgStyle = 'bg-orange-900/10 border-orange-900/30'; tagStok = `<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 bg-orange-900/30 text-orange-400 rounded-md border border-orange-900/50">Sisa ${b.stok}</span>`; }
 
+                // Menambahkan indikator Barcode pada UI Gudang
+                const infoBarcode = b.barcode ? `<span class="text-[9px] font-bold tracking-widest text-dark-1 mb-0.5 block">📟 ${b.barcode} • ${b.kategori || 'Umum'}</span>` : `<span class="text-[9px] uppercase font-bold tracking-widest text-dark-2 mb-0.5 block">${b.kategori || 'Umum'}</span>`;
+
                 el.innerHTML += `
                     <div class="p-4 sm:p-5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${bgStyle}">
                         <div>
-                            <span class="text-[9px] uppercase font-bold tracking-widest text-dark-2 mb-0.5 block">${b.kategori || 'Umum'}</span>
+                            ${infoBarcode}
                             <h3 class="font-bold text-gray-100 text-sm">${b.nama}</h3>
                             <div class="flex items-center gap-3 mt-2"><span class="text-sm font-extrabold text-mantine-blue">${toRupiah(b.harga)}</span>${tagStok}</div>
                         </div>
@@ -675,17 +734,31 @@
                     </div>`;
             });
         }
+        
         form.addEventListener('submit', async (e) => {
             e.preventDefault(); const btn = document.getElementById('btn-submit'); btn.disabled = true; btn.textContent = "Loading...";
-            const data = { nama: document.getElementById('item-name').value.trim(), kategori: document.getElementById('item-category').value.trim() || "Umum", harga: Number(document.getElementById('item-price').value), stok: Number(document.getElementById('item-stock').value) };
+            const data = { 
+                barcode: document.getElementById('item-barcode').value.trim(), // Data Barcode ditambahkan
+                nama: document.getElementById('item-name').value.trim(), 
+                kategori: document.getElementById('item-category').value.trim() || "Umum", 
+                harga: Number(document.getElementById('item-price').value), 
+                stok: Number(document.getElementById('item-stock').value) 
+            };
             try { if (isEditing) await updateDoc(doc(db, "barang", document.getElementById('item-id').value), data); else await addDoc(itemsRef, data); window.resetForm(); } 
             catch (err) { alert("Error menyimpan data!"); } btn.disabled = false; btn.textContent = "Simpan Data";
         });
+        
         window.editBrg = (id) => {
             isEditing = true; const b = databaseBarang.find(x => x.id === id);
-            document.getElementById('item-id').value = b.id; document.getElementById('item-name').value = b.nama; document.getElementById('item-category').value = b.kategori || "Umum"; document.getElementById('item-price').value = b.harga; document.getElementById('item-stock').value = b.stok;
+            document.getElementById('item-id').value = b.id; 
+            document.getElementById('item-barcode').value = b.barcode || ""; // Tampilkan Barcode di form
+            document.getElementById('item-name').value = b.nama; 
+            document.getElementById('item-category').value = b.kategori || "Umum"; 
+            document.getElementById('item-price').value = b.harga; 
+            document.getElementById('item-stock').value = b.stok;
             document.getElementById('form-title').textContent = "Edit Data Produk"; document.getElementById('btn-cancel').classList.remove('hidden');
         };
+        
         window.hapusBrg = async (id) => { if(confirm("Yakin ingin menghapus produk ini secara permanen?")) await deleteDoc(doc(db, "barang", id)); };
         window.resetForm = () => { isEditing = false; form.reset(); document.getElementById('form-title').textContent = "Tambah Barang Baru"; document.getElementById('btn-cancel').classList.add('hidden'); };
         document.getElementById('btn-cancel').addEventListener('click', window.resetForm);
