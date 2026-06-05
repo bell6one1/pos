@@ -138,7 +138,7 @@ window.addEventListener('online', syncOfflineTransactions);
 window.addEventListener('offline', () => { document.getElementById('offline-indicator').classList.remove('hidden'); applyFiltersAndStats(); });
 
 // ==========================================
-// AUDIT LOGS & PERANGKAT KERAS (FIXED ANTI-FRAUD)
+// AUDIT LOGS & PERANGKAT KERAS
 // ==========================================
 async function logActivity(actionType, actionDetails) {
     const userEmail = auth.currentUser ? auth.currentUser.email.split('@')[0] : "Sistem";
@@ -171,7 +171,9 @@ function playBeep() {
 
 let barcodeBuffer = ""; let barcodeTimeout = null;
 document.addEventListener("keydown", (e) => {
+    // Abaikan input jika bukan berasal dari kolom pencarian kasir atau form barang
     if (e.target.tagName === 'INPUT' && e.target.id !== 'kasir-search' && e.target.id !== 'item-barcode') return;
+    
     if (e.key === 'Enter' && barcodeBuffer.length > 0) {
         e.preventDefault();
         const b = databaseBarang.find(x => x.barcode === barcodeBuffer || x.id === barcodeBuffer);
@@ -179,23 +181,23 @@ document.addEventListener("keydown", (e) => {
         if (b) { 
             if ((b.stok||0) > 0) {
                 window.tambahKeKeranjang(b.id); 
+                // BUG FIX 1: HANYA bersihkan input pencarian jika BARANG DITEMUKAN
+                if (e.target.id === 'kasir-search') { 
+                    e.target.value = ""; 
+                    kataKunciPencarian = ""; 
+                    renderKatalogKasir(); 
+                }
             } else {
                 alert(`Stok produk [${b.nama}] habis!`);
             }
-        }
-        
-        // BUG FIX: Selalu paksa kosongkan input jika asalnya dari pencarian agar UI tidak macet
-        if (e.target.id === 'kasir-search') { 
-            e.target.value = ""; 
-            kataKunciPencarian = ""; 
-            renderKatalogKasir(); 
         }
         barcodeBuffer = "";
     } else {
         if (e.key.length === 1) { 
             barcodeBuffer += e.key; 
             clearTimeout(barcodeTimeout); 
-            barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 100); 
+            // BUG FIX 1: Timeout dipercepat menjadi 50ms untuk mendeteksi scanner asli (bukan ketikan manusia)
+            barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 50); 
         }
     }
 });
@@ -300,7 +302,9 @@ window.triggerBukaShift = () => {
         e.preventDefault(); 
         if (!navigator.onLine) return alert("Peringatan: Tidak dapat membuka shift. Koneksi internet dibutuhkan agar server dapat merekam laporan shift baru Anda.");
         
-        const val = parseFloat(document.getElementById('shift-cash-input').value) || 0;
+        // BUG FIX 2: Mencegah input nilai negatif dengan Math.max(0)
+        const val = Math.max(0, parseFloat(document.getElementById('shift-cash-input').value) || 0);
+        
         const docRef = await addDoc(shiftsRef, { userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, status: "buka" });
         activeShiftSession = { id: docRef.id, userId: currentUserId, namaKasir: auth.currentUser.email.split('@')[0], modalAwal: val, totalPenjualan: 0, status: "buka" };
         localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
@@ -318,8 +322,10 @@ window.triggerTutupShift = () => {
         e.preventDefault(); 
         if (!navigator.onLine) return alert("Peringatan: Tidak dapat menutup shift. Koneksi internet dibutuhkan untuk validasi data Z-Report ke pusat.");
         
-        const val = parseFloat(document.getElementById('shift-cash-input').value) || 0;
+        // BUG FIX 2: Proteksi input negatif
+        const val = Math.max(0, parseFloat(document.getElementById('shift-cash-input').value) || 0);
         const selisih = val - (activeShiftSession.modalAwal + (activeShiftSession.totalPenjualan || 0));
+        
         await updateDoc(doc(db, "shift", activeShiftSession.id), { waktuTutup: serverTimestamp(), uangFisikAktual: val, selisih: selisih, status: "tutup" });
         await logActivity("SHIFT_TUTUP", `Kasir menutup shift. Selisih kas: ${toRupiah(selisih)}`);
         alert(`Shift Ditutup. Selisih: ${toRupiah(selisih)}`);
@@ -535,13 +541,15 @@ function renderKeranjang() {
 
 function hitungUangKembalian() {
     globalSubtotal = keranjang.reduce((acc, i) => acc + ((i.harga||0) * i.qty), 0);
-    globalDiskon = parseFloat(document.getElementById('cart-discount').value) || 0;
+    // BUG FIX 2: Proteksi angka minus pada diskon & uang pembayaran
+    globalDiskon = Math.max(0, parseFloat(document.getElementById('cart-discount').value) || 0);
     globalGrandTotal = Math.max(0, globalSubtotal - globalDiskon);
+    
     document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal); document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
 
     const btnCheckout = document.getElementById('btn-checkout');
     if (selectedPaymentMethod === 'Tunai') {
-        const cashPaidVal = parseFloat(document.getElementById('cash-paid').value) || 0;
+        const cashPaidVal = Math.max(0, parseFloat(document.getElementById('cash-paid').value) || 0);
         document.getElementById('cash-return').textContent = toRupiah(Math.max(0, cashPaidVal - globalGrandTotal));
         if (cashPaidVal >= globalGrandTotal && keranjang.length > 0) { btnCheckout.disabled = false; btnCheckout.className = "w-full py-3 bg-mantine-blue text-white font-bold rounded-xl text-xs uppercase cursor-pointer"; } else { btnCheckout.disabled = true; btnCheckout.className = "w-full py-3 bg-dark-5 text-dark-3 font-bold rounded-xl cursor-not-allowed text-xs uppercase"; }
     } else {
@@ -555,7 +563,7 @@ document.getElementById('btn-checkout').addEventListener('click', async () => {
     if(keranjang.length === 0 || !activeShiftSession) return;
     const btnCheckout = document.getElementById('btn-checkout'); btnCheckout.disabled = true; btnCheckout.textContent = "MEMPROSES...";
     
-    const cashPaidVal = selectedPaymentMethod === 'Tunai' ? (parseFloat(document.getElementById('cash-paid').value) || 0) : globalGrandTotal;
+    const cashPaidVal = selectedPaymentMethod === 'Tunai' ? Math.max(0, parseFloat(document.getElementById('cash-paid').value) || 0) : globalGrandTotal;
     const refCode = document.getElementById('payment-ref-code') ? document.getElementById('payment-ref-code').value.trim() : '';
 
     const trxData = {
