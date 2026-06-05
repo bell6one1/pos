@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS Modern - Fitur Lengkap v8</title>
+    <title>POS Modern - Fitur Lengkap v9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -70,10 +70,24 @@
 
         <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
 
-            <div id="tab-dashboard" class="tab-content space-y-8">
+            <div id="tab-dashboard" class="tab-content space-y-6">
+                <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="window.setShortcutTanggal('hari-ini')" class="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-xl transition-colors">Hari Ini</button>
+                        <button onclick="window.setShortcutTanggal('7-hari')" class="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-xl transition-colors">7 Hari Terakhir</button>
+                        <button onclick="window.setShortcutTanggal('bulan-ini')" class="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-xl transition-colors">Bulan Ini</button>
+                        <button onclick="window.setShortcutTanggal('semua')" class="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors">Semua Waktu</button>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-500">
+                        <input type="date" id="filter-date-start" class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 text-xs">
+                        <span>s/d</span>
+                        <input type="date" id="filter-date-end" class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 text-xs">
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Total Omset Bersih</span>
+                        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Omset Rentang Terpilih</span>
                         <h3 id="dash-omset" class="text-2xl font-bold text-gray-900 mt-2">Rp 0</h3>
                     </div>
                     <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -86,7 +100,7 @@
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <h2 class="text-base font-semibold text-gray-900 mb-6">Top 5 Produk Terlaris</h2>
+                    <h2 class="text-base font-semibold text-gray-900 mb-6">Top 5 Produk Terlaris (Filter Aktif)</h2>
                     <div class="relative w-full h-64 md:h-80"><canvas id="chartProdukTerlaris"></canvas></div>
                 </div>
             </div>
@@ -156,7 +170,7 @@
             <div id="tab-riwayat" class="tab-content hidden">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                     <h2 class="text-lg font-semibold text-gray-900">Riwayat Transaksi Penjualan</h2>
-                    <button id="btn-export-excel" class="hidden px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm">🟢 Export ke Excel (.xlsx)</button>
+                    <button id="btn-export-excel" class="hidden px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm">🟢 Export Data Terfilter ke Excel (.xlsx)</button>
                 </div>
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div class="overflow-x-auto no-scrollbar">
@@ -205,6 +219,7 @@
 
         let databaseBarang = [];
         let riwayatPenjualan = [];
+        let dataPenjualanTerfilter = []; // Array penampung filter tanggal
         let keranjang = [];
         let chartInstance = null;
         let unsubscribeItems = null;
@@ -234,7 +249,6 @@
             authLoading.classList.add('hidden');
             if (user) {
                 loginScreen.classList.add('hidden');
-                appScreen.remove('hidden');
                 appScreen.classList.remove('hidden');
                 
                 const userDocRef = doc(db, "pengguna", user.uid);
@@ -267,7 +281,7 @@
             if (currentUserRole === "admin") {
                 dashboardBtn.classList.remove('hidden');
                 gudangBtn.classList.remove('hidden');
-                exportBtn.classList.remove('hidden'); // Hanya Admin yang bisa export
+                exportBtn.classList.remove('hidden');
                 switchTab('dashboard');
             } else {
                 dashboardBtn.classList.add('hidden');
@@ -286,12 +300,67 @@
 
         document.getElementById('btn-logout').addEventListener('click', () => { if(confirm("Keluar dari sistem POS?")) signOut(auth).then(() => { keranjang = []; renderKeranjang(); }); });
 
+        // ================= DATE RANGE ENGINE =================
+        const dateStartInput = document.getElementById('filter-date-start');
+        const dateEndInput = document.getElementById('filter-date-end');
+
+        // Set default rentang: bulan ini
+        const sekarang = new Date();
+        const tglAwalBulan = new Date(sekarang.getFullYear(), sekarang.getMonth(), 1).toISOString().slice(0, 10);
+        const tglHariIni = sekarang.toISOString().slice(0, 10);
+        dateStartInput.value = tglAwalBulan;
+        dateEndInput.value = tglHariIni;
+
+        dateStartInput.addEventListener('change', jalankanProsesFilterTanggal);
+        dateEndInput.addEventListener('change', jalankanProsesFilterTanggal);
+
+        window.setShortcutTanggal = (tipe) => {
+            const hari = new Date();
+            if (tipe === 'hari-ini') {
+                dateStartInput.value = hari.toISOString().slice(0, 10);
+                dateEndInput.value = hari.toISOString().slice(0, 10);
+            } else if (tipe === '7-hari') {
+                const tujuhHariLalu = new Date(); tujuhHariLalu.setDate(hari.getDate() - 7);
+                dateStartInput.value = tujuhHariLalu.toISOString().slice(0, 10);
+                dateEndInput.value = hari.toISOString().slice(0, 10);
+            } else if (tipe === 'bulan-ini') {
+                dateStartInput.value = new Date(hari.getFullYear(), hari.getMonth(), 1).toISOString().slice(0, 10);
+                dateEndInput.value = hari.toISOString().slice(0, 10);
+            } else if (tipe === 'semua') {
+                dateStartInput.value = "";
+                dateEndInput.value = "";
+            }
+            jalankanProsesFilterTanggal();
+        };
+
+        function jalankanProsesFilterTanggal() {
+            const startStr = dateStartInput.value;
+            const endStr = dateEndInput.value;
+
+            if (!startStr || !endStr) {
+                // Jika kosong, tampilkan semua data transaksi
+                dataPenjualanTerfilter = [...riwayatPenjualan];
+            } else {
+                const startDate = new Date(startStr); startDate.setHours(0,0,0,0);
+                const endDate = new Date(endStr); endDate.setHours(23,59,59,999);
+
+                dataPenjualanTerfilter = riwayatPenjualan.filter(trx => {
+                    if (!trx.waktu) return false;
+                    const trxDate = new Date(trx.waktu.seconds * 1000);
+                    return trxDate >= startDate && trxDate <= endDate;
+                });
+            }
+
+            // Segarkan tampilan komponen yang terikat tanggal
+            updateDashboardAnalitik();
+            renderRiwayatList();
+        }
+
         // ================= ENGINE EXPORT EXCEL (.XLSX) =================
         document.getElementById('btn-export-excel').addEventListener('click', () => {
-            if (riwayatPenjualan.length === 0) return alert("Belum ada data transaksi untuk diexport!");
+            if (dataPenjualanTerfilter.length === 0) return alert("Tidak ada data transaksi pada rentang tanggal ini untuk diexport!");
             
-            // Transformasi data riwayat penjualan ke format tabel Excel
-            const dataExcel = riwayatPenjualan.map(trx => {
+            const dataExcel = dataPenjualanTerfilter.map(trx => {
                 const waktuFormated = trx.waktu && trx.waktu.seconds ? new Date(trx.waktu.seconds * 1000).toLocaleString('id-ID') : 'Memproses...';
                 const listBarang = trx.items ? trx.items.map(i => `${i.nama} (${i.qty}x)`).join(', ') : '';
                 
@@ -306,37 +375,29 @@
                 };
             });
 
-            // Olah lembar kerja SheetJS
             const worksheet = XLSX.utils.json_to_sheet(dataExcel);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Omset");
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Omset Terfilter");
 
-            // Mengatur lebar kolom otomatis agar rapi saat dibuka di Excel
             const maxLenBarang = dataExcel.reduce((max, row) => Math.max(max, row['Daftar Barang Terjual'].length), 25);
             worksheet['!cols'] = [
-                { wch: 22 }, // Waktu
-                { wch: maxLenBarang + 2 }, // Daftar barang
-                { wch: 12 }, // Subtotal
-                { wch: 10 }, // Diskon
-                { wch: 12 }, // Grand total
-                { wch: 12 }, // Tunai
-                { wch: 12 }  // Kembalian
+                { wch: 22 }, { wch: maxLenBarang + 2 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
             ];
 
-            // Unduh file ke komputer pengguna
-            const tanggalFile = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(workbook, `Laporan_Penjualan_${tanggalFile}.xlsx`);
+            const tglStartFile = dateStartInput.value || 'Semua';
+            const tglEndFile = dateEndInput.value || 'Waktu';
+            XLSX.writeFile(workbook, `Laporan_POS_${tglStartFile}_s_d_${tglEndFile}.xlsx`);
         });
 
         // ================= REAL-TIME LIFECYCLE =================
         function initRealtimeListeners() {
             unsubscribeItems = onSnapshot(query(itemsRef, orderBy("nama", "asc")), (snapshot) => {
                 databaseBarang = []; snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() }));
-                renderKategoriPills(); renderKatalogKasir(); renderGudangList(); sinkronisasiKeranjang(); updateDashboardAnalitik();
+                renderKategoriPills(); renderKatalogKasir(); renderGudangList(); sinkronisasiKeranjang();
             });
             unsubscribeSales = onSnapshot(query(salesRef, orderBy("waktu", "desc")), (snapshot) => {
                 riwayatPenjualan = []; snapshot.forEach(doc => riwayatPenjualan.push({ id: doc.id, ...doc.data() }));
-                renderRiwayatList(); updateDashboardAnalitik();
+                jalankanProsesFilterTanggal(); // Memicu update filter saat ada transaksi baru masuk
             });
         }
         function stopRealtimeListeners() { if(unsubscribeItems) unsubscribeItems(); if(unsubscribeSales) unsubscribeSales(); }
@@ -469,7 +530,10 @@
         });
 
         // ================= PRINT ENGINE =================
-        window.cetakStrukDariRiwayat = (index) => { cetakStruk(riwayatPenjualan[index]); };
+        window.cetakStrukDariRiwayat = (idPenjualan) => { 
+            const trx = riwayatPenjualan.find(x => x.id === idPenjualan);
+            if(trx) cetakStruk(trx); 
+        };
         function cetakStruk(data) {
             const printArea = document.getElementById('print-area'); let itemHtml = '';
             data.items.forEach(item => { itemHtml += `<div style="display:flex; justify-content:space-between; font-size:12px; margin-top:5px;"><span>${item.nama} (x${item.qty})</span><span>${toRupiah(item.harga * item.qty)}</span></div>`; });
@@ -495,8 +559,10 @@
         // ================= ANALYTICS & HISTORY =================
         function updateDashboardAnalitik() {
             if (currentUserRole !== "admin") return; 
-            let totalOmset = 0; let totalTransaksi = riwayatPenjualan.length; let totalQtyTerjual = 0; let produkKuantitasMap = {};
-            riwayatPenjualan.forEach(trx => {
+            let totalOmset = 0; let totalTransaksi = dataPenjualanTerfilter.length; let totalQtyTerjual = 0; let produkKuantitasMap = {};
+            
+            // Menggunakan dataPenjualanTerfilter, bukan riwayat mentah lengkap
+            dataPenjualanTerfilter.forEach(trx => {
                 totalOmset += (trx.totalAkhir || trx.totalBelanja || 0);
                 if(trx.items) { trx.items.forEach(item => { totalQtyTerjual += item.qty; produkKuantitasMap[item.nama] = (produkKuantitasMap[item.nama] || 0) + item.qty; }); }
             });
@@ -516,9 +582,11 @@
 
         function renderRiwayatList() {
             const el = document.getElementById('riwayat-list'); el.innerHTML = '';
-            if(riwayatPenjualan.length === 0) { el.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-400">Belum ada transaksi.</td></tr>`; return; }
-            riwayatPenjualan.forEach((trx, index) => {
-                const itemNames = trx.items.map(i => `${i.nama} (${i.qty}x)`).join(', ');
+            if(dataPenjualanTerfilter.length === 0) { el.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-400">Tidak ada transaksi pada rentang ini.</td></tr>`; return; }
+            
+            // Menampilkan data penampung terfilter
+            dataPenjualanTerfilter.forEach((trx) => {
+                const itemNames = trx.items ? trx.items.map(i => `${i.nama} (${i.qty}x)`).join(', ') : '-';
                 const isDiskon = trx.diskon > 0;
                 el.innerHTML += `
                     <tr class="hover:bg-gray-50 transition-colors">
@@ -528,7 +596,7 @@
                             <div class="font-medium text-gray-900">${toRupiah(trx.totalAkhir || trx.totalBelanja)}</div>
                             ${isDiskon ? `<div class="text-[10px] text-red-500 font-semibold">Diskon: ${toRupiah(trx.diskon)}</div>` : ''}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right"><button onclick="window.cetakStrukDariRiwayat(${index})" class="text-blue-600 hover:text-blue-900 font-medium bg-blue-50 px-3 py-1 rounded-md text-xs">Cetak Ulang</button></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right"><button onclick="window.cetakStrukDariRiwayat('${trx.id}')" class="text-blue-600 hover:text-blue-900 font-medium bg-blue-50 px-3 py-1 rounded-md text-xs">Cetak Ulang</button></td>
                     </tr>`;
             });
         }
