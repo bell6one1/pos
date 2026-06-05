@@ -189,7 +189,7 @@ document.getElementById('btn-logout').addEventListener('click', () => {
 });
 
 // ==========================================
-// TABS NAVIGATION
+// TABS NAVIGATION (BUG FIXED)
 // ==========================================
 const tabsBtns = document.querySelectorAll('.nav-tab'); const contents = document.querySelectorAll('.tab-content');
 function switchTab(id) {
@@ -199,7 +199,13 @@ function switchTab(id) {
     const targetBtn = document.getElementById(`tab-${id}-btn`); if(targetBtn) { targetBtn.classList.remove('border-transparent', 'text-dark-1'); targetBtn.classList.add('border-mantine-blue', 'text-mantine-blue'); }
     if (id === 'dashboard' && chartInstance) setTimeout(() => chartInstance.update(), 100);
 }
-tabsBtns.forEach(tab => { tab.addEventListener('click', () => switchTab(tab.id.replace('-btn', ''))); });
+// BUG FIX: Mengganti '.replace('-btn')' dengan menghapus kata 'tab-' dan '-btn' sekaligus
+tabsBtns.forEach(tab => { 
+    tab.addEventListener('click', () => {
+        let cleanId = tab.id.replace('tab-', '').replace('-btn', '');
+        switchTab(cleanId); 
+    }); 
+});
 
 function applyRoleAccess() {
     const arr = ['tab-dashboard-btn', 'tab-gudang-btn', 'btn-export-excel', 'admin-shift-log-section'];
