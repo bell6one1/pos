@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS Modern - Fitur Lengkap v7</title>
+    <title>POS Modern - Fitur Lengkap v8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         @media print {
             body * { visibility: hidden; }
@@ -153,7 +154,10 @@
             </div>
 
             <div id="tab-riwayat" class="tab-content hidden">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Riwayat Transaksi Penjualan</h2>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">Riwayat Transaksi Penjualan</h2>
+                    <button id="btn-export-excel" class="hidden px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm">🟢 Export ke Excel (.xlsx)</button>
+                </div>
                 <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div class="overflow-x-auto no-scrollbar">
                         <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -213,7 +217,6 @@
         let globalDiskon = 0;
         let globalGrandTotal = 0;
         
-        // State Role Pengguna
         let currentUserRole = "kasir"; 
 
         const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka);
@@ -231,21 +234,19 @@
             authLoading.classList.add('hidden');
             if (user) {
                 loginScreen.classList.add('hidden');
+                appScreen.remove('hidden');
                 appScreen.classList.remove('hidden');
                 
-                // Ambil atau buat data role user di Firestore
                 const userDocRef = doc(db, "pengguna", user.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 
                 if (userDocSnap.exists()) {
                     currentUserRole = userDocSnap.data().role || "kasir";
                 } else {
-                    // Jika akun baru, otomatis daftarkan sebagai kasir
                     currentUserRole = "kasir";
                     await setDoc(userDocRef, { email: user.email, role: "kasir", nama: user.email.split('@')[0] });
                 }
 
-                // Tampilkan info akun di navbar
                 document.getElementById('user-display-name').textContent = user.email.split('@')[0];
                 document.getElementById('user-display-role').textContent = currentUserRole;
 
@@ -261,16 +262,18 @@
         function applyRoleAccess() {
             const dashboardBtn = document.getElementById('tab-dashboard-btn');
             const gudangBtn = document.getElementById('tab-gudang-btn');
+            const exportBtn = document.getElementById('btn-export-excel');
 
             if (currentUserRole === "admin") {
                 dashboardBtn.classList.remove('hidden');
                 gudangBtn.classList.remove('hidden');
-                switchTab('dashboard'); // Admin default ke Dashboard
+                exportBtn.classList.remove('hidden'); // Hanya Admin yang bisa export
+                switchTab('dashboard');
             } else {
-                // Sembunyikan fitur sensitif untuk Kasir
                 dashboardBtn.classList.add('hidden');
                 gudangBtn.classList.add('hidden');
-                switchTab('kasir'); // Kasir langsung diarahkan ke halaman transaksi
+                exportBtn.classList.add('hidden');
+                switchTab('kasir');
             }
         }
 
@@ -282,6 +285,48 @@
         });
 
         document.getElementById('btn-logout').addEventListener('click', () => { if(confirm("Keluar dari sistem POS?")) signOut(auth).then(() => { keranjang = []; renderKeranjang(); }); });
+
+        // ================= ENGINE EXPORT EXCEL (.XLSX) =================
+        document.getElementById('btn-export-excel').addEventListener('click', () => {
+            if (riwayatPenjualan.length === 0) return alert("Belum ada data transaksi untuk diexport!");
+            
+            // Transformasi data riwayat penjualan ke format tabel Excel
+            const dataExcel = riwayatPenjualan.map(trx => {
+                const waktuFormated = trx.waktu && trx.waktu.seconds ? new Date(trx.waktu.seconds * 1000).toLocaleString('id-ID') : 'Memproses...';
+                const listBarang = trx.items ? trx.items.map(i => `${i.nama} (${i.qty}x)`).join(', ') : '';
+                
+                return {
+                    'Waktu Transaksi': waktuFormated,
+                    'Daftar Barang Terjual': listBarang,
+                    'Subtotal': trx.subtotal || trx.totalAkhir,
+                    'Diskon': trx.diskon || 0,
+                    'Grand Total': trx.totalAkhir,
+                    'Tunai Dibayar': trx.uangBayar || 0,
+                    'Kembalian': trx.kembalian || 0
+                };
+            });
+
+            // Olah lembar kerja SheetJS
+            const worksheet = XLSX.utils.json_to_sheet(dataExcel);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Omset");
+
+            // Mengatur lebar kolom otomatis agar rapi saat dibuka di Excel
+            const maxLenBarang = dataExcel.reduce((max, row) => Math.max(max, row['Daftar Barang Terjual'].length), 25);
+            worksheet['!cols'] = [
+                { wch: 22 }, // Waktu
+                { wch: maxLenBarang + 2 }, // Daftar barang
+                { wch: 12 }, // Subtotal
+                { wch: 10 }, // Diskon
+                { wch: 12 }, // Grand total
+                { wch: 12 }, // Tunai
+                { wch: 12 }  // Kembalian
+            ];
+
+            // Unduh file ke komputer pengguna
+            const tanggalFile = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(workbook, `Laporan_Penjualan_${tanggalFile}.xlsx`);
+        });
 
         // ================= REAL-TIME LIFECYCLE =================
         function initRealtimeListeners() {
@@ -449,7 +494,7 @@
 
         // ================= ANALYTICS & HISTORY =================
         function updateDashboardAnalitik() {
-            if (currentUserRole !== "admin") return; // Kasir dilewati
+            if (currentUserRole !== "admin") return; 
             let totalOmset = 0; let totalTransaksi = riwayatPenjualan.length; let totalQtyTerjual = 0; let produkKuantitasMap = {};
             riwayatPenjualan.forEach(trx => {
                 totalOmset += (trx.totalAkhir || trx.totalBelanja || 0);
