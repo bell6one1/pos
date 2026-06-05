@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS Modern - Fitur Lengkap v9</title>
+    <title>POS Modern - Fitur Lengkap v10</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -99,9 +99,17 @@
                         <h3 id="dash-items" class="text-2xl font-bold text-gray-900 mt-2">0 Item</h3>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <h2 class="text-base font-semibold text-gray-900 mb-6">Top 5 Produk Terlaris (Filter Aktif)</h2>
-                    <div class="relative w-full h-64 md:h-80"><canvas id="chartProdukTerlaris"></canvas></div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                        <h2 class="text-base font-semibold text-gray-900 mb-6">Top 5 Produk Terlaris (Filter Aktif)</h2>
+                        <div class="relative w-full h-64 md:h-80"><canvas id="chartProdukTerlaris"></canvas></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">⚠️ Peringatan Stok Kritis (&lt; 5)</h2>
+                        <div id="dash-low-stock-list" class="space-y-3 overflow-y-auto max-h-64 md:max-h-80 pr-1 no-scrollbar flex-1">
+                            </div>
+                    </div>
                 </div>
             </div>
 
@@ -219,7 +227,7 @@
 
         let databaseBarang = [];
         let riwayatPenjualan = [];
-        let dataPenjualanTerfilter = []; // Array penampung filter tanggal
+        let dataPenjualanTerfilter = [];
         let keranjang = [];
         let chartInstance = null;
         let unsubscribeItems = null;
@@ -304,7 +312,6 @@
         const dateStartInput = document.getElementById('filter-date-start');
         const dateEndInput = document.getElementById('filter-date-end');
 
-        // Set default rentang: bulan ini
         const sekarang = new Date();
         const tglAwalBulan = new Date(sekarang.getFullYear(), sekarang.getMonth(), 1).toISOString().slice(0, 10);
         const tglHariIni = sekarang.toISOString().slice(0, 10);
@@ -338,7 +345,6 @@
             const endStr = dateEndInput.value;
 
             if (!startStr || !endStr) {
-                // Jika kosong, tampilkan semua data transaksi
                 dataPenjualanTerfilter = [...riwayatPenjualan];
             } else {
                 const startDate = new Date(startStr); startDate.setHours(0,0,0,0);
@@ -351,7 +357,6 @@
                 });
             }
 
-            // Segarkan tampilan komponen yang terikat tanggal
             updateDashboardAnalitik();
             renderRiwayatList();
         }
@@ -393,11 +398,11 @@
         function initRealtimeListeners() {
             unsubscribeItems = onSnapshot(query(itemsRef, orderBy("nama", "asc")), (snapshot) => {
                 databaseBarang = []; snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() }));
-                renderKategoriPills(); renderKatalogKasir(); renderGudangList(); sinkronisasiKeranjang();
+                renderKategoriPills(); renderKatalogKasir(); renderGudangList(); sinkronisasiKeranjang(); updateDashboardAnalitik();
             });
             unsubscribeSales = onSnapshot(query(salesRef, orderBy("waktu", "desc")), (snapshot) => {
                 riwayatPenjualan = []; snapshot.forEach(doc => riwayatPenjualan.push({ id: doc.id, ...doc.data() }));
-                jalankanProsesFilterTanggal(); // Memicu update filter saat ada transaksi baru masuk
+                jalankanProsesFilterTanggal();
             });
         }
         function stopRealtimeListeners() { if(unsubscribeItems) unsubscribeItems(); if(unsubscribeSales) unsubscribeSales(); }
@@ -426,19 +431,28 @@
             });
         }
         window.setFilterKategori = (kategori) => { filterKategoriAktif = kategori; renderKategoriPills(); renderKatalogKasir(); };
+        
         function renderKatalogKasir() {
             const el = document.getElementById('kasir-katalog'); el.innerHTML = '';
             const dataTerfilter = databaseBarang.filter(b => ((filterKategoriAktif === "Semua") || ((b.kategori || "Umum") === filterKategoriAktif)) && b.nama.toLowerCase().includes(kataKunciPencarian));
             if (dataTerfilter.length === 0) { el.innerHTML = `<div class="col-span-full text-center py-8 text-gray-400 text-sm">Produk tidak ditemukan</div>`; return; }
             dataTerfilter.forEach(b => {
                 const isHabis = b.stok <= 0;
+                const isKritis = b.stok > 0 && b.stok <= 5;
+                
+                // Styling dinamis berdasarkan jumlah stok
+                let stokBadgeClass = 'bg-gray-100 text-gray-600';
+                let stokText = `Stok: ${b.stok}`;
+                if (isHabis) { stokBadgeClass = 'bg-red-50 text-red-600 font-medium'; stokText = 'Habis'; }
+                else if (isKritis) { stokBadgeClass = 'bg-amber-50 text-amber-700 font-medium animate-pulse'; stokText = `Stok Menipis: ${b.stok}`; }
+
                 el.innerHTML += `
                     <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center ${isHabis ? 'opacity-60' : 'hover:shadow-md'}">
                         <div>
                             <span class="text-[10px] uppercase font-bold tracking-wider text-gray-400">${b.kategori || 'Umum'}</span>
                             <h3 class="font-medium text-gray-900 mt-0.5">${b.nama}</h3>
                             <p class="text-sm font-semibold text-blue-600 mt-1">${toRupiah(b.harga)}</p>
-                            <span class="inline-block text-xs mt-2 px-2 py-0.5 ${isHabis ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-600'} rounded-md">Stok: ${b.stok}</span>
+                            <span class="inline-block text-xs mt-2 px-2 py-0.5 ${stokBadgeClass} rounded-md">${stokText}</span>
                         </div>
                         <button class="px-4 py-2 text-xs font-semibold rounded-xl ${isHabis ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}" 
                             onclick="window.tambahCart('${b.id}')" ${isHabis ? 'disabled' : ''}>${isHabis ? 'Habis' : 'Tambah'}</button>
@@ -453,7 +467,7 @@
 
         window.tambahCart = (id) => {
             const b = databaseBarang.find(x => x.id === id); const item = keranjang.find(x => x.id === id);
-            if (item) { if (item.qty >= b.stok) return alert("Batas stok!"); item.qty++; } else { keranjang.push({ id: b.id, nama: b.nama, harga: b.harga, qty: 1 }); }
+            if (item) { if (item.qty >= b.stok) return alert("Batas pasokan stok maksimum tercapai!"); item.qty++; } else { keranjang.push({ id: b.id, nama: b.nama, harga: b.harga, qty: 1 }); }
             renderKeranjang();
         };
         window.ubahQty = (id, n) => {
@@ -558,10 +572,33 @@
 
         // ================= ANALYTICS & HISTORY =================
         function updateDashboardAnalitik() {
+            // Render Live Alert Low Stock (Bisa diakses real-time oleh admin untuk restock)
+            const lowStockContainer = document.getElementById('dash-low-stock-list');
+            if (lowStockContainer) {
+                const produkKritis = databaseBarang.filter(b => b.stok <= 5);
+                lowStockContainer.innerHTML = '';
+                if (produkKritis.length === 0) {
+                    lowStockContainer.innerHTML = `<div class="text-center py-8 text-emerald-600 font-medium text-xs bg-emerald-50 rounded-xl">🟢 Aman. Semua pasokan stok terpenuhi!</div>`;
+                } else {
+                    produkKritis.forEach(b => {
+                        const IsKosong = b.stok === 0;
+                        lowStockContainer.innerHTML += `
+                            <div class="flex justify-between items-center p-3 rounded-xl border text-xs ${IsKosong ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}">
+                                <div>
+                                    <p class="font-semibold text-gray-900">${b.nama}</p>
+                                    <p class="text-[10px] text-gray-400 mt-0.5">Kategori: ${b.kategori || 'Umum'}</p>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${IsKosong ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'}">
+                                    ${IsKosong ? 'Kosong' : `${b.stok} Item`}
+                                </span>
+                            </div>`;
+                    });
+                }
+            }
+
             if (currentUserRole !== "admin") return; 
             let totalOmset = 0; let totalTransaksi = dataPenjualanTerfilter.length; let totalQtyTerjual = 0; let produkKuantitasMap = {};
             
-            // Menggunakan dataPenjualanTerfilter, bukan riwayat mentah lengkap
             dataPenjualanTerfilter.forEach(trx => {
                 totalOmset += (trx.totalAkhir || trx.totalBelanja || 0);
                 if(trx.items) { trx.items.forEach(item => { totalQtyTerjual += item.qty; produkKuantitasMap[item.nama] = (produkKuantitasMap[item.nama] || 0) + item.qty; }); }
@@ -584,7 +621,6 @@
             const el = document.getElementById('riwayat-list'); el.innerHTML = '';
             if(dataPenjualanTerfilter.length === 0) { el.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-400">Tidak ada transaksi pada rentang ini.</td></tr>`; return; }
             
-            // Menampilkan data penampung terfilter
             dataPenjualanTerfilter.forEach((trx) => {
                 const itemNames = trx.items ? trx.items.map(i => `${i.nama} (${i.qty}x)`).join(', ') : '-';
                 const isDiskon = trx.diskon > 0;
@@ -606,12 +642,26 @@
         function renderGudangList() {
             const el = document.getElementById('gudang-list'); el.innerHTML = '';
             databaseBarang.forEach(b => {
+                const isKritis = b.stok <= 5;
+                const isKosong = b.stok === 0;
+
+                let borderStyle = 'border-gray-100 bg-white';
+                let tagStok = `<span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md">Stok: ${b.stok}</span>`;
+                
+                if (isKosong) {
+                    borderStyle = 'border-red-200 bg-red-[1%]';
+                    tagStok = `<span class="text-xs px-2 py-0.5 bg-red-100 text-red-700 font-bold rounded-md">🔴 Habis (Wajib Restock)</span>`;
+                } else if (isKritis) {
+                    borderStyle = 'border-amber-200 bg-amber-[1%]';
+                    tagStok = `<span class="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 font-semibold rounded-md">⚠️ Kritis: ${b.stok}</span>`;
+                }
+
                 el.innerHTML += `
-                    <div class="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="p-4 sm:p-5 rounded-2xl border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${borderStyle}">
                         <div>
                             <span class="text-[10px] uppercase font-bold tracking-wider text-gray-400">${b.kategori || 'Umum'}</span>
                             <h3 class="font-medium text-gray-900 mt-0.5">${b.nama}</h3>
-                            <div class="flex items-center gap-3 mt-1"><span class="text-sm font-semibold text-blue-600">${toRupiah(b.harga)}</span><span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md">Stok: ${b.stok}</span></div>
+                            <div class="flex items-center gap-3 mt-1"><span class="text-sm font-semibold text-blue-600">${toRupiah(b.harga)}</span>${tagStok}</div>
                         </div>
                         <div class="flex gap-2">
                             <button onclick="window.editBrg('${b.id}')" class="px-4 py-2 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl">Edit</button>
