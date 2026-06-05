@@ -95,11 +95,12 @@ async function syncOfflineTransactions() {
             let successCount = 0;
             
             for (const sale of pendingSales) {
-                // BUG FIX: Blok Try-Catch per data agar satu error tidak menghentikan seluruh antrean
                 try {
                     const localId = sale.localId;
                     delete sale.localId; delete sale.isOfflinePending;
-                    sale.waktu = serverTimestamp(); 
+                    
+                    // BUG FIX 1: Pertahankan waktu aktual transaksi saat sinkronisasi, jangan diganti dengan waktu sekarang
+                    sale.waktu = sale.waktuLokal ? new Date(sale.waktuLokal) : serverTimestamp(); 
 
                     await addDoc(salesRef, sale); 
                     for (const item of sale.items) { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); }
@@ -196,9 +197,20 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     catch (error) { alert("Login Gagal! Periksa kredensial."); } finally { btnSubmit.disabled = false; btnSubmit.textContent = "Masuk Aplikasi"; }
 });
 
-document.getElementById('btn-logout').addEventListener('click', () => { 
+document.getElementById('btn-logout').addEventListener('click', async () => { 
     if (activeShiftSession) { alert("Tutup shift kasir sebelum keluar!"); switchTab('kasir'); return; }
-    if(confirm("Keluar dari sistem?")) signOut(auth).then(() => { keranjang = []; renderKeranjang(); localStorage.clear(); location.reload(); }); 
+    if(confirm("Keluar dari sistem?")) {
+        // BUG FIX 2: Mencegah tombol logout macet/hang jika ditekan saat koneksi internet putus
+        try {
+            await signOut(auth);
+        } catch (e) {
+            console.warn("Logout saat Offline. Menghapus sesi lokal secara paksa.");
+        } finally {
+            keranjang = []; 
+            localStorage.clear(); 
+            location.reload(); 
+        }
+    } 
 });
 
 // ==========================================
@@ -321,7 +333,6 @@ async function applyFiltersAndStats() {
     
     let allSales = [...riwayatPenjualan];
     
-    // BUG FIX: Selalu muat transaksi pending lokal di memori agar dashboard langsung akurat sebelum tersinkron
     const offlineSales = await loadOfflineTransactions();
     if (offlineSales && offlineSales.length > 0) { 
         allSales = [...offlineSales.reverse(), ...allSales]; 
