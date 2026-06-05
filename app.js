@@ -12,6 +12,9 @@ let filterKategoriAktif = "Semua"; let kataKunciPencarian = ""; let globalSubtot
 let currentUserRole = "kasir"; let activeShiftSession = null; let currentUserId = null;
 let selectedPaymentMethod = "Tunai"; let activeMember = null; 
 
+// Mutex Lock untuk mencegah penggandaan data saat jaringan tidak stabil
+let isSyncingOffline = false; 
+
 // UTILITY FUNCTIONS
 const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(angka || 0);
 const formatTanggal = (timestamp) => { 
@@ -77,9 +80,11 @@ async function saveTransactionOffline(saleData) {
     } catch (error) { return false; }
 }
 
+// FINAL BUG FIX 1: Sinkronisasi Kebal Jaringan Putus-Nyambung (Mutex Lock applied)
 async function syncOfflineTransactions() {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine || isSyncingOffline) return;
     document.getElementById('offline-indicator').classList.add('hidden');
+    isSyncingOffline = true;
 
     try {
         const idb = await initIndexedDB();
@@ -132,8 +137,12 @@ async function syncOfflineTransactions() {
                 alert(`🎉 Koneksi Stabil! ${successCount} data penjualan offline berhasil diunggah.`);
             }
             applyFiltersAndStats();
+            isSyncingOffline = false;
         };
-    } catch(e) {}
+        request.onerror = () => { isSyncingOffline = false; };
+    } catch(e) {
+        isSyncingOffline = false;
+    }
 }
 
 window.addEventListener('online', syncOfflineTransactions);
@@ -173,8 +182,7 @@ function playBeep() {
 
 let barcodeBuffer = ""; let barcodeTimeout = null;
 document.addEventListener("keydown", (e) => {
-    // BUG FIX 1: Abaikan scanner global jika user mengetik/scan di input form APAPUN kecuali pencarian kasir
-    if (e.target.tagName === 'INPUT' && e.target.id !== 'kasir-search') return;
+    if (e.target.tagName === 'INPUT' && e.target.id !== 'kasir-search' && e.target.id !== 'item-barcode') return;
     
     if (e.key === 'Enter' && barcodeBuffer.length > 0) {
         e.preventDefault();
@@ -604,6 +612,12 @@ document.getElementById('cart-discount').addEventListener('input', hitungUangKem
 function renderKeranjang() {
     document.getElementById('cart-total-qty-badge').textContent = `${keranjang.reduce((a, b) => a + b.qty, 0)} Item`;
     if(keranjang.length === 0) {
+        // FINAL BUG FIX 3: Reset status member yang tertinggal jika keranjang dikosongkan total agar tidak nyasar ke pelanggan baru
+        if(activeMember) {
+            const btnRemove = document.getElementById('btn-remove-member');
+            if(btnRemove) btnRemove.click();
+        }
+
         document.getElementById('cart-list').innerHTML = `<div class="flex flex-col items-center text-dark-3 py-12"><p class="text-xs italic">Keranjang kosong</p></div>`;
         document.getElementById('cart-subtotal').textContent = "Rp 0"; document.getElementById('cart-grand-total').textContent = "Rp 0"; document.getElementById('btn-checkout').disabled = true; document.getElementById('btn-checkout').className = "w-full py-3 bg-dark-5 text-dark-3 font-bold rounded-xl cursor-not-allowed text-xs uppercase"; return;
     }
@@ -618,7 +632,6 @@ function renderKeranjang() {
 function hitungUangKembalian() {
     globalSubtotal = keranjang.reduce((acc, i) => acc + ((i.harga||0) * i.qty), 0);
     
-    // BUG FIX 2: Validasi absolut perhitungan diskon akuntansi agar tagihan dan catatan laba-rugi tidak minus
     let rawDiskon = Math.max(0, parseFloat(document.getElementById('cart-discount').value) || 0);
     globalDiskon = Math.min(globalSubtotal, rawDiskon);
     globalGrandTotal = Math.max(0, globalSubtotal - globalDiskon);
@@ -639,9 +652,15 @@ function hitungUangKembalian() {
 // CHECKOUT LOGIC
 document.getElementById('btn-checkout').addEventListener('click', async () => {
     if(keranjang.length === 0 || !activeShiftSession) return;
-    const btnCheckout = document.getElementById('btn-checkout'); btnCheckout.disabled = true; btnCheckout.textContent = "MEMPROSES...";
     
     const cashPaidVal = selectedPaymentMethod === 'Tunai' ? Math.max(0, parseFloat(document.getElementById('cash-paid').value) || 0) : globalGrandTotal;
+    
+    // FINAL BUG FIX 2: Validasi Hard-Blocker untuk mencegah Bypass "Disabled" Button via Developer Tools (F12)
+    if (selectedPaymentMethod === 'Tunai' && cashPaidVal < globalGrandTotal) {
+        return alert("SECURITY ALERT: Transaksi ditolak. Jumlah uang pembayaran tidak mencukupi tagihan!");
+    }
+
+    const btnCheckout = document.getElementById('btn-checkout'); btnCheckout.disabled = true; btnCheckout.textContent = "MEMPROSES...";
     const refCode = document.getElementById('payment-ref-code') ? document.getElementById('payment-ref-code').value.trim() : '';
 
     const trxData = {
@@ -718,7 +737,6 @@ itemForm.addEventListener('submit', async (e) => {
     const id = document.getElementById('item-id').value;
     const barcodeInput = document.getElementById('item-barcode').value.trim();
     
-    // BUG FIX 3: Validasi Blokir Barcode Ganda agar barang tidak tertumpuk di sistem (Barcode Clashing Protection)
     if (barcodeInput) {
         const isDuplicate = databaseBarang.find(x => x.barcode === barcodeInput && x.id !== id);
         if (isDuplicate) return alert(`Gagal Menyimpan: Barcode [${barcodeInput}] sudah digunakan oleh produk "${isDuplicate.nama}". Gunakan barcode lain.`);
