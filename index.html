@@ -6,7 +6,6 @@
     <title>POS Enterprise Mode</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
@@ -15,335 +14,256 @@
             theme: {
                 extend: {
                     colors: {
-                        'mantine-blue': '#1971c2',
-                        'mantine-hover': '#1864ab',
-                        'dark-8': '#141517',
-                        'dark-7': '#1A1B1E',
-                        'dark-6': '#25262B',
-                        'dark-5': '#2C2E33',
-                        'dark-4': '#373A40',
-                        'dark-3': '#5C5F66',
-                        'dark-2': '#909296',
-                        'dark-1': '#C1C2C5',
-                        'dark-0': '#E9ECEF'
+                        'mantine-blue': '#1971c2', 'mantine-hover': '#1864ab',
+                        'dark-8': '#141517', 'dark-7': '#1A1B1E', 'dark-6': '#25262B',
+                        'dark-5': '#2C2E33', 'dark-4': '#373A40', 'dark-3': '#5C5F66',
+                        'dark-2': '#909296', 'dark-1': '#C1C2C5', 'dark-0': '#E9ECEF'
                     }
                 }
             }
         }
     </script>
-
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="h-screen w-screen flex flex-col bg-dark-8 text-dark-1 overflow-hidden">
+
+<body class="h-[100dvh] w-screen flex flex-col bg-dark-8 text-dark-1 overflow-hidden">
 
     <div id="print-area" class="hidden"></div>
-
-    <div id="offline-indicator" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white text-xs font-bold text-center py-1 z-50 animate-pulse shadow-lg">
-        ⚠️ KONEKSI TERPUTUS - BERPINDAH KE MODE OFFLINE LOKAL
-    </div>
-
+    <div id="offline-indicator" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white text-xs font-bold text-center py-1 z-50 animate-pulse shadow-lg">⚠️ MODE OFFLINE AKTIF</div>
     <div id="auth-loading" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-dark-8">
         <div class="w-10 h-10 border-4 border-dark-4 border-t-mantine-blue rounded-full animate-spin mb-4"></div>
         <p class="text-sm font-bold text-dark-1 animate-pulse">Memuat Sistem...</p>
     </div>
 
-    <div id="login-screen" class="hidden flex-1 flex items-center justify-center p-4 relative z-40">
-        <form id="login-form" class="bg-dark-7 p-8 rounded-3xl border border-dark-4 w-full max-w-sm shadow-2xl">
-            <div class="text-center mb-8">
+    <div id="login-screen" class="hidden flex-1 flex items-center justify-center p-4 relative z-40 overflow-y-auto">
+        <form id="login-form" class="bg-dark-7 p-6 sm:p-8 rounded-3xl border border-dark-4 w-full max-w-sm shadow-2xl my-auto">
+            <div class="text-center mb-6">
                 <h1 class="text-3xl font-black text-gray-100 tracking-tight">POS<span class="text-mantine-blue">PRO</span></h1>
                 <p class="text-xs text-dark-2 mt-1">Sistem Enterprise</p>
             </div>
             <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-dark-1 mb-1 ml-1">Email Kredensial</label>
-                    <input type="email" id="login-email" required class="w-full bg-dark-8 border border-dark-4 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue transition-colors">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-dark-1 mb-1 ml-1">Kata Sandi</label>
-                    <input type="password" id="login-password" required class="w-full bg-dark-8 border border-dark-4 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue transition-colors">
-                </div>
-                <button type="submit" id="btn-login-submit" class="w-full bg-mantine-blue hover:bg-mantine-hover text-white font-bold py-3.5 rounded-xl transition-all shadow-lg mt-4">Masuk Sistem</button>
+                <div><label class="block text-xs font-bold text-dark-1 mb-1">Email</label><input type="email" id="login-email" required class="w-full bg-dark-8 border border-dark-4 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue"></div>
+                <div><label class="block text-xs font-bold text-dark-1 mb-1">Kata Sandi</label><input type="password" id="login-password" required class="w-full bg-dark-8 border border-dark-4 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue"></div>
+                <button type="submit" id="btn-login-submit" class="w-full bg-mantine-blue hover:bg-mantine-hover text-white font-bold py-3.5 rounded-xl transition-all shadow-lg mt-2">Masuk Sistem</button>
             </div>
         </form>
     </div>
 
-    <div id="app-screen" class="hidden flex-1 flex flex-col md:flex-row overflow-hidden w-full h-full relative z-30">
+    <div id="app-screen" class="hidden flex-1 flex flex-col md:flex-row overflow-hidden w-full min-h-0 relative z-30">
         
-        <nav class="bg-dark-7 border-b md:border-b-0 md:border-r border-dark-4 flex md:flex-col justify-between p-3 md:w-20 lg:w-48 shrink-0 z-20 shadow-xl">
-            <div class="hidden md:block text-center py-4 mb-4 border-b border-dark-4">
-                <h1 class="text-xl lg:text-2xl font-black text-gray-100 hidden lg:block tracking-tighter">POS<span class="text-mantine-blue">PRO</span></h1>
-                <h1 class="text-2xl font-black text-mantine-blue lg:hidden">P</h1>
+        <nav class="bg-dark-7 border-b md:border-b-0 md:border-r border-dark-4 flex md:flex-col items-center md:items-stretch justify-between p-2 md:p-3 shrink-0 z-20 shadow-xl">
+            <div class="font-black text-gray-100 flex items-center pr-2 md:pr-0 md:mb-4 md:border-b border-dark-4 md:py-3 shrink-0">
+                <span class="text-xl lg:text-2xl hidden md:block tracking-tighter">POS<span class="text-mantine-blue">PRO</span></span>
+                <span class="text-xl text-mantine-blue md:hidden">P</span>
             </div>
-            <div class="flex md:flex-col gap-2 w-full overflow-x-auto custom-scrollbar md:overflow-visible">
-                <button id="tab-kasir-btn" class="nav-tab border-mantine-blue text-mantine-blue flex-1 md:flex-none border-b-2 md:border-b-0 md:border-r-2 px-3 py-2.5 text-xs lg:text-sm font-bold flex items-center justify-center gap-2 whitespace-nowrap transition-all bg-dark-6/50 md:bg-transparent rounded-t-lg md:rounded-none"><span class="text-lg">🛒</span> <span class="hidden lg:block">Kasir</span></button>
-                <button id="tab-dashboard-btn" class="nav-tab border-transparent text-dark-2 flex-1 md:flex-none border-b-2 md:border-b-0 md:border-r-2 px-3 py-2.5 text-xs lg:text-sm font-bold flex items-center justify-center gap-2 whitespace-nowrap transition-all hidden"><span class="text-lg">📊</span> <span class="hidden lg:block">Laporan</span></button>
-                <button id="tab-gudang-btn" class="nav-tab border-transparent text-dark-2 flex-1 md:flex-none border-b-2 md:border-b-0 md:border-r-2 px-3 py-2.5 text-xs lg:text-sm font-bold flex items-center justify-center gap-2 whitespace-nowrap transition-all hidden"><span class="text-lg">📦</span> <span class="hidden lg:block">Gudang</span></button>
+            
+            <div class="flex md:flex-col gap-1 w-full overflow-x-auto custom-scrollbar md:overflow-visible flex-1 ml-2 md:ml-0">
+                <button id="tab-kasir-btn" class="nav-tab border-mantine-blue text-mantine-blue border-b-2 md:border-b-0 md:border-r-2 px-3 py-2 text-xs lg:text-sm font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all bg-dark-6/50 md:bg-transparent rounded-t-lg md:rounded-none"><span class="text-base">🛒</span> <span class="hidden lg:block">Kasir</span></button>
+                <button id="tab-dashboard-btn" class="hidden nav-tab border-transparent text-dark-2 border-b-2 md:border-b-0 md:border-r-2 px-3 py-2 text-xs lg:text-sm font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all"><span class="text-base">📊</span> <span class="hidden lg:block">Laporan</span></button>
+                <button id="tab-gudang-btn" class="hidden nav-tab border-transparent text-dark-2 border-b-2 md:border-b-0 md:border-r-2 px-3 py-2 text-xs lg:text-sm font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all"><span class="text-base">📦</span> <span class="hidden lg:block">Gudang</span></button>
             </div>
-            <div class="hidden md:flex flex-col items-center lg:items-start gap-2 mt-auto pt-4 border-t border-dark-4">
-                <div class="flex items-center gap-2 w-full bg-dark-6 p-2 rounded-xl">
-                    <div class="w-8 h-8 rounded-full bg-dark-4 flex items-center justify-center text-xs font-bold text-white shrink-0">👤</div>
-                    <div class="hidden lg:block min-w-0 flex-1">
-                        <p id="user-display-name" class="text-xs font-bold text-gray-100 truncate">Sistem</p>
-                        <p id="user-display-role" class="text-[10px] text-dark-2">Kasir</p>
+
+            <div class="flex items-center gap-2 md:mt-auto pt-0 md:pt-4 md:border-t border-dark-4 shrink-0 pl-2 md:pl-0">
+                <div class="hidden lg:flex items-center gap-2 w-full bg-dark-6 p-2 rounded-xl min-w-0">
+                    <div class="w-7 h-7 rounded-full bg-dark-4 flex items-center justify-center text-xs font-bold text-white shrink-0">👤</div>
+                    <div class="min-w-0 flex-1">
+                        <p id="user-display-name" class="text-[11px] font-bold text-gray-100 truncate">Sistem</p>
+                        <p id="user-display-role" class="text-[9px] text-dark-2">Kasir</p>
                     </div>
                 </div>
-                <button id="btn-logout" class="w-full text-center lg:text-left text-xs font-bold text-red-400 hover:text-white hover:bg-red-500/20 py-2.5 rounded-lg transition-all border border-transparent hover:border-red-900/50">Keluar Sistem</button>
+                <button id="btn-logout" class="px-3 md:px-0 md:w-full py-2 bg-red-950/30 hover:bg-red-500/20 text-red-400 hover:text-white border border-red-900/50 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1" title="Keluar">
+                    <span class="text-sm md:hidden">🚪</span><span class="hidden md:inline">Keluar</span>
+                </button>
             </div>
         </nav>
 
-        <main class="flex-1 flex flex-col overflow-hidden relative">
+        <main class="flex-1 flex flex-col min-h-0 relative bg-dark-8">
 
-            <div id="tab-kasir" class="tab-content flex-1 flex flex-col md:flex-row p-2 md:p-4 gap-4 overflow-hidden">
+            <div id="tab-kasir" class="tab-content flex-1 flex flex-col md:flex-row p-2 gap-2 overflow-hidden min-h-0">
                 
-                <div class="flex-1 flex flex-col min-h-0 gap-3 overflow-hidden">
+                <div class="flex-1 flex flex-col min-h-0 gap-2 bg-dark-7 p-2 rounded-2xl border border-dark-4 shadow-sm">
                     
-                    <div id="shift-status-widget" class="shrink-0 bg-dark-8 border border-dark-4 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm z-20">
-                        </div>
+                    <div id="shift-status-widget" class="shrink-0 bg-dark-8 border border-dark-4 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm z-20"></div>
 
-                    <div id="kasir-core-content" class="flex-1 flex flex-col min-h-0 opacity-40 pointer-events-none transition-all duration-300 gap-3">
-                        
-                        <div class="relative shrink-0">
-                            <input type="text" id="kasir-search" placeholder="Cari nama barang atau Scan Barcode (Enter)..." class="w-full bg-dark-7 border border-dark-4 text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none focus:border-mantine-blue shadow-inner placeholder-dark-3 transition-colors">
-                        </div>
-
-                        <div id="kasir-categories" class="flex gap-2 overflow-x-auto custom-scrollbar shrink-0 pb-1.5 px-1">
-                            </div>
-
-                        <div id="kasir-katalog" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 content-start pb-2">
-                            </div>
+                    <div id="kasir-core-content" class="flex-1 flex flex-col min-h-0 opacity-40 pointer-events-none transition-all duration-300 gap-2">
+                        <input type="text" id="kasir-search" placeholder="Ketik nama barang / Scan Barcode (Enter)..." class="w-full bg-dark-8 border border-dark-4 text-white text-xs rounded-xl px-3 py-3 focus:outline-none focus:border-mantine-blue shadow-inner shrink-0">
+                        <div id="kasir-categories" class="flex gap-2 overflow-x-auto custom-scrollbar shrink-0 pb-1 px-0.5"></div>
+                        <div id="kasir-katalog" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 content-start pb-2"></div>
                     </div>
                 </div>
 
-                <div id="kasir-cart-content" class="shrink-0 w-full h-[55%] md:h-full md:w-[340px] lg:w-[400px] bg-dark-7 border border-dark-4 rounded-2xl flex flex-col opacity-40 pointer-events-none transition-all duration-300 shadow-xl overflow-hidden">
+                <div id="kasir-cart-content" class="flex-1 md:flex-none md:w-[340px] lg:w-[380px] bg-dark-7 border border-dark-4 rounded-2xl flex flex-col min-h-0 opacity-40 pointer-events-none transition-all duration-300 shadow-xl relative z-10">
                     
-                    <div class="p-3 border-b border-dark-5 flex justify-between items-center shrink-0 bg-dark-7">
-                        <h2 class="text-sm font-bold text-gray-100 ml-1">Keranjang Belanja</h2>
-                        <span id="cart-total-qty-badge" class="bg-mantine-blue/10 border border-mantine-blue/30 text-mantine-blue text-[10px] px-2.5 py-1 rounded-lg font-bold">0 Item</span>
+                    <div class="p-2.5 border-b border-dark-5 flex justify-between items-center shrink-0">
+                        <h2 class="text-xs font-bold text-gray-100 ml-1">Detail Pesanan</h2>
+                        <span id="cart-total-qty-badge" class="bg-mantine-blue/10 border border-mantine-blue/30 text-mantine-blue text-[9px] px-2 py-0.5 rounded font-bold">0 Item</span>
                     </div>
 
-                    <div class="p-3 border-b border-dark-5 bg-dark-8/40 shrink-0">
-                        <div id="member-select-zone" class="flex gap-2">
-                            <input type="number" id="member-search-input" placeholder="No. HP Pelanggan..." class="flex-1 bg-dark-8 border border-dark-4 text-xs text-white rounded-lg px-3 py-2.5 focus:outline-none focus:border-mantine-blue">
-                            <button id="btn-check-member" class="px-4 py-2.5 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-lg transition-colors shadow">Cari</button>
+                    <div class="p-2 border-b border-dark-5 bg-dark-8/40 shrink-0">
+                        <div id="member-select-zone" class="flex gap-1.5">
+                            <input type="number" id="member-search-input" placeholder="No HP Pelanggan..." class="flex-1 bg-dark-8 border border-dark-4 text-[11px] text-white rounded px-2.5 py-1.5 focus:outline-none focus:border-mantine-blue">
+                            <button id="btn-check-member" class="px-3 py-1.5 bg-dark-5 hover:bg-dark-4 text-white text-[10px] font-bold rounded shadow">Cari</button>
                         </div>
-                        <div id="member-active-zone" class="hidden flex justify-between items-center bg-mantine-blue/10 border border-mantine-blue/20 rounded-lg p-2.5">
-                            <div>
-                                <p id="member-active-name" class="text-xs font-bold text-mantine-blue">⭐ MEMBER</p>
-                                <p id="member-active-points" class="text-[10px] text-dark-1 mt-0.5">Poin: 0</p>
-                            </div>
-                            <button id="btn-remove-member" class="text-[10px] text-red-400 hover:text-white hover:bg-red-500/20 font-bold px-3 py-1.5 rounded bg-red-400/10 transition-colors">Batal</button>
+                        <div id="member-active-zone" class="hidden flex justify-between items-center bg-mantine-blue/10 border border-mantine-blue/20 rounded p-1.5">
+                            <div><p id="member-active-name" class="text-[11px] font-bold text-mantine-blue">⭐ MEMBER</p><p id="member-active-points" class="text-[9px] text-dark-1">Poin: 0</p></div>
+                            <button id="btn-remove-member" class="text-[9px] text-red-400 hover:text-white font-bold px-2 py-1 bg-red-400/10 hover:bg-red-500/20 rounded">Batal</button>
                         </div>
                     </div>
 
-                    <div id="cart-list" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2.5 bg-dark-7">
-                        <div class="flex flex-col items-center justify-center h-full text-dark-3"><p class="text-xs italic">Keranjang kosong</p></div>
-                    </div>
+                    <div id="cart-list" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1.5 bg-dark-7"></div>
 
-                    <div class="shrink-0 bg-dark-8 border-t border-dark-4 p-4">
-                        <div class="space-y-2.5 mb-3.5 text-xs">
+                    <div class="shrink-0 bg-dark-8 border-t border-dark-4 p-2.5">
+                        <div class="space-y-1.5 mb-2 text-[10px]">
                             <div class="flex justify-between text-dark-1"><span class="font-medium">Subtotal</span><span id="cart-subtotal" class="font-bold text-gray-200">Rp 0</span></div>
                             <div class="flex justify-between items-center text-dark-1">
-                                <span class="font-medium">Diskon Toko</span>
-                                <input type="number" id="cart-discount" placeholder="Rp" class="w-28 bg-dark-7 border border-dark-4 text-right text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-500 transition-colors">
+                                <span class="font-medium">Diskon</span>
+                                <input type="number" id="cart-discount" placeholder="Rp" class="w-24 bg-dark-7 border border-dark-4 text-right text-white rounded px-2 py-1 focus:outline-none focus:border-amber-500">
                             </div>
-                            <div class="flex justify-between items-center text-sm font-black text-green-400 pt-2.5 border-t border-dark-4 mt-1">
+                            <div class="flex justify-between items-center text-xs font-black text-green-400 pt-1 border-t border-dark-4 mt-1">
                                 <span>TOTAL</span><span id="cart-grand-total">Rp 0</span>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-4 gap-2 mb-3">
-                            <button id="pay-method-cash" class="py-2 text-[10px] font-bold bg-mantine-blue text-white rounded-lg shadow transition-all">Tunai</button>
-                            <button id="pay-method-qris" class="py-2 text-[10px] font-bold bg-dark-5 text-dark-1 hover:text-white rounded-lg transition-all">QRIS</button>
-                            <button id="pay-method-debit" class="py-2 text-[10px] font-bold bg-dark-5 text-dark-1 hover:text-white rounded-lg transition-all">Debit</button>
-                            <button id="pay-method-tf" class="py-2 text-[10px] font-bold bg-dark-5 text-dark-1 hover:text-white rounded-lg transition-all">Trf</button>
+                        <div class="grid grid-cols-4 gap-1.5 mb-2">
+                            <button id="pay-method-cash" class="py-1.5 text-[9px] font-bold bg-mantine-blue text-white rounded shadow transition-all">Tunai</button>
+                            <button id="pay-method-qris" class="py-1.5 text-[9px] font-bold bg-dark-5 text-dark-1 hover:text-white rounded transition-all">QRIS</button>
+                            <button id="pay-method-debit" class="py-1.5 text-[9px] font-bold bg-dark-5 text-dark-1 hover:text-white rounded transition-all">Debit</button>
+                            <button id="pay-method-tf" class="py-1.5 text-[9px] font-bold bg-dark-5 text-dark-1 hover:text-white rounded transition-all">Trf</button>
                         </div>
 
-                        <div id="cash-payment-fields" class="space-y-2 mb-4 bg-dark-7 p-3 rounded-xl border border-dark-4">
-                            <div class="flex justify-between items-center text-xs">
-                                <span class="font-medium text-dark-1">Uang Diterima</span>
-                                <input type="number" id="cash-paid" placeholder="Rp" class="w-32 bg-dark-8 border border-dark-4 text-right text-white font-bold rounded-lg px-3 py-2 focus:outline-none focus:border-mantine-blue text-sm transition-colors">
+                        <div id="cash-payment-fields" class="mb-2 bg-dark-7 p-2 rounded-lg border border-dark-4">
+                            <div class="flex justify-between items-center text-[10px]">
+                                <span class="font-medium text-dark-1">Terima</span>
+                                <input type="number" id="cash-paid" placeholder="Rp" class="w-24 bg-dark-8 border border-dark-4 text-right text-white font-bold rounded px-2 py-1 focus:outline-none focus:border-mantine-blue text-[11px]">
                             </div>
-                            <div id="cash-return-row" class="flex justify-between items-center text-xs pt-1">
-                                <span class="font-medium text-dark-2">Kembali</span><span id="cash-return" class="font-bold text-amber-400 text-sm bg-amber-400/10 px-2 py-0.5 rounded">Rp 0</span>
+                            <div id="cash-return-row" class="flex justify-between items-center text-[10px] pt-1 mt-1 border-t border-dark-5">
+                                <span class="font-medium text-dark-2">Kembali</span><span id="cash-return" class="font-bold text-amber-400 bg-amber-400/10 px-1 py-0.5 rounded">Rp 0</span>
                             </div>
                         </div>
                         
-                        <div id="non-cash-payment-fields" class="hidden mb-4 bg-dark-7 p-3 rounded-xl border border-dark-4">
-                            <div class="flex justify-between items-center text-xs">
-                                <span id="non-cash-title" class="font-medium text-dark-1">Ref/Kode</span>
-                                <input type="text" id="payment-ref-code" placeholder="Opsional" class="w-full max-w-[120px] bg-dark-8 border border-dark-4 text-right text-white rounded-lg px-3 py-2 focus:outline-none focus:border-mantine-blue">
+                        <div id="non-cash-payment-fields" class="hidden mb-2 bg-dark-7 p-2 rounded-lg border border-dark-4">
+                            <div class="flex justify-between items-center text-[10px]">
+                                <span id="non-cash-title" class="font-medium text-dark-1">Ref</span>
+                                <input type="text" id="payment-ref-code" placeholder="Kode" class="w-24 bg-dark-8 border border-dark-4 text-right text-white rounded px-2 py-1 focus:outline-none focus:border-mantine-blue">
                             </div>
                         </div>
 
-                        <div class="flex gap-2">
-                            <div class="flex flex-col gap-1.5 shrink-0 w-[50px]">
-                                <button id="btn-hold-bill" class="flex-1 bg-dark-5 hover:bg-dark-4 text-white rounded-xl flex items-center justify-center transition-colors" title="Hold Pesanan">⏸️</button>
-                                <button id="btn-recall-bill" class="flex-1 bg-dark-5 hover:bg-dark-4 text-white rounded-xl flex items-center justify-center relative transition-colors" title="Buka Hold">📂<span id="hold-count-badge" class="absolute -top-1.5 -right-1.5 bg-mantine-blue text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow hidden">0</span></button>
+                        <div class="flex gap-1.5">
+                            <div class="flex flex-col gap-1 shrink-0 w-8">
+                                <button id="btn-hold-bill" class="flex-1 bg-dark-5 hover:bg-dark-4 text-white rounded flex items-center justify-center" title="Hold Order"><span class="text-[10px]">⏸️</span></button>
+                                <button id="btn-recall-bill" class="flex-1 bg-dark-5 hover:bg-dark-4 text-white rounded flex items-center justify-center relative" title="Buka Hold"><span class="text-[10px]">📂</span><span id="hold-count-badge" class="absolute -top-1.5 -right-1.5 bg-mantine-blue text-white text-[8px] font-black px-1 py-0.5 rounded-full shadow hidden">0</span></button>
                             </div>
-                            <button id="btn-checkout" disabled class="flex-1 py-3 bg-dark-5 text-dark-3 font-black rounded-xl cursor-not-allowed text-xs uppercase transition-all">Selesaikan Transaksi</button>
+                            <button id="btn-checkout" disabled class="flex-1 py-2 bg-dark-5 text-dark-3 font-black rounded cursor-not-allowed text-[11px] uppercase transition-all">Bayar</button>
                         </div>
                     </div>
                 </div>
-
             </div>
 
-            <div id="tab-dashboard" class="tab-content hidden flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 space-y-5">
-                <div class="bg-dark-7 p-4 border border-dark-4 rounded-2xl flex flex-col md:flex-row items-end md:items-center justify-between gap-4">
+            <div id="tab-dashboard" class="tab-content hidden flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4">
+                <div class="bg-dark-7 p-3 border border-dark-4 rounded-xl flex flex-col md:flex-row items-end md:items-center justify-between gap-3">
                     <div class="w-full md:w-auto">
-                        <h2 class="text-sm font-bold text-gray-100 mb-2">Filter Data Laporan</h2>
                         <div class="flex flex-wrap gap-2">
-                            <input type="date" id="filter-date-start" class="bg-dark-8 border border-dark-4 text-xs text-white px-3 py-2 rounded-lg focus:outline-none focus:border-mantine-blue">
+                            <input type="date" id="filter-date-start" class="bg-dark-8 border border-dark-4 text-xs text-white px-2 py-1.5 rounded focus:outline-none focus:border-mantine-blue">
                             <span class="text-dark-2 flex items-center text-xs">-</span>
-                            <input type="date" id="filter-date-end" class="bg-dark-8 border border-dark-4 text-xs text-white px-3 py-2 rounded-lg focus:outline-none focus:border-mantine-blue">
+                            <input type="date" id="filter-date-end" class="bg-dark-8 border border-dark-4 text-xs text-white px-2 py-1.5 rounded focus:outline-none focus:border-mantine-blue">
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                        <button onclick="window.setShortcutTanggal('hari-ini')" class="flex-1 md:flex-none px-3 py-2.5 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-lg text-gray-200 transition-colors">Hari Ini</button>
-                        <button onclick="window.setShortcutTanggal('7-hari')" class="flex-1 md:flex-none px-3 py-2.5 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-lg text-gray-200 transition-colors">7 Hari</button>
-                        <button onclick="window.setShortcutTanggal('bulan-ini')" class="flex-1 md:flex-none px-3 py-2.5 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-lg text-gray-200 transition-colors">Bulan Ini</button>
+                        <button onclick="window.setShortcutTanggal('hari-ini')" class="flex-1 md:flex-none px-3 py-1.5 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded text-gray-200">Hari Ini</button>
+                        <button onclick="window.setShortcutTanggal('7-hari')" class="flex-1 md:flex-none px-3 py-1.5 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded text-gray-200">7 Hari</button>
+                        <button onclick="window.setShortcutTanggal('bulan-ini')" class="flex-1 md:flex-none px-3 py-1.5 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded text-gray-200">Bulan Ini</button>
                     </div>
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-dark-7 border border-dark-4 p-5 rounded-2xl">
-                        <p class="text-xs font-bold text-dark-2 mb-1">Total Omset</p>
-                        <h3 id="dash-omset" class="text-2xl font-black text-green-400">Rp 0</h3>
-                    </div>
-                    <div class="bg-dark-7 border border-dark-4 p-5 rounded-2xl">
-                        <p class="text-xs font-bold text-dark-2 mb-1">Transaksi Sukses</p>
-                        <h3 id="dash-transaksi" class="text-2xl font-black text-gray-100">0</h3>
-                    </div>
-                    <div class="bg-dark-7 border border-dark-4 p-5 rounded-2xl">
-                        <p class="text-xs font-bold text-dark-2 mb-1">Barang Terjual</p>
-                        <h3 id="dash-items" class="text-2xl font-black text-gray-100">0 <span class="text-lg font-medium text-dark-2">Item</span></h3>
-                    </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="bg-dark-7 border border-dark-4 p-4 rounded-xl"><p class="text-[10px] font-bold text-dark-2 mb-1">Total Omset</p><h3 id="dash-omset" class="text-xl font-black text-green-400">Rp 0</h3></div>
+                    <div class="bg-dark-7 border border-dark-4 p-4 rounded-xl"><p class="text-[10px] font-bold text-dark-2 mb-1">Transaksi Sukses</p><h3 id="dash-transaksi" class="text-xl font-black text-gray-100">0</h3></div>
+                    <div class="bg-dark-7 border border-dark-4 p-4 rounded-xl"><p class="text-[10px] font-bold text-dark-2 mb-1">Barang Terjual</p><h3 id="dash-items" class="text-xl font-black text-gray-100">0 <span class="text-sm font-medium text-dark-2">Item</span></h3></div>
                 </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <div class="lg:col-span-2 bg-dark-7 border border-dark-4 p-5 rounded-2xl">
-                        <h3 class="text-xs font-bold text-gray-100 mb-4 uppercase tracking-wider">Top 5 Produk Terlaris</h3>
-                        <div class="h-[200px] w-full"><canvas id="chartProdukTerlaris"></canvas></div>
-                    </div>
-                    <div class="bg-dark-7 border border-dark-4 p-5 rounded-2xl flex flex-col">
-                        <h3 class="text-xs font-bold text-amber-400 mb-4 uppercase tracking-wider flex items-center gap-2">⚠️ Peringatan Stok Tipis</h3>
-                        <div id="dash-low-stock-list" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 max-h-[200px]"></div>
-                    </div>
+                <div class="bg-dark-7 border border-dark-4 p-4 rounded-xl">
+                    <div class="h-[200px] w-full"><canvas id="chartProdukTerlaris"></canvas></div>
                 </div>
-
-                <div class="bg-dark-7 border border-dark-4 rounded-2xl overflow-hidden flex flex-col">
-                    <div class="p-4 border-b border-dark-4 flex justify-between items-center bg-dark-7">
-                        <h3 class="text-xs font-bold text-gray-100 uppercase tracking-wider">Buku Kas Rekapitulasi</h3>
-                        <button id="btn-export-excel" class="hidden px-4 py-2 bg-green-700 hover:bg-green-600 text-white text-xs font-bold rounded-lg shadow-lg flex items-center gap-1.5 transition-colors"><span>📥</span> Export Excel</button>
+                <div class="bg-dark-7 border border-dark-4 rounded-xl overflow-hidden flex flex-col">
+                    <div class="p-3 border-b border-dark-4 flex justify-between items-center bg-dark-7">
+                        <h3 class="text-[11px] font-bold text-gray-100 uppercase tracking-wider">Rekapitulasi Histori</h3>
+                        <button id="btn-export-excel" class="hidden px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white text-[10px] font-bold rounded shadow-lg">Excel</button>
                     </div>
                     <div class="overflow-x-auto custom-scrollbar">
                         <table class="min-w-full divide-y divide-dark-4">
-                            <thead class="bg-dark-6">
-                                <tr>
-                                    <th class="px-5 py-3 text-left text-[10px] font-bold text-dark-2 uppercase tracking-wider w-40">Waktu</th>
-                                    <th class="px-5 py-3 text-left text-[10px] font-bold text-dark-2 uppercase tracking-wider">Rincian Belanja</th>
-                                    <th class="px-5 py-3 text-left text-[10px] font-bold text-dark-2 uppercase tracking-wider w-24">Metode</th>
-                                    <th class="px-5 py-3 text-left text-[10px] font-bold text-dark-2 uppercase tracking-wider w-32">Grand Total</th>
-                                    <th class="px-5 py-3 text-right text-[10px] font-bold text-dark-2 uppercase tracking-wider w-24">Aksi</th>
-                                </tr>
-                            </thead>
+                            <thead class="bg-dark-6"><tr><th class="px-3 py-2 text-left text-[9px] font-bold text-dark-2 uppercase">Waktu</th><th class="px-3 py-2 text-left text-[9px] font-bold text-dark-2 uppercase">Barang</th><th class="px-3 py-2 text-left text-[9px] font-bold text-dark-2 uppercase">Metode</th><th class="px-3 py-2 text-left text-[9px] font-bold text-dark-2 uppercase">Total</th><th class="px-3 py-2 text-right text-[9px] font-bold text-dark-2 uppercase">Aksi</th></tr></thead>
                             <tbody id="riwayat-list" class="bg-dark-7 divide-y divide-dark-4"></tbody>
                         </table>
                     </div>
                 </div>
-
-                <div id="admin-shift-log-section" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="bg-dark-7 border border-dark-4 rounded-2xl overflow-hidden flex flex-col">
-                        <div class="p-4 border-b border-dark-4 bg-dark-7"><h3 class="text-xs font-bold text-gray-100 uppercase tracking-wider">Histori Shift (Z-Report)</h3></div>
-                        <div class="overflow-x-auto custom-scrollbar max-h-[300px]">
-                            <table class="min-w-full divide-y divide-dark-4 text-xs">
-                                <thead class="bg-dark-6"><tr><th class="px-4 py-2 text-left text-[10px] text-dark-2 uppercase">Kasir/Buka</th><th class="px-4 py-2 text-left text-[10px] text-dark-2 uppercase">Modal</th><th class="px-4 py-2 text-left text-[10px] text-dark-2 uppercase">Omset</th><th class="px-4 py-2 text-left text-[10px] text-dark-2 uppercase">Laci Aktual</th><th class="px-4 py-2 text-left text-[10px] text-dark-2 uppercase">Selisih</th></tr></thead>
-                                <tbody id="shift-log-list" class="bg-dark-7 divide-y divide-dark-4"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="bg-dark-7 border border-dark-4 rounded-2xl overflow-hidden flex flex-col">
-                        <div class="p-4 border-b border-dark-4 bg-dark-7"><h3 class="text-xs font-bold text-red-400 uppercase tracking-wider">Log Audit Sistem</h3></div>
-                        <div class="overflow-y-auto custom-scrollbar max-h-[300px]">
-                            <table class="min-w-full divide-y divide-dark-4 text-xs"><tbody id="audit-log-list" class="bg-dark-7 divide-y divide-dark-4"></tbody></table>
-                        </div>
-                    </div>
+                <div id="admin-shift-log-section" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div class="bg-dark-7 border border-dark-4 rounded-xl overflow-hidden flex flex-col"><div class="p-3 border-b border-dark-4"><h3 class="text-[10px] font-bold text-gray-100 uppercase">Z-Report</h3></div><div class="overflow-x-auto custom-scrollbar max-h-[250px]"><table class="min-w-full divide-y divide-dark-4 text-xs"><tbody id="shift-log-list" class="bg-dark-7 divide-y divide-dark-4"></tbody></table></div></div>
+                    <div class="bg-dark-7 border border-dark-4 rounded-xl overflow-hidden flex flex-col"><div class="p-3 border-b border-dark-4"><h3 class="text-[10px] font-bold text-red-400 uppercase">Log Audit</h3></div><div class="overflow-y-auto custom-scrollbar max-h-[250px]"><table class="min-w-full divide-y divide-dark-4 text-xs"><tbody id="audit-log-list" class="bg-dark-7 divide-y divide-dark-4"></tbody></table></div></div>
                 </div>
             </div>
 
-            <div id="tab-gudang" class="tab-content hidden flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6">
-                <div class="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
-                    <div class="w-full lg:w-[350px] bg-dark-7 border border-dark-4 p-5 rounded-2xl shrink-0 lg:sticky top-0 shadow-lg">
-                        <h2 id="form-title" class="text-sm font-bold text-gray-100 mb-4 uppercase tracking-wider border-b border-dark-5 pb-2">Master Barang</h2>
-                        <form id="item-form" class="space-y-3.5">
+            <div id="tab-gudang" class="tab-content hidden flex-1 overflow-y-auto custom-scrollbar p-3">
+                <div class="max-w-6xl mx-auto flex flex-col lg:flex-row gap-4 items-start">
+                    <div class="w-full lg:w-[300px] bg-dark-7 border border-dark-4 p-4 rounded-xl shrink-0 lg:sticky top-0 shadow">
+                        <h2 id="form-title" class="text-xs font-bold text-gray-100 mb-3 uppercase border-b border-dark-5 pb-2">Master Barang</h2>
+                        <form id="item-form" class="space-y-2.5">
                             <input type="hidden" id="item-id">
-                            <div><label class="block text-[10px] font-bold text-dark-1 mb-1 uppercase">Barcode/SKU</label><input type="text" id="item-barcode" placeholder="Scan Barcode (Opsional)" class="w-full bg-dark-8 border border-dark-4 text-white text-xs rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue placeholder-dark-4 transition-colors"></div>
-                            <div><label class="block text-[10px] font-bold text-dark-1 mb-1 uppercase">Nama Barang <span class="text-red-500">*</span></label><input type="text" id="item-name" required placeholder="Ketik nama produk..." class="w-full bg-dark-8 border border-dark-4 text-white text-xs rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue placeholder-dark-4 transition-colors"></div>
-                            <div><label class="block text-[10px] font-bold text-dark-1 mb-1 uppercase">Kategori</label><input type="text" id="item-category" placeholder="Cth: Makanan, Minuman..." class="w-full bg-dark-8 border border-dark-4 text-white text-xs rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue placeholder-dark-4 transition-colors"></div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div><label class="block text-[10px] font-bold text-dark-1 mb-1 uppercase">Harga <span class="text-red-500">*</span></label><input type="number" id="item-price" required min="0" placeholder="Rp" class="w-full bg-dark-8 border border-dark-4 text-green-400 text-xs font-bold rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue placeholder-dark-4 transition-colors"></div>
-                                <div><label class="block text-[10px] font-bold text-dark-1 mb-1 uppercase">Stok <span class="text-red-500">*</span></label><input type="number" id="item-stock" required min="0" placeholder="Qty" class="w-full bg-dark-8 border border-dark-4 text-white text-xs font-bold rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue placeholder-dark-4 transition-colors"></div>
+                            <div><input type="text" id="item-barcode" placeholder="Barcode/SKU (Opsional)" class="w-full bg-dark-8 border border-dark-4 text-white text-[11px] rounded px-3 py-2 focus:border-mantine-blue"></div>
+                            <div><input type="text" id="item-name" required placeholder="Nama Produk *" class="w-full bg-dark-8 border border-dark-4 text-white text-[11px] rounded px-3 py-2 focus:border-mantine-blue"></div>
+                            <div><input type="text" id="item-category" placeholder="Kategori" class="w-full bg-dark-8 border border-dark-4 text-white text-[11px] rounded px-3 py-2 focus:border-mantine-blue"></div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div><input type="number" id="item-price" required min="0" placeholder="Harga *" class="w-full bg-dark-8 border border-dark-4 text-green-400 text-[11px] font-bold rounded px-3 py-2 focus:border-mantine-blue"></div>
+                                <div><input type="number" id="item-stock" required min="0" placeholder="Stok *" class="w-full bg-dark-8 border border-dark-4 text-white text-[11px] font-bold rounded px-3 py-2 focus:border-mantine-blue"></div>
                             </div>
-                            <div class="pt-3 flex gap-2">
-                                <button type="button" id="btn-cancel" class="hidden px-4 py-3 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-xl transition-colors">Batal</button>
-                                <button type="submit" id="btn-submit" class="flex-1 bg-mantine-blue hover:bg-mantine-hover text-white text-xs font-bold py-3 rounded-xl transition-colors shadow-lg shadow-mantine-blue/20">Simpan Data</button>
+                            <div class="pt-2 flex gap-1.5">
+                                <button type="button" id="btn-cancel" class="hidden px-3 py-2 bg-dark-5 text-white text-[10px] font-bold rounded">Batal</button>
+                                <button type="submit" id="btn-submit" class="flex-1 bg-mantine-blue text-white text-[11px] font-bold py-2 rounded shadow">Simpan</button>
                             </div>
                         </form>
                     </div>
-
-                    <div class="flex-1 w-full bg-dark-7 border border-dark-4 p-5 rounded-2xl shadow-lg">
-                        <div class="flex justify-between items-center mb-4 border-b border-dark-5 pb-3">
-                            <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wider">Daftar Gudang</h2>
-                        </div>
-                        <div id="gudang-list" class="space-y-2"></div>
+                    <div class="flex-1 w-full bg-dark-7 border border-dark-4 p-4 rounded-xl shadow">
+                        <div class="mb-3 border-b border-dark-5 pb-2"><h2 class="text-xs font-bold text-gray-100 uppercase">Daftar Gudang</h2></div>
+                        <div id="gudang-list" class="space-y-1.5"></div>
                     </div>
                 </div>
             </div>
-
         </main>
     </div>
 
     <div id="shift-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-        <div class="bg-dark-7 p-7 rounded-3xl border border-dark-4 w-full max-w-sm shadow-2xl transform transition-all">
-            <h2 id="shift-modal-title" class="text-xl font-black text-gray-100 mb-5">Buka Shift</h2>
-            <form id="shift-form" class="space-y-4">
+        <div class="bg-dark-7 p-6 rounded-2xl border border-dark-4 w-full max-w-xs shadow-2xl max-h-[85dvh] flex flex-col">
+            <h2 id="shift-modal-title" class="text-lg font-black text-gray-100 mb-4 shrink-0">Buka Shift</h2>
+            <form id="shift-form" class="space-y-4 overflow-y-auto custom-scrollbar shrink-0 pb-1">
                 <div>
-                    <label id="shift-input-label" class="block text-xs font-bold text-dark-1 mb-2 ml-1">Modal Awal Kasir / Laci (Rp)</label>
-                    <input type="number" id="shift-cash-input" min="0" required class="w-full bg-dark-8 border border-dark-4 text-green-400 font-black text-xl rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue placeholder-dark-4 transition-colors">
+                    <label id="shift-input-label" class="block text-[11px] font-bold text-dark-1 mb-1.5 ml-1">Modal Awal Laci (Rp)</label>
+                    <input type="number" id="shift-cash-input" min="0" required class="w-full bg-dark-8 border border-dark-4 text-green-400 font-black text-lg rounded-xl px-4 py-2.5 focus:outline-none focus:border-mantine-blue">
                 </div>
-                <div class="flex gap-2 pt-3">
-                    <button type="button" id="btn-close-shift-modal" class="hidden px-6 py-3 bg-dark-5 hover:bg-dark-4 text-white font-bold rounded-xl text-xs transition-colors">Batal</button>
-                    <button type="submit" id="btn-shift-submit" class="flex-1 bg-mantine-blue hover:bg-mantine-hover text-white font-bold py-3.5 rounded-xl text-sm transition-colors shadow-lg">Proses</button>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="btn-close-shift-modal" class="hidden px-4 py-2.5 bg-dark-5 text-white font-bold rounded-xl text-xs">Batal</button>
+                    <button type="submit" id="btn-shift-submit" class="flex-1 bg-mantine-blue text-white font-bold py-2.5 rounded-xl text-sm shadow-lg">Proses</button>
                 </div>
             </form>
         </div>
     </div>
 
     <div id="hold-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-        <div class="bg-dark-7 p-6 rounded-3xl border border-dark-4 w-full max-w-md shadow-2xl flex flex-col max-h-[85vh]">
-            <div class="flex justify-between items-center mb-5 border-b border-dark-5 pb-3 shrink-0">
-                <h2 class="text-sm font-bold text-gray-100">Pesanan Ditangguhkan (Hold)</h2>
-                <button onclick="document.getElementById('hold-modal').classList.add('hidden')" class="text-dark-2 hover:text-white font-bold text-2xl leading-none transition-colors">&times;</button>
+        <div class="bg-dark-7 p-5 rounded-2xl border border-dark-4 w-full max-w-sm shadow-2xl flex flex-col max-h-[85dvh]">
+            <div class="flex justify-between items-center mb-4 border-b border-dark-5 pb-2 shrink-0">
+                <h2 class="text-xs font-bold text-gray-100">Pesanan Di-Hold</h2>
+                <button onclick="document.getElementById('hold-modal').classList.add('hidden')" class="text-dark-2 hover:text-white font-bold text-xl">&times;</button>
             </div>
             <div id="hold-bills-list" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1"></div>
         </div>
     </div>
 
     <div id="member-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-        <div class="bg-dark-7 p-7 rounded-3xl border border-dark-4 w-full max-w-sm shadow-2xl transform transition-all">
-            <h2 class="text-xl font-black text-gray-100 mb-1">Daftar Member</h2>
-            <p class="text-xs text-dark-2 mb-5">Daftarkan pelanggan agar poin terkumpul.</p>
-            <form id="member-form" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-dark-1 mb-1 ml-1">No. Handphone / WhatsApp</label>
-                    <input type="text" id="member-reg-phone" readonly class="w-full bg-dark-8 border border-dark-4 text-dark-3 font-bold text-sm rounded-xl px-4 py-3 cursor-not-allowed">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-dark-1 mb-1 ml-1">Nama Lengkap</label>
-                    <input type="text" id="member-reg-name" required placeholder="Cth: Budi Santoso" class="w-full bg-dark-8 border border-dark-4 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-mantine-blue transition-colors">
-                </div>
-                <div class="flex gap-2 pt-3">
-                    <button type="button" onclick="document.getElementById('member-modal').classList.add('hidden')" class="px-5 py-3.5 bg-dark-5 hover:bg-dark-4 text-white font-bold rounded-xl text-xs transition-colors">Batal</button>
-                    <button type="submit" class="flex-1 bg-mantine-blue hover:bg-mantine-hover text-white font-bold py-3.5 rounded-xl text-sm transition-colors shadow-lg">Daftarkan Pelanggan</button>
+        <div class="bg-dark-7 p-6 rounded-2xl border border-dark-4 w-full max-w-xs shadow-2xl max-h-[85dvh] flex flex-col">
+            <h2 class="text-lg font-black text-gray-100 mb-1 shrink-0">Daftar Member</h2>
+            <p class="text-[10px] text-dark-2 mb-4 shrink-0">Poin otomatis diakumulasi.</p>
+            <form id="member-form" class="space-y-3 overflow-y-auto custom-scrollbar shrink-0 pb-1">
+                <div><input type="text" id="member-reg-phone" readonly class="w-full bg-dark-6 border border-dark-4 text-dark-3 font-bold text-xs rounded-xl px-3 py-2.5 cursor-not-allowed"></div>
+                <div><input type="text" id="member-reg-name" required placeholder="Nama Lengkap Pelanggan" class="w-full bg-dark-8 border border-dark-4 text-white text-xs rounded-xl px-3 py-2.5 focus:border-mantine-blue"></div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('member-modal').classList.add('hidden')" class="px-4 py-2.5 bg-dark-5 text-white font-bold rounded-xl text-xs">Batal</button>
+                    <button type="submit" class="flex-1 bg-mantine-blue text-white font-bold py-2.5 rounded-xl text-sm shadow-lg">Daftar</button>
                 </div>
             </form>
         </div>
