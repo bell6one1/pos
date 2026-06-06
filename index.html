@@ -158,7 +158,12 @@
                         <button id="tab-piutang-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 text-amber-500">💳 Kasbon</button>
                         <button id="tab-riwayat-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2">🧾 Riwayat</button>
                     </div>
-                    <button id="btn-logout" class="px-3 py-2 text-sm text-red-400 bg-dark-6 border border-dark-4 hover:bg-red-900/30 rounded-lg shrink-0 ml-4">Keluar</button>
+                    <div class="flex items-center gap-3 shrink-0 ml-4">
+                        <button id="btn-connect-printer" class="px-3 py-1.5 text-xs font-bold text-dark-1 bg-dark-8 border border-dark-4 hover:bg-dark-6 rounded-lg transition-colors flex items-center gap-1.5" title="Koneksikan Printer Thermal Bluetooth">
+                            <span class="text-sm">🖨️</span> <span class="hidden md:inline">Printer BT</span>
+                        </button>
+                        <button id="btn-logout" class="px-3 py-1.5 text-xs font-bold text-red-400 bg-red-950/20 border border-red-900/50 hover:bg-red-900/40 rounded-lg">Keluar</button>
+                    </div>
                 </div>
             </div>
         </nav>
@@ -202,6 +207,22 @@
                     <div id="cart-list" class="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar bg-dark-7"></div>
                     
                     <div class="p-5 bg-dark-6 border-t border-dark-4 space-y-4">
+                        <div class="space-y-2 mb-2 border-b border-dark-5 pb-2">
+                            <div class="flex justify-between text-dark-0 text-xs font-medium"><span>Subtotal</span><span id="cart-subtotal" class="text-gray-100">Rp 0</span></div>
+                            
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-dark-0 font-medium">Kode Promo / Voucher</span>
+                                <div class="flex shadow-sm rounded-md overflow-hidden">
+                                    <input type="text" id="voucher-code" placeholder="Cth: PROMO20" class="w-24 px-2 py-1 bg-dark-8 border border-dark-4 border-r-0 text-white outline-none uppercase text-[10px]">
+                                    <button id="btn-apply-voucher" class="px-2 py-1 bg-mantine-blue hover:bg-mantine-hover text-white text-[10px] font-bold border border-mantine-blue">Klaim</button>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs pt-1">
+                                <span class="text-dark-0 font-medium">Diskon Kasir (Rp)</span>
+                                <input type="number" id="cart-discount" placeholder="0" min="0" class="w-24 px-2 py-1 text-right bg-dark-8 border border-dark-4 rounded-md text-gray-100 outline-none">
+                            </div>
+                        </div>
+
                         <div class="flex justify-between items-end">
                             <span class="text-xs font-bold text-dark-2 uppercase tracking-widest">Total Bayar</span>
                             <span id="cart-grand-total" class="text-3xl font-extrabold text-mantine-blue tracking-tight">Rp 0</span>
@@ -245,13 +266,9 @@
 
             <div id="tab-piutang" class="tab-content hidden space-y-6">
                 <div class="flex justify-between items-center bg-dark-6 p-5 rounded-xl border border-dark-4">
-                    <div>
-                        <h2 class="text-lg font-black text-amber-500">Buku Kasbon / Piutang</h2>
-                        <p class="text-xs text-dark-2 mt-1">Daftar pelanggan yang memiliki tagihan belum lunas.</p>
-                    </div>
+                    <div><h2 class="text-lg font-black text-amber-500">Buku Kasbon / Piutang</h2><p class="text-xs text-dark-2 mt-1">Daftar pelanggan yang memiliki tagihan belum lunas.</p></div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="piutang-list">
-                    </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="piutang-list"></div>
             </div>
 
             <div id="tab-riwayat" class="tab-content hidden">
