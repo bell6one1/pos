@@ -24,8 +24,7 @@
                     colors: {
                         dark: { 0: '#C1C2C5', 1: '#A6A7AB', 2: '#909296', 3: '#5C5F66', 4: '#373A40', 5: '#2C2E33', 6: '#25262B', 7: '#1A1B1E', 8: '#141517', 9: '#101113' },
                         mantine: { blue: '#1971c2', hover: '#1864ab' }
-                    },
-                    boxShadow: { 'premium': '0 4px 20px -4px rgba(0, 0, 0, 0.5), 0 0 3px rgba(0,0,0,0.2)' }
+                    }
                 }
             }
         }
@@ -57,30 +56,23 @@
                 <h3 class="text-sm font-bold text-gray-100 uppercase tracking-widest">🔀 Split Payment</h3>
                 <span id="split-total-tagihan" class="text-mantine-blue font-black text-lg">Rp 0</span>
             </div>
-            
             <div class="space-y-4">
                 <div class="bg-dark-8 p-3 rounded-xl border border-dark-4">
                     <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Pembayaran Pertama</label>
                     <div class="flex gap-2">
-                        <select id="split-method-1" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-white outline-none focus:border-mantine-blue">
-                            <option value="Tunai">Tunai</option><option value="QRIS">QRIS</option><option value="Debit">Debit</option>
-                        </select>
+                        <select id="split-method-1" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-white outline-none focus:border-mantine-blue"><option value="Tunai">Tunai</option><option value="QRIS">QRIS</option><option value="Debit">Debit</option></select>
                         <input type="number" id="split-amount-1" placeholder="Nominal Rp" min="0" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-white font-bold outline-none focus:border-mantine-blue">
                     </div>
                 </div>
-
                 <div class="bg-dark-8 p-3 rounded-xl border border-dark-4">
                     <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Pembayaran Kedua</label>
                     <div class="flex gap-2">
-                        <select id="split-method-2" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-white outline-none focus:border-mantine-blue">
-                            <option value="QRIS">QRIS</option><option value="Tunai">Tunai</option><option value="Debit">Debit</option>
-                        </select>
+                        <select id="split-method-2" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-white outline-none focus:border-mantine-blue"><option value="QRIS">QRIS</option><option value="Tunai">Tunai</option><option value="Debit">Debit</option></select>
                         <input type="number" id="split-amount-2" placeholder="Sisa Nominal Rp" min="0" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-white font-bold outline-none focus:border-mantine-blue" readonly>
                     </div>
                     <p id="split-warning" class="text-[10px] text-red-400 mt-2 font-bold hidden">Total bayar belum sesuai tagihan!</p>
                 </div>
             </div>
-
             <div class="flex gap-2 mt-6">
                 <button type="button" onclick="window.batalSplitPayment()" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl">Batal</button>
                 <button type="button" id="btn-save-split" class="flex-1 py-3 text-xs font-bold bg-mantine-blue hover:bg-mantine-hover text-white rounded-xl shadow-lg">Terapkan Split</button>
@@ -137,12 +129,12 @@
     </div>
 
     <div id="login-screen" class="hidden fixed inset-0 bg-dark-7 flex items-center justify-center z-[90] p-4">
-        <div class="bg-dark-6 p-8 rounded-2xl shadow-premium border border-dark-4 w-full max-w-sm">
+        <div class="bg-dark-6 p-8 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.5)] border border-dark-4 w-full max-w-sm">
             <div class="text-center mb-8"><h1 class="text-2xl font-black text-gray-100 tracking-tight">POS<span class="text-mantine-blue">PRO</span></h1></div>
             <form id="login-form" class="space-y-5">
                 <div><label class="block text-xs font-semibold text-dark-2 mb-2">Email</label><input type="email" id="login-email" required class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-white outline-none"></div>
                 <div><label class="block text-xs font-semibold text-dark-2 mb-2">Sandi</label><input type="password" id="login-password" required class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-white outline-none"></div>
-                <button type="submit" id="btn-login-submit" class="w-full py-3 mt-2 bg-mantine-blue text-white font-medium text-sm rounded-xl">Masuk</button>
+                <button type="submit" id="btn-login-submit" class="w-full py-3 mt-2 bg-mantine-blue hover:bg-mantine-hover text-white font-medium text-sm rounded-xl transition-colors">Masuk</button>
             </form>
         </div>
     </div>
@@ -162,7 +154,7 @@
                         <button id="btn-connect-printer" class="px-3 py-1.5 text-xs font-bold text-dark-1 bg-dark-8 border border-dark-4 hover:bg-dark-6 rounded-lg transition-colors flex items-center gap-1.5" title="Koneksikan Printer Thermal Bluetooth">
                             <span class="text-sm">🖨️</span> <span class="hidden md:inline">Printer BT</span>
                         </button>
-                        <button id="btn-logout" class="px-3 py-1.5 text-xs font-bold text-red-400 bg-red-950/20 border border-red-900/50 hover:bg-red-900/40 rounded-lg">Keluar</button>
+                        <button id="btn-logout" class="px-3 py-1.5 text-xs font-bold text-red-400 bg-red-950/20 border border-red-900/50 hover:bg-red-900/40 rounded-lg transition-colors">Keluar</button>
                     </div>
                 </div>
             </div>
@@ -177,69 +169,80 @@
                     <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative"><span class="text-xs font-bold text-dark-2 uppercase">Transaksi</span><h3 id="dash-transaksi" class="text-2xl font-extrabold text-gray-100 mt-2">0</h3></div>
                     <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative"><span class="text-xs font-bold text-dark-2 uppercase">Item Terjual</span><h3 id="dash-items" class="text-2xl font-extrabold text-gray-100 mt-2">0</h3></div>
                 </div>
+                <div id="admin-shift-log-section" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden flex flex-col"><div class="p-4 border-b border-dark-4"><h3 class="text-[11px] font-bold text-gray-100 uppercase tracking-widest">Z-Report Shift Kasir</h3></div><div class="overflow-x-auto no-scrollbar max-h-[300px]"><table class="min-w-full divide-y divide-dark-4 text-xs"><tbody id="shift-log-list" class="bg-dark-7 divide-y divide-dark-4"></tbody></table></div></div>
+                    <div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden flex flex-col"><div class="p-4 border-b border-dark-4"><h3 class="text-[11px] font-bold text-red-400 uppercase tracking-widest">Log Keamanan Audit</h3></div><div class="overflow-y-auto no-scrollbar max-h-[300px]"><table class="min-w-full divide-y divide-dark-4 text-xs"><tbody id="audit-log-list" class="bg-dark-7 divide-y divide-dark-4"></tbody></table></div></div>
+                </div>
             </div>
 
             <div id="tab-kasir" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 <div class="lg:col-span-2 space-y-6">
-                    <div id="kasir-core-content" class="space-y-5">
-                        <div class="bg-dark-6 p-2 rounded-xl border border-dark-4 flex flex-col sm:flex-row gap-2"><input type="text" id="kasir-search" placeholder="Cari nama atau Scan Barcode..." class="w-full px-4 py-2.5 text-sm bg-transparent outline-none text-gray-100"></div>
+                    <div id="shift-status-widget" class="bg-dark-6 border border-dark-4 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4"></div>
+                    <div id="kasir-core-content" class="space-y-5 opacity-40 pointer-events-none transition-all duration-300">
+                        <div class="bg-dark-6 p-2 rounded-xl border border-dark-4 flex flex-col sm:flex-row gap-2">
+                            <input type="text" id="kasir-search" placeholder="Cari nama produk atau Scan Barcode..." class="w-full px-4 py-2.5 text-sm bg-transparent outline-none text-gray-100">
+                        </div>
+                        <div id="kasir-categories" class="flex gap-2 overflow-x-auto no-scrollbar py-2 items-center"></div>
                         <div id="kasir-katalog" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"></div>
                     </div>
                 </div>
                 
-                <div class="bg-dark-6 rounded-xl border border-dark-4 flex flex-col h-[calc(100vh-8rem)] sticky top-24" id="kasir-cart-content">
-                    <div class="p-6 border-b border-dark-4 flex justify-between items-center">
-                        <h2 class="text-sm font-bold text-gray-100 uppercase">Keranjang</h2>
-                        <span id="cart-total-qty-badge" class="bg-mantine-blue/20 text-blue-400 py-1 px-2.5 rounded-md text-xs font-bold">0 Item</span>
+                <div class="bg-dark-6 rounded-xl border border-dark-4 flex flex-col h-[calc(100vh-8rem)] sticky top-24 opacity-40 pointer-events-none transition-all duration-300" id="kasir-cart-content">
+                    <div class="p-6 border-b border-dark-4 flex justify-between items-center shrink-0">
+                        <h2 class="text-sm font-bold text-gray-100 uppercase tracking-widest">Keranjang</h2>
+                        <span id="cart-total-qty-badge" class="bg-mantine-blue/20 text-blue-400 py-1 px-2.5 rounded-md text-xs font-bold border border-mantine-blue/30">0 Item</span>
                     </div>
                     
-                    <div class="p-3 border-b border-dark-5 bg-dark-8/40 shrink-0">
+                    <div class="p-4 border-b border-dark-5 bg-dark-8/40 shrink-0">
                         <div id="member-select-zone" class="flex gap-2">
                             <input type="number" id="member-search-input" placeholder="No HP Pelanggan..." class="flex-1 bg-dark-8 border border-dark-4 text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-mantine-blue">
-                            <button id="btn-check-member" class="px-4 py-2 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-lg shadow">Cari</button>
+                            <button id="btn-check-member" class="px-4 py-2 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-lg shadow transition-colors">Cari</button>
                         </div>
-                        <div id="member-active-zone" class="hidden flex justify-between items-center bg-mantine-blue/10 border border-mantine-blue/20 rounded-lg p-2.5 mt-2">
-                            <div><p id="member-active-name" class="text-xs font-bold text-mantine-blue">⭐ MEMBER</p><p id="member-active-points" class="text-[10px] text-dark-1">Poin: 0</p></div>
-                            <button id="btn-remove-member" class="text-xs text-red-400 hover:text-white font-bold px-3 py-1.5 bg-red-400/10 hover:bg-red-500/20 rounded-lg">Batal</button>
+                        <div id="member-active-zone" class="hidden flex justify-between items-center bg-mantine-blue/10 border border-mantine-blue/20 rounded-lg p-3 mt-2">
+                            <div><p id="member-active-name" class="text-xs font-bold text-mantine-blue">⭐ MEMBER</p><p id="member-active-points" class="text-[10px] text-dark-1 mt-0.5">Poin: 0</p></div>
+                            <button id="btn-remove-member" class="text-[10px] text-red-400 hover:text-white font-bold px-3 py-1.5 bg-red-400/10 hover:bg-red-500/20 rounded-lg transition-colors">Batal</button>
                         </div>
                     </div>
 
-                    <div id="cart-list" class="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar bg-dark-7"></div>
+                    <div id="cart-list" class="flex-1 overflow-y-auto p-5 space-y-4 no-scrollbar bg-dark-7 relative"></div>
                     
-                    <div class="p-5 bg-dark-6 border-t border-dark-4 space-y-4">
-                        <div class="space-y-2 mb-2 border-b border-dark-5 pb-2">
-                            <div class="flex justify-between text-dark-0 text-xs font-medium"><span>Subtotal</span><span id="cart-subtotal" class="text-gray-100">Rp 0</span></div>
-                            
+                    <div class="p-5 bg-dark-6 border-t border-dark-4 space-y-4 shrink-0">
+                        <div class="space-y-2.5 mb-2 border-b border-dark-5 pb-3">
+                            <div class="flex justify-between text-dark-0 text-xs font-medium"><span>Subtotal</span><span id="cart-subtotal" class="text-gray-100 font-bold">Rp 0</span></div>
                             <div class="flex items-center justify-between text-xs">
                                 <span class="text-dark-0 font-medium">Kode Promo / Voucher</span>
-                                <div class="flex shadow-sm rounded-md overflow-hidden">
-                                    <input type="text" id="voucher-code" placeholder="Cth: PROMO20" class="w-24 px-2 py-1 bg-dark-8 border border-dark-4 border-r-0 text-white outline-none uppercase text-[10px]">
-                                    <button id="btn-apply-voucher" class="px-2 py-1 bg-mantine-blue hover:bg-mantine-hover text-white text-[10px] font-bold border border-mantine-blue">Klaim</button>
+                                <div class="flex shadow-sm rounded-md overflow-hidden border border-dark-4">
+                                    <input type="text" id="voucher-code" placeholder="Cth: PROMO20" class="w-24 px-2 py-1.5 bg-dark-8 text-white outline-none uppercase text-[10px] placeholder-dark-3">
+                                    <button id="btn-apply-voucher" class="px-3 py-1.5 bg-mantine-blue hover:bg-mantine-hover text-white text-[10px] font-bold transition-colors">Klaim</button>
                                 </div>
                             </div>
                             <div class="flex items-center justify-between text-xs pt-1">
                                 <span class="text-dark-0 font-medium">Diskon Kasir (Rp)</span>
-                                <input type="number" id="cart-discount" placeholder="0" min="0" class="w-24 px-2 py-1 text-right bg-dark-8 border border-dark-4 rounded-md text-gray-100 outline-none">
+                                <input type="number" id="cart-discount" placeholder="0" min="0" class="w-24 px-3 py-1.5 text-right bg-dark-8 border border-dark-4 rounded-md text-gray-100 outline-none focus:border-amber-500 transition-colors">
                             </div>
                         </div>
 
                         <div class="flex justify-between items-end">
                             <span class="text-xs font-bold text-dark-2 uppercase tracking-widest">Total Bayar</span>
-                            <span id="cart-grand-total" class="text-3xl font-extrabold text-mantine-blue tracking-tight">Rp 0</span>
+                            <span id="cart-grand-total" class="text-3xl font-extrabold text-mantine-blue tracking-tight drop-shadow-md">Rp 0</span>
                         </div>
                         
                         <div class="pt-2">
                             <div class="grid grid-cols-3 gap-2 bg-dark-8 p-1.5 rounded-xl border border-dark-4 mb-2">
-                                <button type="button" id="pay-method-cash" class="py-2 text-[11px] font-semibold bg-mantine-blue text-white rounded-lg transition-all">Tunai</button>
-                                <button type="button" id="pay-method-noncash" class="py-2 text-[11px] font-semibold text-dark-1 hover:text-gray-100 rounded-lg transition-all">Non-Tunai</button>
-                                <button type="button" id="pay-method-kasbon" class="py-2 text-[11px] font-semibold text-amber-500 hover:text-amber-400 rounded-lg transition-all">Kasbon</button>
+                                <button type="button" id="pay-method-cash" class="py-2.5 text-[11px] font-semibold bg-mantine-blue text-white rounded-lg transition-all shadow">Tunai</button>
+                                <button type="button" id="pay-method-noncash" class="py-2.5 text-[11px] font-semibold text-dark-1 hover:text-gray-100 rounded-lg transition-all">Non-Tunai</button>
+                                <button type="button" id="pay-method-kasbon" class="py-2.5 text-[11px] font-semibold text-amber-500 hover:text-amber-400 rounded-lg transition-all">Kasbon</button>
                             </div>
-                            <button type="button" id="pay-method-split" class="w-full py-2 mb-3 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all">🔀 Split Payment (Pisah Bayar)</button>
+                            <button type="button" id="pay-method-split" class="w-full py-2.5 mb-3 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all">🔀 Split Payment (Pisah Bayar)</button>
 
-                            <input type="number" id="cash-paid" placeholder="Uang Tunai (Rp)" class="w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none font-medium mb-3">
-                            <input type="text" id="noncash-ref" placeholder="Ref QRIS/Debit (Opsional)" class="hidden w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none font-medium mb-3">
+                            <input type="number" id="cash-paid" placeholder="Uang Tunai (Rp)" class="w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none font-medium mb-3 focus:border-mantine-blue transition-colors">
+                            <input type="text" id="noncash-ref" placeholder="Ref QRIS/Debit (Opsional)" class="hidden w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none font-medium mb-3 focus:border-mantine-blue transition-colors">
                             
-                            <button id="btn-checkout" class="w-full py-4 bg-mantine-blue text-white font-bold rounded-xl transition-all uppercase text-sm">Selesaikan Transaksi</button>
+                            <div class="flex gap-2 mb-3">
+                                <button id="btn-hold-bill" class="flex-1 bg-dark-5 hover:bg-dark-4 text-white rounded-xl py-3 flex items-center justify-center transition-colors border border-dark-4" title="Hold Order"><span class="text-sm">⏸️ Hold</span></button>
+                                <button id="btn-recall-bill" class="flex-1 bg-dark-5 hover:bg-dark-4 text-white rounded-xl py-3 flex items-center justify-center relative transition-colors border border-dark-4" title="Buka Hold"><span class="text-sm">📂 Buka</span><span id="hold-count-badge" class="absolute -top-1.5 -right-1.5 bg-mantine-blue text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow hidden">0</span></button>
+                            </div>
+                            <button id="btn-checkout" disabled class="w-full py-4 bg-dark-5 text-dark-3 font-black rounded-xl cursor-not-allowed transition-all uppercase tracking-widest text-sm shadow-lg">Selesaikan Transaksi</button>
                         </div>
                     </div>
                 </div>
@@ -251,13 +254,14 @@
                         <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide mb-6" id="form-title">Master Barang</h2>
                         <form id="item-form" class="space-y-4">
                             <input type="hidden" id="item-id">
-                            <div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase">Nama Barang</label><input type="text" id="item-name" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none"></div>
-                            <div class="bg-dark-8/50 p-3 rounded-xl border border-dark-4 space-y-3 mt-2">
-                                <div><label class="block text-[10px] font-black text-amber-500 mb-1.5 uppercase tracking-widest">Harga Modal / HPP</label><input type="number" id="item-cost" required min="0" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none focus:border-amber-500"></div>
-                                <div><label class="block text-[10px] font-black text-green-400 mb-1.5 uppercase tracking-widest">Harga Jual</label><input type="number" id="item-price" required min="0" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none focus:border-green-400"></div>
+                            <div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Barcode / SKU</label><input type="text" id="item-barcode" placeholder="Opsional" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none focus:border-mantine-blue transition-colors"></div>
+                            <div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Nama Barang</label><input type="text" id="item-name" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none focus:border-mantine-blue transition-colors"></div>
+                            <div class="bg-dark-8/50 p-4 rounded-xl border border-dark-4 space-y-4 mt-2">
+                                <div><label class="block text-[10px] font-black text-amber-500 mb-1.5 uppercase tracking-widest">Harga Modal / HPP</label><input type="number" id="item-cost" required min="0" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none focus:border-amber-500 transition-colors"></div>
+                                <div><label class="block text-[10px] font-black text-green-400 mb-1.5 uppercase tracking-widest">Harga Jual</label><input type="number" id="item-price" required min="0" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none focus:border-green-400 transition-colors"></div>
                             </div>
-                            <div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase">Stok</label><input type="number" id="item-stock" required min="0" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none"></div>
-                            <button type="submit" id="btn-submit" class="w-full py-3 text-sm font-bold text-white bg-mantine-blue rounded-xl mt-4">Simpan Data</button>
+                            <div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Stok Gudang</label><input type="number" id="item-stock" required min="0" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none focus:border-mantine-blue transition-colors"></div>
+                            <button type="submit" id="btn-submit" class="w-full py-3.5 text-sm font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl mt-5 shadow-lg shadow-mantine-blue/20 transition-all">Simpan Data</button>
                         </form>
                     </div>
                 </div>
@@ -265,13 +269,17 @@
             </div>
 
             <div id="tab-piutang" class="tab-content hidden space-y-6">
-                <div class="flex justify-between items-center bg-dark-6 p-5 rounded-xl border border-dark-4">
+                <div class="flex justify-between items-center bg-dark-6 p-6 rounded-xl border border-dark-4">
                     <div><h2 class="text-lg font-black text-amber-500">Buku Kasbon / Piutang</h2><p class="text-xs text-dark-2 mt-1">Daftar pelanggan yang memiliki tagihan belum lunas.</p></div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="piutang-list"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="piutang-list"></div>
             </div>
 
-            <div id="tab-riwayat" class="tab-content hidden">
+            <div id="tab-riwayat" class="tab-content hidden space-y-6">
+                <div class="flex justify-between items-center bg-dark-6 p-6 rounded-xl border border-dark-4">
+                    <h2 class="text-sm font-bold text-gray-100 uppercase tracking-widest">Riwayat Transaksi</h2>
+                    <button id="btn-export-excel" class="px-4 py-2 bg-green-700 hover:bg-green-600 text-white text-xs font-bold rounded-lg shadow transition-colors">📥 Export Excel</button>
+                </div>
                 <div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden">
                     <table class="min-w-full divide-y divide-dark-4 text-sm"><tbody id="riwayat-list" class="bg-dark-6 divide-y divide-dark-4"></tbody></table>
                 </div>
