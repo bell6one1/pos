@@ -1,23 +1,65 @@
+/* ==========================================
+   TEMA DASAR & RESET
+========================================== */
+body { 
+    background-color: #141517; 
+    color: #C1C2C5; 
+    font-family: 'Inter', sans-serif; 
+    overflow: hidden; 
+}
+
+/* Mencegah highlight biru bawaan browser saat tombol diklik di perangkat mobile */
+* { 
+    -webkit-tap-highlight-color: transparent; 
+}
+
+/* ==========================================
+   CUSTOM SCROLLBAR (Tampilan Elegan & Ramping)
+========================================== */
+.custom-scrollbar::-webkit-scrollbar { 
+    width: 4px; 
+    height: 4px; 
+}
+
+.custom-scrollbar::-webkit-scrollbar-track { 
+    background: transparent; 
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb { 
+    background: #373A40; 
+    border-radius: 10px; 
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { 
+    background: #5C5F66; 
+}
+
+/* ==========================================
+   KONFIGURASI MESIN CETAK (STRUK THERMAL)
+========================================== */
 @media print {
-    body * { visibility: hidden; }
-    #print-area, #print-area * { visibility: visible; }
+    /* Sembunyikan seluruh elemen UI aplikasi saat proses print */
+    body * { 
+        visibility: hidden; 
+    }
+    
+    /* Hanya tampilkan area struk */
+    #print-area, #print-area * { 
+        visibility: visible; 
+    }
+    
+    /* Posisikan struk tepat di pojok kiri atas kertas mesin kasir */
     #print-area { 
-        position: absolute; left: 0; top: 0; width: 100%; max-width: 300px; 
-        padding: 10px; font-family: monospace; background: white !important; color: black !important; 
+        position: absolute; 
+        left: 0; 
+        top: 0; 
+        width: 100%; 
+        margin: 0; 
+        padding: 0; 
+    }
+    
+    /* Hilangkan margin default kertas browser */
+    @page { 
+        margin: 0mm; 
     }
 }
-
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-* { 
-    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease; 
-}
-
-/* Modifikasi input tanggal untuk Dark Mode */
-input[type="date"]::-webkit-calendar-picker-indicator { 
-    filter: invert(1); opacity: 0.6; 
-}
-
-/* GARANSI ANTI MACET UNTUK PERPINDAHAN TAB */
-.hidden { display: none !important; }
