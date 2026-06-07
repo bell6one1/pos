@@ -70,7 +70,6 @@ const parseInputRibuan = (val) => {
     return parseInt(val.toString().replace(/\./g, ''), 10) || 0;
 };
 
-// ✨ BUG FIX: Fungsi Parser Excel Anti-Error (Menyaring Simbol Rp, Titik, dan Teks)
 const parseExcelNum = (val) => {
     if (val === undefined || val === null || val === '') return 0;
     if (typeof val === 'number') return val;
@@ -242,7 +241,14 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
 
 document.getElementById('btn-logout')?.addEventListener('click', async () => { 
     if (activeShiftSession) return alert("Tutup shift kasir sebelum keluar!");
-    if(confirm("Keluar dari sistem?")) { try { await signOut(auth); } catch (e) {} finally { localStorage.clear(); location.reload(); } } 
+    if(confirm("Keluar dari sistem?")) { 
+        try { await signOut(auth); } catch (e) {} 
+        finally { 
+            // ✨ BERSIHKAN OTORISASI ADMIN SAAT LOGOUT ✨
+            sessionStorage.removeItem('pos_admin_authorized');
+            localStorage.clear(); location.reload(); 
+        } 
+    } 
 });
 
 const tabsBtns = document.querySelectorAll('.nav-tab'), contents = document.querySelectorAll('.tab-content');
@@ -317,6 +323,10 @@ window.triggerTutupShift = () => {
             await updateDoc(doc(db, "shift", activeShiftSession.id), { waktuTutup: serverTimestamp(), uangFisikAktual: val, selisih: selisih, status: "tutup" });
             await logActivity("SHIFT_TUTUP", `Tutup Shift. Selisih laci: ${toRupiah(selisih)}`);
             alert(`Shift Berhasil Ditutup. Selisih Laci: ${toRupiah(selisih)}`);
+            
+            // ✨ BERSIHKAN OTORISASI ADMIN SAAT TUTUP SHIFT ✨
+            sessionStorage.removeItem('pos_admin_authorized');
+            
             document.getElementById('shift-modal')?.classList.add('hidden'); activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false);
         } catch(e) { alert("Error: " + e.message); } finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = "Tutup Shift"; } form.reset(); }
     };
@@ -628,7 +638,7 @@ document.getElementById('btn-remove-member')?.addEventListener('click', () => { 
 function showActiveMemberUI() { document.getElementById('member-select-zone')?.classList.add('hidden'); document.getElementById('member-active-zone')?.classList.remove('hidden'); document.getElementById('btn-remove-member')?.classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; renderKeranjang(); }
 
 // ==========================================
-// PENCARIAN, SORT & LAZY LOAD GUDANG
+// PENCARIAN & SORT GUDANG
 // ==========================================
 document.getElementById('gudang-search')?.addEventListener('input', (e) => { 
     kataKunciGudang = e.target.value.toLowerCase(); 
@@ -678,6 +688,42 @@ window.startVoiceSearchGudang = () => {
     recognition.start();
 };
 
+// ✨ FITUR BARU: PENCARIAN SUARA DI KASIR ✨
+window.startVoiceSearchKasir = () => {
+    const btn = document.getElementById('btn-voice-search-kasir');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) { alert("Maaf, browser (atau HP) Anda tidak mendukung fitur Pencarian Suara."); return; }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'id-ID'; 
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    
+    recognition.onresult = function(event) {
+        const speechResult = event.results[0][0].transcript;
+        const searchInput = document.getElementById('kasir-search');
+        if(searchInput) {
+            searchInput.value = speechResult;
+            kataKunciPencarian = speechResult.toLowerCase();
+            kasirItemLimit = 36; // Reset Limit
+            renderKatalogKasir();
+        }
+    };
+
+    recognition.onerror = function(event) {
+        alert("Gagal mendengarkan suara. Silakan coba lagi.");
+        if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
+    };
+
+    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    
+    recognition.start();
+};
+
+
 document.getElementById('kasir-search')?.addEventListener('input', (e) => { 
     kataKunciPencarian = e.target.value.toLowerCase(); 
     kasirItemLimit = 36; // Reset Limit
@@ -698,7 +744,6 @@ function renderKatalogKasir() {
 
     if (filtered.length === 0) { katContainer.innerHTML = `<p class="text-xs text-dark-2 italic col-span-full text-center py-8">Produk tidak ditemukan.</p>`; return; }
     
-    // ✨ LAZY LOAD: KASIR ✨
     const toShow = filtered.slice(0, kasirItemLimit);
     
     katContainer.innerHTML = toShow.map(i => `
@@ -743,7 +788,17 @@ window.tambahKeKeranjang = (id) => {
 window.ubahQtyCart = (id, delta) => {
     const index = keranjang.findIndex(k => k.id === id); if(index === -1) return;
     if (keranjang[index].qty + delta <= 0) {
-        window.itemAkanDihapus = id; document.getElementById('pin-modal').classList.remove('hidden'); setTimeout(() => document.getElementById('auth-pin-input').focus(), 100); return; 
+        // ✨ LOGIKA OTORISASI SESI ✨
+        if (sessionStorage.getItem("pos_admin_authorized") === "true") {
+            keranjang.splice(index, 1);
+            localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang));
+            renderKeranjang();
+        } else {
+            window.itemAkanDihapus = id; 
+            document.getElementById('pin-modal').classList.remove('hidden'); 
+            setTimeout(() => document.getElementById('auth-pin-input').focus(), 100); 
+        }
+        return; 
     }
     const itemDb = databaseBarang.find(i => i.id === id);
     if (delta > 0 && itemDb && keranjang[index].qty >= (itemDb.stok||0)) return alert("Melebihi stok gudang maksimal!");
@@ -753,6 +808,10 @@ window.ubahQtyCart = (id, delta) => {
 document.getElementById('btn-verify-pin')?.addEventListener('click', () => {
     const inputPin = document.getElementById('auth-pin-input').value;
     if (inputPin === ADMIN_PIN) {
+        
+        // ✨ SIMPAN OTORISASI SEMENTARA UNTUK SESI INI SAJA ✨
+        sessionStorage.setItem("pos_admin_authorized", "true");
+
         if (window.itemAkanDihapus) {
             const index = keranjang.findIndex(k => k.id === window.itemAkanDihapus);
             if (index > -1) { keranjang.splice(index, 1); localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); renderKeranjang(); }
@@ -1024,10 +1083,7 @@ itemForm?.addEventListener('submit', async (e) => {
         const data = { barcode: barcodeInput, nama: nName, kategori: nCat, catatan: nNotes, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
         if(id) { await updateDoc(doc(db, "barang", id), data); } else { await addDoc(itemsRef, data); }
         
-        // ✨ FORM RESET & CLEANUP
-        document.getElementById('item-form')?.reset(); 
-        document.getElementById('item-id').value = ""; 
-        document.getElementById('btn-cancel')?.classList.add('hidden');
+        document.getElementById('item-form')?.reset(); document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden');
     } catch(err) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
 });
 
@@ -1070,7 +1126,6 @@ window.editBarang = (id) => {
 
 window.hapusBarang = async (id) => { if (!navigator.onLine) return alert("Butuh internet."); const item = databaseBarang.find(x => x.id === id); if(!item) return; if(confirm(`Hapus permanen ${item.nama}?`)) { await deleteDoc(doc(db, "barang", id)); } };
 
-// ✨ BUG FIX: Membersihkan form jika edit/duplikat dibatalkan
 document.getElementById('btn-cancel')?.addEventListener('click', () => { 
     document.getElementById('item-form')?.reset(); 
     document.getElementById('item-id').value = ""; 
@@ -1101,7 +1156,6 @@ function renderGudangList() {
 
     if(filtered.length === 0) { container.innerHTML = `<p class="text-[11px] text-dark-2 italic text-center py-4">Barang tidak ditemukan.</p>`; return; }
     
-    // ✨ LAZY LOAD GUDANG ✨
     const toShowGudang = filtered.slice(0, gudangItemLimit);
 
     container.innerHTML = toShowGudang.map(i => {
@@ -1191,7 +1245,6 @@ document.getElementById('file-import-gudang')?.addEventListener('change', async 
                 const nama = row['Nama Barang'] || row['nama'] || row['Nama'] || '';
                 if (!nama) continue;
 
-                // ✨ BUG FIX: PENGGUNAAN parseExcelNum AGAR KEBAL ERROR "NaN"
                 const hrgModal = parseExcelNum(row['Harga Modal'] || row['cost'] || row['Cost']);
                 const hrgJual = parseExcelNum(row['Harga Jual'] || row['harga'] || row['Harga']);
                 const stok = parseExcelNum(row['Stok'] || row['stok'] || row['Qty']);
