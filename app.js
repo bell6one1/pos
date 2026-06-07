@@ -897,6 +897,7 @@ function renderAuditLogs() {
         </tr>`).join('');
 }
 
+// ✨ UPDATE: MASTER GUDANG (+ CATATAN) ✨
 const itemForm = document.getElementById('item-form');
 itemForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); 
@@ -915,21 +916,27 @@ itemForm?.addEventListener('submit', async (e) => {
         const nCat = document.getElementById('item-category')?.value.trim() || 'Umum';
         const supId = document.getElementById('item-supplier')?.value || "";
         
-        const data = { barcode: barcodeInput, nama: nName, kategori: nCat, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
+        // 🛒 Tangkap Nilai Catatan
+        const nNotes = document.getElementById('item-notes')?.value.trim() || '';
+        
+        const data = { barcode: barcodeInput, nama: nName, kategori: nCat, catatan: nNotes, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
         if(id) { await updateDoc(doc(db, "barang", id), data); } else { await addDoc(itemsRef, data); }
         
         document.getElementById('item-form')?.reset(); document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden');
     } catch(err) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
 });
 
-// ✨ FUNGSI BARU: DUPLIKAT BARANG ✨
 window.duplikatBarang = (id) => {
     const item = databaseBarang.find(x => x.id === id); if (!item) return;
     
-    document.getElementById('item-id').value = ""; // ID kosong = Terdeteksi sebagai Barang Baru
-    document.getElementById('item-barcode').value = ""; // Kosongkan barcode mencegah duplikat
+    document.getElementById('item-id').value = ""; 
+    document.getElementById('item-barcode').value = ""; 
     document.getElementById('item-name').value = item.nama + " (Copy)"; 
     document.getElementById('item-category').value = item.kategori || "Umum";
+    
+    // 🛒 Set Nilai Catatan saat di-duplikat
+    document.getElementById('item-notes').value = item.catatan || "";
+    
     document.getElementById('item-cost').value = item.cost || 0; 
     document.getElementById('item-price').value = item.harga || 0; 
     document.getElementById('item-stock').value = item.stok || 0; 
@@ -938,15 +945,8 @@ window.duplikatBarang = (id) => {
     if (supSelect) supSelect.value = item.supplierId || "";
     
     document.getElementById('btn-cancel')?.classList.remove('hidden');
-    
-    // Auto-Scroll ke form
     window.scrollTo({ top: 0, behavior: 'smooth' }); 
-    
-    // Auto-Select nama barang agar siap diganti
-    setTimeout(() => { 
-        const nameInput = document.getElementById('item-name'); 
-        if(nameInput) { nameInput.focus(); nameInput.select(); }
-    }, 100);
+    setTimeout(() => { const nameInput = document.getElementById('item-name'); if(nameInput) { nameInput.focus(); nameInput.select(); } }, 100);
 };
 
 window.editBarang = (id) => {
@@ -954,6 +954,10 @@ window.editBarang = (id) => {
     document.getElementById('item-id').value = item.id; document.getElementById('item-barcode').value = item.barcode || ""; 
     document.getElementById('item-name').value = item.nama; 
     document.getElementById('item-category').value = item.kategori || "Umum";
+    
+    // 🛒 Set Nilai Catatan saat di-edit
+    document.getElementById('item-notes').value = item.catatan || "";
+    
     document.getElementById('item-cost').value = item.cost || 0; document.getElementById('item-price').value = item.harga || 0; document.getElementById('item-stock').value = item.stok || 0; 
     const supSelect = document.getElementById('item-supplier'); if (supSelect) supSelect.value = item.supplierId || "";
     document.getElementById('btn-cancel')?.classList.remove('hidden');
@@ -966,11 +970,13 @@ document.getElementById('btn-cancel')?.addEventListener('click', () => { documen
 function renderGudangList() {
     const container = document.getElementById('gudang-list'); if(!container) return;
     
+    // ✨ Logika Pencarian Termasuk Teks Catatan
     const filtered = databaseBarang.filter(i => {
         const keyword = kataKunciGudang.toLowerCase();
         return (i.nama || '').toLowerCase().includes(keyword) || 
                (i.barcode || '').toLowerCase().includes(keyword) ||
-               (i.kategori || '').toLowerCase().includes(keyword);
+               (i.kategori || '').toLowerCase().includes(keyword) ||
+               (i.catatan || '').toLowerCase().includes(keyword);
     });
 
     if(filtered.length === 0) { container.innerHTML = `<p class="text-[11px] text-dark-2 italic text-center py-4">Barang tidak ditemukan.</p>`; return; }
@@ -988,6 +994,9 @@ function renderGudangList() {
                     ${supName ? '<span class="text-mantine-blue"> | 🚚 '+escapeHTML(supName)+'</span>' : ''}
                 </span>
                 <h3 class="font-bold text-gray-100 text-sm">${escapeHTML(i.nama||'Item')}</h3>
+                
+                ${i.catatan ? `<p class="text-[10px] text-dark-3 mt-0.5 italic">📝 ${escapeHTML(i.catatan)}</p>` : ''}
+                
                 <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${(i.stok||0)<=5?'!bg-red-900/30 !text-red-400':''}">Stok: ${i.stok||0}</span></div>
             </div>
             <div class="flex gap-2">
