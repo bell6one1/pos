@@ -66,7 +66,7 @@
                     <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Pembayaran Pertama</label>
                     <div class="flex gap-2">
                         <select id="split-method-1" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-white outline-none focus:border-mantine-blue"><option value="Tunai">Tunai</option><option value="QRIS">QRIS</option><option value="Debit">Debit</option></select>
-                        <input type="number" id="split-amount-1" placeholder="Nominal Rp" min="0" onwheel="this.blur()" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-white font-bold outline-none focus:border-mantine-blue">
+                        <input type="text" inputmode="numeric" id="split-amount-1" placeholder="Nominal Rp" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-white font-bold outline-none focus:border-mantine-blue input-ribuan">
                     </div>
                 </div>
 
@@ -74,7 +74,7 @@
                     <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Pembayaran Kedua</label>
                     <div class="flex gap-2">
                         <select id="split-method-2" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-white outline-none focus:border-mantine-blue"><option value="QRIS">QRIS</option><option value="Tunai">Tunai</option><option value="Debit">Debit</option></select>
-                        <input type="number" id="split-amount-2" placeholder="Nominal Kedua Rp" min="0" onwheel="this.blur()" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-white font-bold outline-none focus:border-mantine-blue" readonly>
+                        <input type="text" inputmode="numeric" id="split-amount-2" placeholder="Nominal Kedua Rp" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-white font-bold outline-none focus:border-mantine-blue input-ribuan" readonly>
                     </div>
                     <p id="split-warning" class="text-[10px] text-red-400 mt-2 font-bold hidden">Total bayar belum sesuai tagihan!</p>
                 </div>
@@ -97,7 +97,7 @@
             </div>
             <div class="text-left mb-5">
                 <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Nominal Dibayar (Rp)</label>
-                <input type="number" id="piutang-bayar-input" placeholder="Masukkan jumlah pelunasan" min="0" onwheel="this.blur()" class="w-full px-4 py-3 text-base font-bold bg-dark-8 border border-dark-4 rounded-xl text-white outline-none focus:border-amber-500">
+                <input type="text" inputmode="numeric" id="piutang-bayar-input" placeholder="Masukkan jumlah pelunasan" class="w-full px-4 py-3 text-base font-bold bg-dark-8 border border-dark-4 rounded-xl text-white outline-none focus:border-amber-500 input-ribuan">
             </div>
             <div class="flex gap-2">
                 <button type="button" onclick="document.getElementById('bayar-piutang-modal').classList.add('hidden')" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl">Batal</button>
@@ -110,7 +110,8 @@
         <div class="bg-dark-6 p-7 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-sm">
             <h3 id="shift-modal-title" class="text-lg font-bold text-gray-100 mb-1">Mulai Shift Kasir</h3>
             <form id="shift-form" class="space-y-5 mt-4">
-                <div><label id="shift-input-label" class="block text-xs font-semibold text-dark-2 uppercase tracking-wider mb-2">Modal Laci Awal (Rp)</label><input type="number" id="shift-cash-input" required min="0" onwheel="this.blur()" class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue"></div>
+                <div><label id="shift-input-label" class="block text-xs font-semibold text-dark-2 uppercase tracking-wider mb-2">Modal Laci Awal (Rp)</label>
+                <input type="text" inputmode="numeric" id="shift-cash-input" required class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue input-ribuan"></div>
                 <div class="flex gap-3 pt-2"><button type="button" id="btn-close-shift-modal" class="hidden flex-1 py-2.5 bg-dark-5 rounded-xl text-sm font-medium">Batal</button><button type="submit" id="btn-shift-submit" class="flex-1 py-2.5 bg-mantine-blue text-white rounded-xl text-sm font-medium">Buka Shift</button></div>
             </form>
         </div>
@@ -128,7 +129,7 @@
         <div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-sm">
             <h3 class="text-lg font-bold text-gray-100 mb-4">Registrasi Member</h3>
             <form id="member-form" class="space-y-4">
-                <div><label class="block text-xs font-semibold text-dark-2 uppercase mb-1">Nomor HP</label><input type="text" id="member-reg-phone" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none"></div>
+                <div><label class="block text-xs font-semibold text-dark-2 uppercase mb-1">Nomor HP</label><input type="text" inputmode="numeric" id="member-reg-phone" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none"></div>
                 <div><label class="block text-xs font-semibold text-dark-2 uppercase mb-1">Nama Lengkap</label><input type="text" id="member-reg-name" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none"></div>
                 <div class="flex gap-2 pt-2"><button type="button" onclick="document.getElementById('member-modal').classList.add('hidden')" class="flex-1 py-2 text-xs bg-dark-5 border border-dark-4 rounded-xl">Batal</button><button type="submit" class="flex-1 py-2 text-xs bg-mantine-blue text-white rounded-xl">Daftarkan Member</button></div>
             </form>
@@ -222,7 +223,7 @@
                             <div>
                                 <label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase tracking-wider">Data Pelanggan (Member)</label>
                                 <div id="member-select-zone" class="flex gap-2">
-                                    <input type="number" id="member-search-input" placeholder="No HP..." onwheel="this.blur()" class="flex-1 bg-dark-8 border border-dark-4 text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-mantine-blue">
+                                    <input type="text" inputmode="numeric" id="member-search-input" placeholder="No HP..." class="flex-1 bg-dark-8 border border-dark-4 text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-mantine-blue">
                                     <button id="btn-check-member" class="px-4 py-2 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-lg transition-colors">Cari</button>
                                 </div>
                                 <div id="member-active-zone" class="hidden flex justify-between items-center bg-mantine-blue/10 border border-mantine-blue/20 rounded-lg p-2.5">
@@ -242,7 +243,7 @@
                                         <span class="text-xs font-medium text-dark-1 whitespace-nowrap">Diskon Kasir:</span>
                                         <div class="relative flex-1">
                                             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-dark-3 text-xs">Rp</span>
-                                            <input type="number" id="cart-discount" placeholder="0" min="0" onwheel="this.blur()" class="w-full pl-8 pr-3 py-2 text-right bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors text-xs font-bold">
+                                            <input type="text" inputmode="numeric" id="cart-discount" placeholder="0" class="w-full pl-8 pr-3 py-2 text-right bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors text-xs font-bold input-ribuan">
                                         </div>
                                     </div>
                                 </div>
@@ -265,7 +266,7 @@
                                 </div>
                                 <button type="button" id="pay-method-split" class="w-full py-2.5 mb-3 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all">🔀 Split Payment</button>
 
-                                <input type="number" id="cash-paid" placeholder="Masukkan Uang Tunai (Rp)" onwheel="this.blur()" class="w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none text-sm font-bold mb-4 focus:border-mantine-blue transition-colors">
+                                <input type="text" inputmode="numeric" id="cash-paid" placeholder="Masukkan Uang Tunai (Rp)" class="w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none text-sm font-bold mb-4 focus:border-mantine-blue transition-colors input-ribuan">
                                 <input type="text" id="noncash-ref" placeholder="Ref QRIS/Debit (Opsional)" class="hidden w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none text-sm font-medium mb-4 focus:border-mantine-blue transition-colors">
                                 
                                 <div class="flex gap-2 mb-3">
@@ -298,10 +299,13 @@
                             <div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Catatan / Deskripsi</label><input type="text" id="item-notes" placeholder="Opsional (Cth: Exp 2027, Rak A...)" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none focus:border-mantine-blue transition-colors"></div>
 
                             <div class="bg-dark-8/50 p-4 rounded-xl border border-dark-4 space-y-4 mt-2">
-                                <div><label class="block text-[10px] font-black text-amber-500 mb-1.5 uppercase tracking-widest">Harga Modal / HPP</label><input type="number" id="item-cost" required min="0" onwheel="this.blur()" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none focus:border-amber-500 transition-colors"></div>
-                                <div><label class="block text-[10px] font-black text-green-400 mb-1.5 uppercase tracking-widest">Harga Jual</label><input type="number" id="item-price" required min="0" onwheel="this.blur()" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none focus:border-green-400 transition-colors"></div>
+                                <div><label class="block text-[10px] font-black text-amber-500 mb-1.5 uppercase tracking-widest">Harga Modal / HPP</label>
+                                <input type="text" inputmode="numeric" id="item-cost" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none focus:border-amber-500 transition-colors input-ribuan"></div>
+                                <div><label class="block text-[10px] font-black text-green-400 mb-1.5 uppercase tracking-widest">Harga Jual</label>
+                                <input type="text" inputmode="numeric" id="item-price" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-white outline-none focus:border-green-400 transition-colors input-ribuan"></div>
                             </div>
-                            <div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Stok Gudang</label><input type="number" id="item-stock" required min="0" onwheel="this.blur()" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none focus:border-mantine-blue transition-colors"></div>
+                            <div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Stok Gudang</label>
+                            <input type="text" inputmode="numeric" id="item-stock" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-white outline-none focus:border-mantine-blue transition-colors input-ribuan"></div>
                             <div class="flex gap-2 mt-5">
                                 <button type="button" id="btn-cancel" class="hidden flex-1 py-3 text-sm font-bold text-white bg-dark-5 hover:bg-dark-4 rounded-xl transition-all">Batal</button>
                                 <button type="submit" id="btn-submit" class="flex-1 py-3 text-sm font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl shadow-lg shadow-mantine-blue/20 transition-all">Simpan Data</button>
