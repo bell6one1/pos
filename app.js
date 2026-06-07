@@ -57,25 +57,19 @@ try {
 
 
 // ==========================================
-// MESIN FORMAT RIBUAN OTOMATIS
+// 💡 BUG FIX: MESIN PARSER KEBAL (Unified Parser)
 // ==========================================
+const parseInputRibuan = (val) => {
+    if (val === undefined || val === null || val === '') return 0;
+    const cleanStr = val.toString().replace(/[^0-9]/g, '');
+    const parsed = parseInt(cleanStr, 10);
+    return isNaN(parsed) ? 0 : parsed;
+};
+
 const formatInputRibuan = (val) => {
     if (val === null || val === undefined || val === '') return '';
     const numStr = val.toString().replace(/[^0-9]/g, '');
     return numStr ? new Intl.NumberFormat('id-ID').format(numStr) : '';
-};
-
-const parseInputRibuan = (val) => {
-    if (!val) return 0;
-    return parseInt(val.toString().replace(/\./g, ''), 10) || 0;
-};
-
-const parseExcelNum = (val) => {
-    if (val === undefined || val === null || val === '') return 0;
-    if (typeof val === 'number') return val;
-    const cleanStr = val.toString().replace(/[^0-9]/g, '');
-    const parsed = parseInt(cleanStr, 10);
-    return isNaN(parsed) ? 0 : parsed;
 };
 
 document.addEventListener('input', (e) => {
@@ -244,8 +238,7 @@ document.getElementById('btn-logout')?.addEventListener('click', async () => {
     if(confirm("Keluar dari sistem?")) { 
         try { await signOut(auth); } catch (e) {} 
         finally { 
-            // ✨ BERSIHKAN OTORISASI ADMIN SAAT LOGOUT ✨
-            sessionStorage.removeItem('pos_admin_authorized');
+            sessionStorage.removeItem('pos_admin_authorized'); // Hapus hak akses admin
             localStorage.clear(); location.reload(); 
         } 
     } 
@@ -324,8 +317,7 @@ window.triggerTutupShift = () => {
             await logActivity("SHIFT_TUTUP", `Tutup Shift. Selisih laci: ${toRupiah(selisih)}`);
             alert(`Shift Berhasil Ditutup. Selisih Laci: ${toRupiah(selisih)}`);
             
-            // ✨ BERSIHKAN OTORISASI ADMIN SAAT TUTUP SHIFT ✨
-            sessionStorage.removeItem('pos_admin_authorized');
+            sessionStorage.removeItem('pos_admin_authorized'); // Hapus hak akses admin saat tutup sesi
             
             document.getElementById('shift-modal')?.classList.add('hidden'); activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false);
         } catch(e) { alert("Error: " + e.message); } finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = "Tutup Shift"; } form.reset(); }
@@ -511,20 +503,20 @@ const btnCash = document.getElementById('pay-method-cash'), btnNonCash = documen
 const btnKasbon = document.getElementById('pay-method-kasbon'), btnSplit = document.getElementById('pay-method-split');
 
 function resetPaymentUI() {
-    [btnCash, btnNonCash, btnKasbon].forEach(b => { if(b) b.className = "py-2 text-[10px] font-bold text-dark-1 hover:text-gray-100 rounded-md transition-all"; });
-    if(btnSplit) btnSplit.className = "w-full py-2 mb-2 text-[10px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all";
+    [btnCash, btnNonCash, btnKasbon].forEach(b => { if(b) b.className = "py-2.5 text-[11px] font-bold text-dark-1 hover:text-gray-100 rounded-md transition-all"; });
+    if(btnSplit) btnSplit.className = "w-full py-2.5 mb-3 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all";
     document.getElementById('cash-paid').classList.add('hidden'); document.getElementById('noncash-ref').classList.add('hidden');
     isSplitPayment = false;
 }
 
-btnCash?.addEventListener('click', () => { resetPaymentUI(); selectedPaymentMethod = 'Tunai'; btnCash.className = "py-2 text-[10px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; document.getElementById('cash-paid').classList.remove('hidden'); hitungUangKembalian(); });
-btnNonCash?.addEventListener('click', () => { resetPaymentUI(); selectedPaymentMethod = 'Non-Tunai'; btnNonCash.className = "py-2 text-[10px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; document.getElementById('noncash-ref').classList.remove('hidden'); hitungUangKembalian(); });
-btnKasbon?.addEventListener('click', () => { if(!activeMember) { alert("Pilih Pelanggan terlebih dahulu untuk melakukan Kasbon!"); return; } resetPaymentUI(); selectedPaymentMethod = 'Kasbon'; btnKasbon.className = "py-2 text-[10px] font-bold bg-amber-500 text-white rounded-md transition-all shadow"; hitungUangKembalian(); });
+btnCash?.addEventListener('click', () => { resetPaymentUI(); selectedPaymentMethod = 'Tunai'; btnCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; document.getElementById('cash-paid').classList.remove('hidden'); hitungUangKembalian(); });
+btnNonCash?.addEventListener('click', () => { resetPaymentUI(); selectedPaymentMethod = 'Non-Tunai'; btnNonCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; document.getElementById('noncash-ref').classList.remove('hidden'); hitungUangKembalian(); });
+btnKasbon?.addEventListener('click', () => { if(!activeMember) { alert("Pilih Pelanggan terlebih dahulu untuk melakukan Kasbon!"); return; } resetPaymentUI(); selectedPaymentMethod = 'Kasbon'; btnKasbon.className = "py-2.5 text-[11px] font-bold bg-amber-500 text-white rounded-md transition-all shadow"; hitungUangKembalian(); });
 
 btnSplit?.addEventListener('click', () => {
     if(keranjang.length === 0) return alert("Keranjang kosong!");
     resetPaymentUI(); isSplitPayment = true; selectedPaymentMethod = 'Split';
-    btnSplit.className = "w-full py-2 mb-2 text-[10px] font-bold text-white bg-mantine-blue rounded-lg shadow-lg shadow-mantine-blue/30 transition-all";
+    btnSplit.className = "w-full py-2.5 mb-3 text-[11px] font-bold text-white bg-mantine-blue rounded-lg shadow-lg shadow-mantine-blue/30 transition-all";
     document.getElementById('split-total-tagihan').textContent = toRupiah(globalGrandTotal);
     document.getElementById('split-amount-1').value = ""; document.getElementById('split-amount-2').value = formatInputRibuan(globalGrandTotal);
     document.getElementById('split-modal').classList.remove('hidden');
@@ -638,7 +630,7 @@ document.getElementById('btn-remove-member')?.addEventListener('click', () => { 
 function showActiveMemberUI() { document.getElementById('member-select-zone')?.classList.add('hidden'); document.getElementById('member-active-zone')?.classList.remove('hidden'); document.getElementById('btn-remove-member')?.classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; renderKeranjang(); }
 
 // ==========================================
-// PENCARIAN & SORT GUDANG
+// PENCARIAN, SORT & LAZY LOAD GUDANG
 // ==========================================
 document.getElementById('gudang-search')?.addEventListener('input', (e) => { 
     kataKunciGudang = e.target.value.toLowerCase(); 
@@ -688,7 +680,6 @@ window.startVoiceSearchGudang = () => {
     recognition.start();
 };
 
-// ✨ FITUR BARU: PENCARIAN SUARA DI KASIR ✨
 window.startVoiceSearchKasir = () => {
     const btn = document.getElementById('btn-voice-search-kasir');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -788,7 +779,7 @@ window.tambahKeKeranjang = (id) => {
 window.ubahQtyCart = (id, delta) => {
     const index = keranjang.findIndex(k => k.id === id); if(index === -1) return;
     if (keranjang[index].qty + delta <= 0) {
-        // ✨ LOGIKA OTORISASI SESI ✨
+        // ✨ LOGIKA OTORISASI PER SESI ✨
         if (sessionStorage.getItem("pos_admin_authorized") === "true") {
             keranjang.splice(index, 1);
             localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang));
@@ -808,8 +799,7 @@ window.ubahQtyCart = (id, delta) => {
 document.getElementById('btn-verify-pin')?.addEventListener('click', () => {
     const inputPin = document.getElementById('auth-pin-input').value;
     if (inputPin === ADMIN_PIN) {
-        
-        // ✨ SIMPAN OTORISASI SEMENTARA UNTUK SESI INI SAJA ✨
+        // ✨ SIMPAN OTORISASI HANYA UNTUK SESI INI ✨
         sessionStorage.setItem("pos_admin_authorized", "true");
 
         if (window.itemAkanDihapus) {
@@ -847,7 +837,14 @@ function renderKeranjang() {
 }
 
 function hitungUangKembalian() {
-    if(isSplitPayment) return; 
+    // ✨ BUG FIX CRITICAL: BATALKAN SPLIT JIKA ADA PERUBAHAN KERANJANG ✨
+    if(isSplitPayment) {
+        resetPaymentUI(); 
+        selectedPaymentMethod = 'Tunai'; 
+        const btnCash = document.getElementById('pay-method-cash');
+        if (btnCash) btnCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; 
+        document.getElementById('cash-paid').classList.remove('hidden');
+    }
     
     globalSubtotal = Math.round(keranjang.reduce((acc, i) => acc + ((i.harga||0) * i.qty), 0));
     let diskonOtomatisMember = activeMember ? Math.floor(globalSubtotal * 0.05) : 0;
@@ -977,11 +974,12 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
     finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; }
 });
 
+// ✨ BUG FIX TAMPILAN BLUETOOTH ✨
 function formatStrukBT(data) {
     let struk = "====== TOKO MODERN POS ======\nJl. Teknologi No.123\n------------------------------\n";
     struk += `ID   : ${data.id}\nWaktu: ${new Date().toLocaleString('id-ID')}\nKasir: ${data.namaKasir.toUpperCase()}\n------------------------------\n`;
-    data.items.forEach(i => { struk += `${i.nama}\n${i.qty} x ${i.harga} = ${i.qty * i.harga}\n`; });
-    struk += `------------------------------\nSubtotal : Rp ${data.subtotal}\nDiskon   : Rp -${data.diskon}\nTOTAL    : Rp ${data.totalAkhir}\nBayar    : Rp ${data.uangBayar}\nKembali  : Rp ${data.kembalian}\n`;
+    data.items.forEach(i => { struk += `${i.nama}\n${i.qty} x ${toRupiah(i.harga)} = ${toRupiah(i.qty * i.harga)}\n`; });
+    struk += `------------------------------\nSubtotal : ${toRupiah(data.subtotal)}\nDiskon   : -${toRupiah(data.diskon)}\nTOTAL    : ${toRupiah(data.totalAkhir)}\nBayar    : ${toRupiah(data.uangBayar)}\nKembali  : ${toRupiah(data.kembalian)}\n`;
     if(data.memberName) struk += `\nMember   : ${data.memberName.toUpperCase()}\n`;
     struk += "------------------------------\n       TERIMA KASIH!          \n";
     return struk;
@@ -1245,9 +1243,11 @@ document.getElementById('file-import-gudang')?.addEventListener('change', async 
                 const nama = row['Nama Barang'] || row['nama'] || row['Nama'] || '';
                 if (!nama) continue;
 
-                const hrgModal = parseExcelNum(row['Harga Modal'] || row['cost'] || row['Cost']);
-                const hrgJual = parseExcelNum(row['Harga Jual'] || row['harga'] || row['Harga']);
-                const stok = parseExcelNum(row['Stok'] || row['stok'] || row['Qty']);
+                // ✨ PENGGUNAAN FUNGSI BARU ANTI-NAN ✨
+                const hrgModal = parseInputRibuan(row['Harga Modal'] || row['cost'] || row['Cost']);
+                const hrgJual = parseInputRibuan(row['Harga Jual'] || row['harga'] || row['Harga']);
+                const stok = parseInputRibuan(row['Stok'] || row['stok'] || row['Qty']);
+                
                 const kategori = row['Kategori'] || row['kategori'] || 'Umum';
                 const catatan = row['Catatan'] || row['catatan'] || '';
 
