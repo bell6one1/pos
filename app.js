@@ -18,7 +18,6 @@ let chartInstance = null, unsubscribeItems = null, unsubscribeSales = null, unsu
 let filterKategoriAktif = "Semua", kataKunciPencarian = "", globalSubtotal = 0, globalDiskon = 0, globalGrandTotal = 0;
 let currentUserRole = "kasir", activeShiftSession = null, currentUserId = null, isSyncingOffline = false;
 
-// ✨ Variabel Kontrol Lazy Load (Anti-Lemot) ✨
 let kasirItemLimit = 36;
 let gudangItemLimit = 30;
 
@@ -69,6 +68,15 @@ const formatInputRibuan = (val) => {
 const parseInputRibuan = (val) => {
     if (!val) return 0;
     return parseInt(val.toString().replace(/\./g, ''), 10) || 0;
+};
+
+// ✨ BUG FIX: Fungsi Parser Excel Anti-Error (Menyaring Simbol Rp, Titik, dan Teks)
+const parseExcelNum = (val) => {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return val;
+    const cleanStr = val.toString().replace(/[^0-9]/g, '');
+    const parsed = parseInt(cleanStr, 10);
+    return isNaN(parsed) ? 0 : parsed;
 };
 
 document.addEventListener('input', (e) => {
@@ -1016,7 +1024,10 @@ itemForm?.addEventListener('submit', async (e) => {
         const data = { barcode: barcodeInput, nama: nName, kategori: nCat, catatan: nNotes, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
         if(id) { await updateDoc(doc(db, "barang", id), data); } else { await addDoc(itemsRef, data); }
         
-        document.getElementById('item-form')?.reset(); document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden');
+        // ✨ FORM RESET & CLEANUP
+        document.getElementById('item-form')?.reset(); 
+        document.getElementById('item-id').value = ""; 
+        document.getElementById('btn-cancel')?.classList.add('hidden');
     } catch(err) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
 });
 
@@ -1058,7 +1069,13 @@ window.editBarang = (id) => {
 };
 
 window.hapusBarang = async (id) => { if (!navigator.onLine) return alert("Butuh internet."); const item = databaseBarang.find(x => x.id === id); if(!item) return; if(confirm(`Hapus permanen ${item.nama}?`)) { await deleteDoc(doc(db, "barang", id)); } };
-document.getElementById('btn-cancel')?.addEventListener('click', () => { document.getElementById('item-form')?.reset(); document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden'); });
+
+// ✨ BUG FIX: Membersihkan form jika edit/duplikat dibatalkan
+document.getElementById('btn-cancel')?.addEventListener('click', () => { 
+    document.getElementById('item-form')?.reset(); 
+    document.getElementById('item-id').value = ""; 
+    document.getElementById('btn-cancel')?.classList.add('hidden'); 
+});
 
 function renderGudangList() {
     const container = document.getElementById('gudang-list'); 
@@ -1174,9 +1191,10 @@ document.getElementById('file-import-gudang')?.addEventListener('change', async 
                 const nama = row['Nama Barang'] || row['nama'] || row['Nama'] || '';
                 if (!nama) continue;
 
-                const hrgModal = parseInt(row['Harga Modal'] || row['cost'] || row['Cost'] || 0) || 0;
-                const hrgJual = parseInt(row['Harga Jual'] || row['harga'] || row['Harga'] || 0) || 0;
-                const stok = parseInt(row['Stok'] || row['stok'] || row['Qty'] || 0) || 0;
+                // ✨ BUG FIX: PENGGUNAAN parseExcelNum AGAR KEBAL ERROR "NaN"
+                const hrgModal = parseExcelNum(row['Harga Modal'] || row['cost'] || row['Cost']);
+                const hrgJual = parseExcelNum(row['Harga Jual'] || row['harga'] || row['Harga']);
+                const stok = parseExcelNum(row['Stok'] || row['stok'] || row['Qty']);
                 const kategori = row['Kategori'] || row['kategori'] || 'Umum';
                 const catatan = row['Catatan'] || row['catatan'] || '';
 

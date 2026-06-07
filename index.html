@@ -48,7 +48,7 @@
             <p class="text-xs text-dark-1 mb-5">Masukkan PIN 6-digit untuk otorisasi.</p>
             <input type="password" id="auth-pin-input" maxlength="6" placeholder="••••••" class="w-full px-4 py-3 text-center tracking-[1em] text-2xl font-black bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none mb-5 focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all">
             <div class="flex gap-2">
-                <button type="button" onclick="document.getElementById('pin-modal').classList.add('hidden'); document.getElementById('auth-pin-input').value=''" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl transition-all">Batal</button>
+                <button type="button" onclick="document.getElementById('pin-modal').classList.add('hidden'); document.getElementById('auth-pin-input').value=''; window.itemAkanDihapus = null;" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl transition-all">Batal</button>
                 <button type="button" id="btn-verify-pin" class="flex-1 py-3 text-xs font-black bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg transition-all">Verifikasi</button>
             </div>
         </div>
