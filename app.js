@@ -18,6 +18,9 @@ let chartInstance = null, unsubscribeItems = null, unsubscribeSales = null, unsu
 let filterKategoriAktif = "Semua", kataKunciPencarian = "", globalSubtotal = 0, globalDiskon = 0, globalGrandTotal = 0;
 let currentUserRole = "kasir", activeShiftSession = null, currentUserId = null, isSyncingOffline = false;
 
+// ✨ Variabel Pencarian Gudang
+let kataKunciGudang = "";
+
 let selectedPaymentMethod = "Tunai"; 
 let isSplitPayment = false;
 let splitDetails = { method1: "Tunai", amount1: 0, method2: "QRIS", amount2: 0, kembalian: 0 };
@@ -49,9 +52,7 @@ try {
     const cachedShift = localStorage.getItem("pos_cached_shift"); if (cachedShift) activeShiftSession = JSON.parse(cachedShift);
 } catch(e) {}
 
-// ==========================================
-// ✨ LOGIKA 2-TAB KERANJANG (BARU) ✨
-// ==========================================
+
 window.switchCartTab = (tabName) => {
     const paneList = document.getElementById('cart-pane-list');
     const panePay = document.getElementById('cart-pane-pay');
@@ -71,14 +72,10 @@ window.switchCartTab = (tabName) => {
         btnPay.className = "flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-mantine-blue border-b-2 border-mantine-blue transition-colors focus:outline-none";
         btnList.className = "flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-dark-2 border-b-2 border-transparent hover:text-gray-200 transition-colors focus:outline-none";
         
-        // Auto-focus ke input tunai jika masuk tab pembayaran
         if(selectedPaymentMethod === 'Tunai') setTimeout(() => document.getElementById('cash-paid')?.focus(), 100);
     }
 };
 
-// ==========================================
-// MESIN OFFLINE INDEXED-DB
-// ==========================================
 const OFFLINE_DB_NAME = "POS_Offline_Database", OFFLINE_STORE_NAME = "pending_transactions";
 function initIndexedDB() { return new Promise((resolve, reject) => { const request = indexedDB.open(OFFLINE_DB_NAME, 1); request.onupgradeneeded = (e) => { const idb = e.target.result; if (!idb.objectStoreNames.contains(OFFLINE_STORE_NAME)) idb.createObjectStore(OFFLINE_STORE_NAME, { keyPath: "localId", autoIncrement: true }); }; request.onsuccess = (e) => resolve(e.target.result); request.onerror = (e) => reject(e.target.error); }); }
 async function loadOfflineTransactions() { if (!window.indexedDB) return []; try { const idb = await initIndexedDB(); const req = idb.transaction(OFFLINE_STORE_NAME, "readonly").objectStore(OFFLINE_STORE_NAME).getAll(); return new Promise(resolve => { req.onsuccess = () => resolve(req.result || []); req.onerror = () => resolve([]); }); } catch(e) { return []; } }
@@ -595,6 +592,14 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
 document.getElementById('btn-remove-member')?.addEventListener('click', () => { activeMember = null; localStorage.removeItem("pos_recovery_member"); document.getElementById('member-select-zone')?.classList.remove('hidden'); document.getElementById('member-active-zone')?.classList.add('hidden'); document.getElementById('btn-remove-member')?.classList.add('hidden'); document.getElementById('member-search-input').value = ""; renderKeranjang(); btnCash?.click(); });
 function showActiveMemberUI() { document.getElementById('member-select-zone')?.classList.add('hidden'); document.getElementById('member-active-zone')?.classList.remove('hidden'); document.getElementById('btn-remove-member')?.classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; renderKeranjang(); }
 
+// ==========================================
+// 🔍 FITUR PENCARIAN GUDANG (BARU)
+// ==========================================
+document.getElementById('gudang-search')?.addEventListener('input', (e) => { 
+    kataKunciGudang = e.target.value.toLowerCase(); 
+    renderGudangList(); 
+});
+
 document.getElementById('kasir-search')?.addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase(); renderKatalogKasir(); });
 
 function renderKatalogKasir() {
@@ -896,6 +901,9 @@ function renderAuditLogs() {
         </tr>`).join('');
 }
 
+// ==========================================
+// ✨ UPDATE: MASTER GUDANG (+ KATEGORI) ✨
+// ==========================================
 const itemForm = document.getElementById('item-form');
 itemForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); 
@@ -910,9 +918,12 @@ itemForm?.addEventListener('submit', async (e) => {
         const rawHrg = Math.max(0, parseFloat(document.getElementById('item-price')?.value) || 0); 
         const rawStk = Math.max(0, parseInt(document.getElementById('item-stock')?.value) || 0);
         const nName = document.getElementById('item-name')?.value.trim() || 'Barang Baru';
+        
+        // 🛒 Tangkap Nilai Kategori
+        const nCat = document.getElementById('item-category')?.value.trim() || 'Umum';
         const supId = document.getElementById('item-supplier')?.value || "";
         
-        const data = { barcode: barcodeInput, nama: nName, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
+        const data = { barcode: barcodeInput, nama: nName, kategori: nCat, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
         if(id) { await updateDoc(doc(db, "barang", id), data); } else { await addDoc(itemsRef, data); }
         
         document.getElementById('item-form')?.reset(); document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden');
@@ -922,12 +933,13 @@ itemForm?.addEventListener('submit', async (e) => {
 window.editBarang = (id) => {
     const item = databaseBarang.find(x => x.id === id); if (!item) return;
     document.getElementById('item-id').value = item.id; document.getElementById('item-barcode').value = item.barcode || ""; 
-    document.getElementById('item-name').value = item.nama; document.getElementById('item-cost').value = item.cost || 0; 
-    document.getElementById('item-price').value = item.harga || 0; document.getElementById('item-stock').value = item.stok || 0; 
+    document.getElementById('item-name').value = item.nama; 
     
-    const supSelect = document.getElementById('item-supplier');
-    if (supSelect) supSelect.value = item.supplierId || "";
+    // 🛒 Set Nilai Kategori saat di-edit
+    document.getElementById('item-category').value = item.kategori || "Umum";
     
+    document.getElementById('item-cost').value = item.cost || 0; document.getElementById('item-price').value = item.harga || 0; document.getElementById('item-stock').value = item.stok || 0; 
+    const supSelect = document.getElementById('item-supplier'); if (supSelect) supSelect.value = item.supplierId || "";
     document.getElementById('btn-cancel')?.classList.remove('hidden');
 };
 window.hapusBarang = async (id) => { if (!navigator.onLine) return alert("Butuh internet."); const item = databaseBarang.find(x => x.id === id); if(!item) return; if(confirm(`Hapus permanen ${item.nama}?`)) { await deleteDoc(doc(db, "barang", id)); } };
@@ -935,16 +947,29 @@ document.getElementById('btn-cancel')?.addEventListener('click', () => { documen
 
 function renderGudangList() {
     const container = document.getElementById('gudang-list'); if(!container) return;
-    if(databaseBarang.length === 0) { container.innerHTML = `<p class="text-[11px] text-dark-2 italic text-center py-4">Kosong.</p>`; return; }
     
-    container.innerHTML = databaseBarang.map(i => {
+    // ✨ Logika Pencarian Gudang ✨
+    const filtered = databaseBarang.filter(i => {
+        const keyword = kataKunciGudang.toLowerCase();
+        return (i.nama || '').toLowerCase().includes(keyword) || 
+               (i.barcode || '').toLowerCase().includes(keyword) ||
+               (i.kategori || '').toLowerCase().includes(keyword);
+    });
+
+    if(filtered.length === 0) { container.innerHTML = `<p class="text-[11px] text-dark-2 italic text-center py-4">Barang tidak ditemukan.</p>`; return; }
+    
+    container.innerHTML = filtered.map(i => {
         let supName = "";
         if(i.supplierId) { const sup = databasePemasok.find(x => x.id === i.supplierId); if(sup) supName = sup.nama; }
         
         return `
         <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 flex justify-between items-center gap-3 shadow-sm hover:border-dark-3 transition-colors">
             <div>
-                <span class="text-[9px] font-bold text-dark-2 mb-1 block uppercase tracking-wider">${escapeHTML(i.barcode ? '📟 '+i.barcode : 'NO BARCODE')} ${supName ? '<span class="text-mantine-blue"> | 🚚 '+escapeHTML(supName)+'</span>' : ''}</span>
+                <span class="text-[9px] font-bold text-dark-2 mb-1 block uppercase tracking-wider">
+                    ${escapeHTML(i.barcode ? '📟 '+i.barcode : 'NO BARCODE')} 
+                    <span class="text-amber-500"> | 🏷️ ${escapeHTML(i.kategori || 'Umum')}</span>
+                    ${supName ? '<span class="text-mantine-blue"> | 🚚 '+escapeHTML(supName)+'</span>' : ''}
+                </span>
                 <h3 class="font-bold text-gray-100 text-sm">${escapeHTML(i.nama||'Item')}</h3>
                 <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${(i.stok||0)<=5?'!bg-red-900/30 !text-red-400':''}">Stok: ${i.stok||0}</span></div>
             </div>
