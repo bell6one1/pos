@@ -18,9 +18,8 @@ let chartInstance = null, unsubscribeItems = null, unsubscribeSales = null, unsu
 let filterKategoriAktif = "Semua", kataKunciPencarian = "", globalSubtotal = 0, globalDiskon = 0, globalGrandTotal = 0;
 let currentUserRole = "kasir", activeShiftSession = null, currentUserId = null, isSyncingOffline = false;
 
-// ✨ Variabel Global Gudang
 let kataKunciGudang = "";
-let sortGudangOrder = 'asc'; // 'asc' untuk A-Z, 'desc' untuk Z-A
+let sortGudangOrder = 'asc'; 
 
 let selectedPaymentMethod = "Tunai"; 
 let isSplitPayment = false;
@@ -617,7 +616,7 @@ document.getElementById('btn-remove-member')?.addEventListener('click', () => { 
 function showActiveMemberUI() { document.getElementById('member-select-zone')?.classList.add('hidden'); document.getElementById('member-active-zone')?.classList.remove('hidden'); document.getElementById('btn-remove-member')?.classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; renderKeranjang(); }
 
 // ==========================================
-// ✨ UPDATE: PENCARIAN SUARA & SORTING GUDANG
+// PENCARIAN & SORT GUDANG
 // ==========================================
 document.getElementById('gudang-search')?.addEventListener('input', (e) => { 
     kataKunciGudang = e.target.value.toLowerCase(); 
@@ -635,20 +634,15 @@ window.startVoiceSearchGudang = () => {
     const btn = document.getElementById('btn-voice-search');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    if (!SpeechRecognition) {
-        alert("Maaf, browser (atau HP) Anda tidak mendukung fitur Pencarian Suara.");
-        return;
-    }
+    if (!SpeechRecognition) { alert("Maaf, browser (atau HP) Anda tidak mendukung fitur Pencarian Suara."); return; }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'id-ID'; // Bahasa Indonesia
+    recognition.lang = 'id-ID'; 
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    recognition.onstart = function() {
-        if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; }
-    };
-
+    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    
     recognition.onresult = function(event) {
         const speechResult = event.results[0][0].transcript;
         const searchInput = document.getElementById('gudang-search');
@@ -664,10 +658,8 @@ window.startVoiceSearchGudang = () => {
         if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
     };
 
-    recognition.onend = function() {
-        if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
-    };
-
+    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    
     recognition.start();
 };
 
@@ -1051,7 +1043,6 @@ function renderGudangList() {
                (i.catatan || '').toLowerCase().includes(keyword);
     });
 
-    // ✨ LOGIKA SORTING (A-Z / Z-A) ✨
     filtered.sort((a, b) => {
         const nameA = (a.nama || '').toLowerCase();
         const nameB = (b.nama || '').toLowerCase();
@@ -1059,7 +1050,6 @@ function renderGudangList() {
         return nameB.localeCompare(nameA);
     });
 
-    // Update Angka Total Barang
     if (totalEl) totalEl.textContent = formatInputRibuan(filtered.length);
 
     if(filtered.length === 0) { container.innerHTML = `<p class="text-[11px] text-dark-2 italic text-center py-4">Barang tidak ditemukan.</p>`; return; }
@@ -1089,6 +1079,94 @@ function renderGudangList() {
     }).join('');
 }
 
+// ✨ UPDATE: EXPORT GUDANG EXCEL
+document.getElementById('btn-export-gudang')?.addEventListener('click', () => {
+    if (databaseBarang.length === 0) return alert("Gudang kosong.");
+    const dataExcel = databaseBarang.map(i => ({
+        'Barcode': i.barcode || '',
+        'Nama Barang': i.nama || '',
+        'Kategori': i.kategori || 'Umum',
+        'Harga Modal': i.cost || 0,
+        'Harga Jual': i.harga || 0,
+        'Stok': i.stok || 0,
+        'Catatan': i.catatan || ''
+    }));
+    if (typeof XLSX !== 'undefined') {
+        const worksheet = XLSX.utils.json_to_sheet(dataExcel);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Data_Gudang");
+        XLSX.writeFile(workbook, `Data_Gudang_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } else { alert("Pustaka Excel belum termuat."); }
+});
+
+// ✨ BARU: IMPORT GUDANG EXCEL
+document.getElementById('file-import-gudang')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!navigator.onLine) {
+        alert("Membutuhkan koneksi internet untuk Import Data.");
+        e.target.value = "";
+        return;
+    }
+
+    const btn = document.getElementById('btn-import-gudang');
+    const origText = btn ? btn.innerHTML : '';
+    if(btn) btn.innerHTML = "⏳ Memproses...";
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+        try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+            if (jsonData.length === 0) throw new Error("File Excel kosong.");
+
+            let successCount = 0;
+            let updateCount = 0;
+
+            for (let row of jsonData) {
+                const barcode = (row['Barcode'] || row['barcode'] || '').toString().trim();
+                const nama = row['Nama Barang'] || row['nama'] || row['Nama'] || '';
+                if (!nama) continue; // Wajib ada nama
+
+                const hrgModal = parseInt(row['Harga Modal'] || row['cost'] || row['Cost'] || 0) || 0;
+                const hrgJual = parseInt(row['Harga Jual'] || row['harga'] || row['Harga'] || 0) || 0;
+                const stok = parseInt(row['Stok'] || row['stok'] || row['Qty'] || 0) || 0;
+                const kategori = row['Kategori'] || row['kategori'] || 'Umum';
+                const catatan = row['Catatan'] || row['catatan'] || '';
+
+                const dataObj = { barcode, nama, kategori, catatan, cost: hrgModal, harga: hrgJual, stok, supplierId: "" };
+
+                // Deteksi barang duplikat dari Barcode (jika ada) atau Nama
+                let existingItem = null;
+                if (barcode) {
+                    existingItem = databaseBarang.find(x => x.barcode === barcode);
+                } else {
+                    existingItem = databaseBarang.find(x => x.nama.toLowerCase() === nama.toLowerCase());
+                }
+
+                if (existingItem) {
+                    await updateDoc(doc(db, "barang", existingItem.id), dataObj);
+                    updateCount++;
+                } else {
+                    await addDoc(itemsRef, dataObj);
+                    successCount++;
+                }
+            }
+            alert(`Import Selesai!\n✅ ${successCount} Barang Baru ditambahkan.\n🔄 ${updateCount} Barang lama diperbarui.`);
+        } catch (err) {
+            alert("Gagal memproses file: " + err.message);
+        } finally {
+            if(btn) btn.innerHTML = origText;
+            e.target.value = ""; // Reset input
+        }
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+// EXPORT RIWAYAT TRANSAKSI
 document.getElementById('btn-export-excel')?.addEventListener('click', () => {
     if (dataPenjualanTerfilter.length === 0) return alert("Data kosong.");
     const fileNameDate = new Date().toISOString().split('T')[0];
