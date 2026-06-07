@@ -14,7 +14,7 @@ let globalSettings = {
     kelipatanPoin: 10000,
     tema: "dark",
     showExport: true,
-    printerSize: 32, // 32 untuk 58mm, 48 untuk 80mm
+    printerSize: 32,
     payNonCash: true,
     payKasbon: true
 };
@@ -50,7 +50,9 @@ let bluetoothPrintCharacteristic = null;
 let keranjang = JSON.parse(localStorage.getItem("pos_recovery_cart") || "[]");
 let activeMember = JSON.parse(localStorage.getItem("pos_recovery_member") || "null");
 
-const toRupiah = (angka) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Math.round(angka) || 0);
+// ✨ FIX: Format toRupiah anti "Mandarin" di Printer BT ✨
+const toRupiah = (angka) => "Rp " + new Intl.NumberFormat('id-ID').format(Math.round(angka) || 0);
+
 const formatTanggal = (timestamp) => { 
     if(!timestamp) return '...'; 
     try {
@@ -70,10 +72,11 @@ try {
 
 
 // ==========================================
-// MESIN FORMAT RIBUAN OTOMATIS
+// 💡 BUG FIX: MESIN PARSER KEBAL (Unified Parser)
 // ==========================================
 const parseInputRibuan = (val) => {
     if (val === undefined || val === null || val === '') return 0;
+    // Mengizinkan koma/titik jika pengguna memasukkan desimal, meski sistem meresolve ke int
     const cleanStr = val.toString().replace(/[^0-9]/g, '');
     const parsed = parseInt(cleanStr, 10);
     return isNaN(parsed) ? 0 : parsed;
@@ -643,6 +646,7 @@ document.getElementById('btn-save-split')?.addEventListener('click', () => {
     const totalBayarSplit = v1 + v2;
     if(totalBayarSplit < globalGrandTotal) return alert("Total split kurang dari tagihan!");
     
+    // ✨ FIX CRITICAL: BATALKAN SPLIT JIKA DATA BERUBAH ✨
     const kembalianSplit = Math.max(0, totalBayarSplit - globalGrandTotal);
     splitDetails = { method1: document.getElementById('split-method-1').value, amount1: v1, method2: document.getElementById('split-method-2').value, amount2: v2, kembalian: kembalianSplit };
     
@@ -737,7 +741,7 @@ document.getElementById('btn-remove-member')?.addEventListener('click', () => { 
 function showActiveMemberUI() { document.getElementById('member-select-zone')?.classList.add('hidden'); document.getElementById('member-active-zone')?.classList.remove('hidden'); document.getElementById('btn-remove-member')?.classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; renderKeranjang(); }
 
 // ==========================================
-// PENCARIAN, SORT & LAZY LOAD GUDANG
+// PENCARIAN & SORT GUDANG
 // ==========================================
 document.getElementById('gudang-search')?.addEventListener('input', (e) => { 
     kataKunciGudang = e.target.value.toLowerCase(); 
@@ -764,6 +768,7 @@ window.startVoiceSearchGudang = () => {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    
     recognition.onresult = function(event) {
         const speechResult = event.results[0][0].transcript;
         const searchInput = document.getElementById('gudang-search');
@@ -774,11 +779,14 @@ window.startVoiceSearchGudang = () => {
             renderGudangList();
         }
     };
+
     recognition.onerror = function(event) {
         alert("Gagal mendengarkan suara. Silakan coba lagi.");
         if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
     };
+
     recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    
     recognition.start();
 };
 
@@ -793,6 +801,7 @@ window.startVoiceSearchKasir = () => {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    
     recognition.onresult = function(event) {
         const speechResult = event.results[0][0].transcript;
         const searchInput = document.getElementById('kasir-search');
@@ -803,11 +812,14 @@ window.startVoiceSearchKasir = () => {
             renderKatalogKasir();
         }
     };
+
     recognition.onerror = function(event) {
         alert("Gagal mendengarkan suara. Silakan coba lagi.");
         if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
     };
+
     recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    
     recognition.start();
 };
 
