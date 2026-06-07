@@ -1,5 +1,4 @@
 import { db, auth, itemsRef, salesRef, shiftsRef, membersRef, auditLogsRef } from './firebase-config.js';
-// ✨ Tambahkan import collection dari firebase
 import { addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment, serverTimestamp, where, limit, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -10,7 +9,7 @@ const ADMIN_PIN = "123456";
 window.itemAkanDihapus = null; 
 
 let databaseBarang = [], riwayatPenjualan = [], dataPenjualanTerfilter = [], dataShiftAll = [], auditLogsData = [], memberDataAll = [];
-let databasePemasok = []; // Variabel untuk menyimpan Pemasok
+let databasePemasok = []; 
 
 let memberDataAllCached = JSON.parse(localStorage.getItem("pos_cached_members") || "[]");
 memberDataAll = memberDataAllCached.length > 0 ? memberDataAllCached : [];
@@ -19,13 +18,11 @@ let chartInstance = null, unsubscribeItems = null, unsubscribeSales = null, unsu
 let filterKategoriAktif = "Semua", kataKunciPencarian = "", globalSubtotal = 0, globalDiskon = 0, globalGrandTotal = 0;
 let currentUserRole = "kasir", activeShiftSession = null, currentUserId = null, isSyncingOffline = false;
 
-// Kontrol Split & Kasbon
 let selectedPaymentMethod = "Tunai"; 
 let isSplitPayment = false;
 let splitDetails = { method1: "Tunai", amount1: 0, method2: "QRIS", amount2: 0, kembalian: 0 };
 let piutangAktifDipilih = null;
 
-// Mesin Promo / Voucher
 const activePromos = { "PROMO20": { type: "percent", value: 20 }, "POTONG10K": { type: "nominal", value: 10000 } };
 let appliedVoucher = null;
 
@@ -51,6 +48,33 @@ try {
     const cachedItems = localStorage.getItem("pos_cached_items"); if (cachedItems) databaseBarang = JSON.parse(cachedItems);
     const cachedShift = localStorage.getItem("pos_cached_shift"); if (cachedShift) activeShiftSession = JSON.parse(cachedShift);
 } catch(e) {}
+
+// ==========================================
+// ✨ LOGIKA 2-TAB KERANJANG (BARU) ✨
+// ==========================================
+window.switchCartTab = (tabName) => {
+    const paneList = document.getElementById('cart-pane-list');
+    const panePay = document.getElementById('cart-pane-pay');
+    const btnList = document.getElementById('tab-cart-list-btn');
+    const btnPay = document.getElementById('tab-cart-pay-btn');
+
+    if(tabName === 'list') {
+        paneList.classList.remove('hidden'); paneList.classList.add('flex');
+        panePay.classList.add('hidden'); panePay.classList.remove('flex');
+        
+        btnList.className = "flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-mantine-blue border-b-2 border-mantine-blue transition-colors focus:outline-none";
+        btnPay.className = "flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-dark-2 border-b-2 border-transparent hover:text-gray-200 transition-colors focus:outline-none";
+    } else {
+        panePay.classList.remove('hidden'); panePay.classList.add('flex');
+        paneList.classList.add('hidden'); paneList.classList.remove('flex');
+        
+        btnPay.className = "flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-mantine-blue border-b-2 border-mantine-blue transition-colors focus:outline-none";
+        btnList.className = "flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-dark-2 border-b-2 border-transparent hover:text-gray-200 transition-colors focus:outline-none";
+        
+        // Auto-focus ke input tunai jika masuk tab pembayaran
+        if(selectedPaymentMethod === 'Tunai') setTimeout(() => document.getElementById('cash-paid')?.focus(), 100);
+    }
+};
 
 // ==========================================
 // MESIN OFFLINE INDEXED-DB
@@ -205,7 +229,6 @@ tabsBtns.forEach(tab => { tab.addEventListener('click', () => { switchTab(tab.id
 window.switchTab = switchTab;
 
 function applyRoleAccess() {
-    // ✨ Membatasi akses Gudang & Pemasok hanya untuk Admin
     ['tab-dashboard-btn', 'tab-gudang-btn', 'tab-pemasok-btn', 'admin-shift-log-section'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', currentUserRole !== "admin"); });
     switchTab(currentUserRole === "admin" ? 'dashboard' : 'kasir');
 }
@@ -284,7 +307,6 @@ function initRealtimeListeners() {
         renderPiutangList();
     });
     
-    // ✨ Listener Baru Untuk Database Pemasok (Khusus Admin)
     if (currentUserRole === 'admin') {
         unsubscribePemasok = onSnapshot(query(collection(db, "pemasok"), orderBy("nama", "asc")), (snapshot) => {
             databasePemasok = []; snapshot.forEach(doc => databasePemasok.push({ id: doc.id, ...doc.data() }));
@@ -302,21 +324,14 @@ function initRealtimeListeners() {
 function stopRealtimeListeners() { 
     if(unsubscribeItems) unsubscribeItems(); if(unsubscribeSales) unsubscribeSales(); if(unsubscribeMembers) unsubscribeMembers();
     if(unsubscribeShifts) unsubscribeShifts(); if(unsubscribeAudit) unsubscribeAudit(); if(unsubscribeActiveShift) unsubscribeActiveShift();
-    if(unsubscribePemasok) unsubscribePemasok(); // Stop Pemasok Listener
+    if(unsubscribePemasok) unsubscribePemasok(); 
 }
 
-// ==========================================
-// ✨ MODUL PEMASOK / SUPPLIER (BARU)
-// ==========================================
 const pemasokForm = document.getElementById('pemasok-form');
 pemasokForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet untuk memodifikasi Pemasok.");
     const id = document.getElementById('pemasok-id').value;
-    const data = { 
-        nama: document.getElementById('pemasok-nama').value.trim(), 
-        kontak: document.getElementById('pemasok-kontak').value.trim(), 
-        info: document.getElementById('pemasok-info').value.trim() 
-    };
+    const data = { nama: document.getElementById('pemasok-nama').value.trim(), kontak: document.getElementById('pemasok-kontak').value.trim(), info: document.getElementById('pemasok-info').value.trim() };
     const btnSubmit = document.getElementById('btn-submit-pemasok'); let origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan...";
     try {
         if(id) { await updateDoc(doc(db, "pemasok", id), data); } 
@@ -347,15 +362,8 @@ function renderPemasokList() {
     if(databasePemasok.length === 0) { container.innerHTML = `<p class="col-span-full text-xs text-dark-2 italic text-center py-8">Belum ada data Pemasok. Silakan tambahkan.</p>`; return; }
     container.innerHTML = databasePemasok.map(p => `
         <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 flex flex-col justify-between shadow-sm hover:border-dark-3 transition-colors">
-            <div>
-                <h3 class="font-bold text-gray-100 text-sm mb-1">${escapeHTML(p.nama)}</h3>
-                ${p.kontak ? `<p class="text-xs text-dark-2 mt-1">📞 ${escapeHTML(p.kontak)}</p>` : ''}
-                ${p.info ? `<p class="text-[10px] text-dark-3 mt-1 italic">ℹ️ ${escapeHTML(p.info)}</p>` : ''}
-            </div>
-            <div class="flex gap-2 mt-4 pt-3 border-t border-dark-5">
-                <button onclick="window.editPemasok('${p.id}')" class="flex-1 py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded-lg transition-colors">Ubah</button>
-                <button onclick="window.hapusPemasok('${p.id}')" class="flex-1 py-1.5 bg-red-950/20 text-red-400 border border-red-900/50 hover:bg-red-900/40 text-[10px] font-bold rounded-lg transition-colors">Hapus</button>
-            </div>
+            <div><h3 class="font-bold text-gray-100 text-sm mb-1">${escapeHTML(p.nama)}</h3>${p.kontak ? `<p class="text-xs text-dark-2 mt-1">📞 ${escapeHTML(p.kontak)}</p>` : ''}${p.info ? `<p class="text-[10px] text-dark-3 mt-1 italic">ℹ️ ${escapeHTML(p.info)}</p>` : ''}</div>
+            <div class="flex gap-2 mt-4 pt-3 border-t border-dark-5"><button onclick="window.editPemasok('${p.id}')" class="flex-1 py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded-lg transition-colors">Ubah</button><button onclick="window.hapusPemasok('${p.id}')" class="flex-1 py-1.5 bg-red-950/20 text-red-400 border border-red-900/50 hover:bg-red-900/40 text-[10px] font-bold rounded-lg transition-colors">Hapus</button></div>
         </div>`).join('');
 }
 
@@ -366,9 +374,6 @@ function renderPemasokDropdown() {
     if(currentVal) select.value = currentVal;
 }
 
-// ==========================================
-// PIUTANG LIST
-// ==========================================
 function renderPiutangList() {
     const listContainer = document.getElementById('piutang-list'); if(!listContainer) return;
     const memberBerhutang = memberDataAll.filter(m => (m.hutang || 0) > 0).sort((a,b) => b.hutang - a.hutang);
@@ -516,6 +521,7 @@ document.getElementById('btn-hold-bill')?.addEventListener('click', () => {
     
     keranjang = []; localStorage.removeItem("pos_recovery_cart"); activeMember = null; localStorage.removeItem("pos_recovery_member"); 
     appliedVoucher = null; document.getElementById('voucher-code').value = ""; document.getElementById('cart-discount').value = ""; document.getElementById('btn-remove-member')?.click(); renderKeranjang(); updateHoldCountBadge(); alert("Pesanan ditangguhkan.");
+    window.switchCartTab('list');
 });
 
 document.getElementById('btn-recall-bill')?.addEventListener('click', () => { renderHoldModalList(); document.getElementById('hold-modal')?.classList.remove('hidden'); });
@@ -542,8 +548,8 @@ window.loadHeldBill = async (id) => {
             if (item.cost !== dbItem.cost) { item.cost = dbItem.cost || 0; hasChanges = true; } 
             validatedItems.push(item);
         }
-        if (validatedItems.length === 0) { alert("Semua produk di orderan ini telah habis dari gudang."); heldBills.splice(idx, 1); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills)); renderHoldModalList(); updateHoldCountBadge(); return; }
-        if (hasChanges) alert("Beberapa produk/harga disesuaikan berdasarkan stok terbaru gudang.");
+        if (validatedItems.length === 0) { alert("Semua produk di pesanan ini telah habis."); heldBills.splice(idx, 1); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills)); renderHoldModalList(); updateHoldCountBadge(); return; }
+        if (hasChanges) alert("Beberapa produk disesuaikan berdasarkan stok gudang.");
         
         keranjang = validatedItems; localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); document.getElementById('cart-discount').value = bill.diskon || "";
         if(bill.voucher) { appliedVoucher = bill.voucher; document.getElementById('voucher-code').value = bill.voucherCode || ""; }
@@ -558,6 +564,7 @@ window.loadHeldBill = async (id) => {
         } else { document.getElementById('btn-remove-member')?.click(); }
         
         heldBills.splice(idx, 1); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills)); document.getElementById('hold-modal')?.classList.add('hidden'); renderKeranjang(); updateHoldCountBadge();
+        window.switchCartTab('list');
     }
 };
 
@@ -653,7 +660,9 @@ function renderKeranjang() {
     document.getElementById('cart-total-qty-badge').textContent = `${keranjang.reduce((a, b) => a + b.qty, 0)} Item`;
     if(keranjang.length === 0) {
         if(listEl) listEl.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-dark-3 absolute inset-0"><p class="text-sm font-medium italic">Keranjang belanja kosong</p></div>`;
-        document.getElementById('btn-checkout').disabled = true; document.getElementById('cart-grand-total').textContent = "Rp 0";
+        document.getElementById('btn-checkout').disabled = true; 
+        document.getElementById('cart-grand-total').textContent = "Rp 0";
+        document.getElementById('pane1-grand-total').textContent = "Rp 0";
         appliedVoucher = null; document.getElementById('voucher-code').value = "";
         return;
     }
@@ -690,6 +699,7 @@ function hitungUangKembalian() {
     
     document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal); 
     document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
+    document.getElementById('pane1-grand-total').textContent = toRupiah(globalGrandTotal);
     
     const btnCheckout = document.getElementById('btn-checkout');
     btnCheckout.textContent = "Selesaikan Bayar";
@@ -796,7 +806,7 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
         keranjang = []; localStorage.removeItem("pos_recovery_cart");
         appliedVoucher = null; document.getElementById('voucher-code').value = ""; document.getElementById('cart-discount').value = ""; document.getElementById('cash-paid').value = "";
         btnCash?.click(); document.getElementById('btn-remove-member')?.click(); renderKeranjang(); 
-        applyFiltersAndStats();
+        applyFiltersAndStats(); window.switchCartTab('list');
         
     } catch(e) { alert("GAGAL MEMPROSES TRANSAKSI: " + e.message); } 
     finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; }
@@ -886,9 +896,6 @@ function renderAuditLogs() {
         </tr>`).join('');
 }
 
-// ==========================================
-// MASTER GUDANG & INTEGRASI PEMASOK
-// ==========================================
 const itemForm = document.getElementById('item-form');
 itemForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); 
@@ -903,7 +910,7 @@ itemForm?.addEventListener('submit', async (e) => {
         const rawHrg = Math.max(0, parseFloat(document.getElementById('item-price')?.value) || 0); 
         const rawStk = Math.max(0, parseInt(document.getElementById('item-stock')?.value) || 0);
         const nName = document.getElementById('item-name')?.value.trim() || 'Barang Baru';
-        const supId = document.getElementById('item-supplier')?.value || ""; // Tangkap ID Pemasok
+        const supId = document.getElementById('item-supplier')?.value || "";
         
         const data = { barcode: barcodeInput, nama: nName, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
         if(id) { await updateDoc(doc(db, "barang", id), data); } else { await addDoc(itemsRef, data); }
@@ -918,7 +925,6 @@ window.editBarang = (id) => {
     document.getElementById('item-name').value = item.nama; document.getElementById('item-cost').value = item.cost || 0; 
     document.getElementById('item-price').value = item.harga || 0; document.getElementById('item-stock').value = item.stok || 0; 
     
-    // Setel menu pemasok sesuai data barang
     const supSelect = document.getElementById('item-supplier');
     if (supSelect) supSelect.value = item.supplierId || "";
     
