@@ -156,7 +156,6 @@ async function syncOfflineTransactions() {
                             if (sale.memberId && sale.metodePembayaran === "Kasbon") {
                                 await updateDoc(doc(db, "members", sale.memberId), { hutang: increment(sale.totalAkhir) });
                             } else if (sale.memberId && sale.metodePembayaran !== "Kasbon") {
-                                // ✨ IMPLEMENTASI KELIPATAN POIN DINAMIS ✨
                                 const addPoin = Math.floor(sale.totalAkhir / (globalSettings.kelipatanPoin || 10000)); 
                                 if (addPoin > 0) await updateDoc(doc(db, "members", sale.memberId), { poin: increment(addPoin) }); 
                             }
@@ -280,8 +279,10 @@ tabsBtns.forEach(tab => { tab.addEventListener('click', () => { switchTab(tab.id
 window.switchTab = switchTab;
 
 function applyRoleAccess() {
-    // ✨ TAB PENGATURAN DITAMBAHKAN UNTUK ADMIN ✨
-    ['tab-dashboard-btn', 'tab-gudang-btn', 'tab-pemasok-btn', 'tab-pengaturan-btn', 'admin-shift-log-section'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', currentUserRole !== "admin"); });
+    ['tab-dashboard-btn', 'tab-gudang-btn', 'tab-pemasok-btn', 'tab-pengaturan-btn', 'admin-shift-log-section'].forEach(id => { 
+        const el = document.getElementById(id); 
+        if (el) el.classList.toggle('hidden', currentUserRole !== "admin"); 
+    });
     switchTab(currentUserRole === "admin" ? 'dashboard' : 'kasir');
 }
 
@@ -348,9 +349,7 @@ window.triggerTutupShift = () => {
     document.getElementById('shift-modal')?.classList.remove('hidden');
 };
 
-// ✨ IMPLEMENTASI PENERAPAN PENGATURAN KE LAYAR UI ✨
 function terapkanPengaturanLayar() {
-    // 1. TEMA
     const themeStyle = document.getElementById('dynamic-theme');
     if (globalSettings.tema === 'light-blue') {
         themeStyle.innerHTML = `
@@ -366,7 +365,6 @@ function terapkanPengaturanLayar() {
         `;
     } else { themeStyle.innerHTML = ''; }
 
-    // 2. VISIBILITAS TOMBOL EXPORT/IMPORT GUDANG
     const btnExport = document.getElementById('btn-export-gudang');
     const btnImport = document.getElementById('btn-import-gudang');
     if (btnExport && btnImport) {
@@ -374,11 +372,9 @@ function terapkanPengaturanLayar() {
         if (ctn) ctn.classList.toggle('hidden', !globalSettings.showExport);
     }
 
-    // 3. VISIBILITAS METODE PEMBAYARAN KASIR
     document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !globalSettings.payNonCash);
     document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !globalSettings.payKasbon);
 
-    // 4. MENGISI FORM PENGATURAN (JIKA ADMIN MEMBUKA TAB PENGATURAN)
     if(document.getElementById('set-nama')) document.getElementById('set-nama').value = globalSettings.namaToko;
     if(document.getElementById('set-alamat')) document.getElementById('set-alamat').value = globalSettings.alamatToko;
     if(document.getElementById('set-footer')) document.getElementById('set-footer').value = globalSettings.footerStruk;
@@ -391,7 +387,6 @@ function terapkanPengaturanLayar() {
     if(document.getElementById('set-noncash')) document.getElementById('set-noncash').checked = globalSettings.payNonCash;
     if(document.getElementById('set-kasbon')) document.getElementById('set-kasbon').checked = globalSettings.payKasbon;
 
-    // Refresh UI untuk menerapkan Peringatan Stok Menipis terbaru
     renderKatalogKasir();
     renderGudangList();
 }
@@ -399,7 +394,6 @@ function terapkanPengaturanLayar() {
 function initRealtimeListeners() {
     stopRealtimeListeners();
     
-    // ✨ LISTENER PENGATURAN GLOBAL (DIBACA OLEH SEMUA USER/KASIR)
     unsubscribeSettings = onSnapshot(doc(db, "pengaturan", "global"), (docSnap) => {
         if (docSnap.exists()) {
             globalSettings = { ...globalSettings, ...docSnap.data() };
@@ -439,7 +433,6 @@ function stopRealtimeListeners() {
     if(unsubscribePemasok) unsubscribePemasok(); if(unsubscribeSettings) unsubscribeSettings();
 }
 
-// ✨ MENYIMPAN PENGATURAN GLOBAL (HANYA ADMIN) ✨
 document.getElementById('settings-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!navigator.onLine) return alert("Peringatan: Butuh internet untuk menyimpan pengaturan global.");
@@ -842,7 +835,6 @@ function renderKatalogKasir() {
     const toShow = filtered.slice(0, kasirItemLimit);
     
     katContainer.innerHTML = toShow.map(i => {
-        // ✨ HIGHLIGHT STOK MENIPIS DARI PENGATURAN GLOBAL ✨
         const isLowStock = (i.stok||0) <= (globalSettings.batasStok || 5);
         const stockClass = isLowStock ? 'bg-red-900/30 text-red-400' : 'bg-dark-5 text-dark-2';
         
@@ -908,7 +900,6 @@ window.ubahQtyCart = (id, delta) => {
 document.getElementById('btn-verify-pin')?.addEventListener('click', () => {
     const inputPin = document.getElementById('auth-pin-input').value;
     
-    // ✨ VALIDASI PIN OTORISASI DINAMIS DARI PENGATURAN GLOBAL ✨
     if (inputPin === (globalSettings.pinAdmin || ADMIN_PIN)) {
         sessionStorage.setItem("pos_admin_authorized", "true");
 
@@ -1083,7 +1074,6 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
     finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; }
 });
 
-// ✨ FUNGSI FORMAT STRUK BLUETOOTH CUSTOM ✨
 function padCenter(str, len) {
     if(str.length >= len) return str;
     const left = Math.floor((len - str.length) / 2);
@@ -1113,7 +1103,6 @@ function formatStrukBT(data) {
     return struk;
 }
 
-// ✨ FUNGSI CETAK THERMAL WEB CUSTOM ✨
 function cetakStrukThermal(data) {
     const printArea = document.getElementById('print-area'); if(!printArea) return;
     const tglStruk = data.waktuLokal ? new Date(data.waktuLokal) : new Date();
@@ -1289,7 +1278,6 @@ function renderGudangList() {
         let supName = "";
         if(i.supplierId) { const sup = databasePemasok.find(x => x.id === i.supplierId); if(sup) supName = sup.nama; }
         
-        // ✨ HIGHLIGHT STOK MENIPIS DI GUDANG ✨
         const isLowStock = (i.stok||0) <= (globalSettings.batasStok || 5);
         const stockClass = isLowStock ? '!bg-red-900/30 !text-red-400 border-red-900/50' : '';
 
