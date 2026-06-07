@@ -17,7 +17,6 @@ let globalSettings = {
     printerSize: 32,
     payNonCash: true,
     payKasbon: true,
-    // ✨ FITUR BARU: Manajemen Voucher dari Database
     vouchers: {
         "PROMO20": { type: "percent", value: 20 },
         "POTONG10K": { type: "nominal", value: 10000 }
@@ -78,24 +77,29 @@ try {
 // 💡 BUG FIX: MESIN PARSER KEBAL (Unified Parser)
 // Mengizinkan titik/koma sebagai angka pecahan saat user mengetik
 // ==========================================
-const parseInputRibuan = (val) => {
-    if (val === undefined || val === null || val === '') return 0;
-    const cleanStr = val.toString().replace(/[^0-9]/g, '');
-    const parsed = parseInt(cleanStr, 10);
-    return isNaN(parsed) ? 0 : parsed;
-};
-
 const formatInputRibuan = (val) => {
     if (val === null || val === undefined || val === '') return '';
-    const numStr = val.toString().replace(/[^0-9]/g, '');
-    return numStr ? new Intl.NumberFormat('id-ID').format(numStr) : '';
+    let str = val.toString().replace(/[^0-9,]/g, '');
+    let parts = str.split(',');
+    let intPart = parts[0].replace(/[^0-9]/g, '');
+    let decPart = parts.length > 1 ? ',' + parts.slice(1).join('').replace(/[^0-9]/g, '') : '';
+    if (intPart) {
+        intPart = new Intl.NumberFormat('id-ID').format(parseInt(intPart, 10));
+    }
+    return intPart + decPart;
+};
+
+const parseInputRibuan = (val) => {
+    if (val === undefined || val === null || val === '') return 0;
+    let cleanStr = val.toString().replace(/\./g, '').replace(/,/g, '.');
+    const parsed = parseFloat(cleanStr);
+    return isNaN(parsed) ? 0 : parsed;
 };
 
 const parseExcelNum = (val) => {
     if (val === undefined || val === null || val === '') return 0;
     if (typeof val === 'number') return val;
-    // Toleransi koma sebagai titik desimal (misal 1,5 kg jadi 1.5)
-    let cleanStr = val.toString().replace(/,/g, '.');
+    let cleanStr = val.toString().replace(/\./g, '').replace(/,/g, '.');
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
@@ -736,12 +740,14 @@ document.getElementById('btn-hold-bill')?.addEventListener('click', () => {
     holdName = holdName.trim() || `Order #${Date.now().toString().slice(-4)}`;
     const heldBills = JSON.parse(localStorage.getItem('pos_held_bills') || '[]');
     
-    const discVal = Math.max(0, parseInputRibuan(document.getElementById('cart-discount').value));
+    // Diskon Manual telah dihapus. Menyimpan 0.
+    const discVal = 0;
+    
     heldBills.push({ id: Date.now().toString(), tag: holdName, waktu: new Date().toLocaleString('id-ID'), items: keranjang, diskon: discVal, activeMember: activeMember, voucher: appliedVoucher, voucherCode: document.getElementById('voucher-code').value });
     localStorage.setItem('pos_held_bills', JSON.stringify(heldBills));
     
     keranjang = []; localStorage.removeItem("pos_recovery_cart"); activeMember = null; localStorage.removeItem("pos_recovery_member"); 
-    appliedVoucher = null; document.getElementById('voucher-code').value = ""; document.getElementById('cart-discount').value = ""; document.getElementById('btn-remove-member')?.click(); renderKeranjang(); updateHoldCountBadge(); alert("Pesanan ditangguhkan.");
+    appliedVoucher = null; document.getElementById('voucher-code').value = ""; document.getElementById('btn-remove-member')?.click(); renderKeranjang(); updateHoldCountBadge(); alert("Pesanan ditangguhkan.");
     window.switchCartTab('list');
 });
 
@@ -773,7 +779,7 @@ window.loadHeldBill = async (id) => {
         if (hasChanges) alert("Beberapa produk disesuaikan berdasarkan stok gudang.");
         
         keranjang = validatedItems; localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); 
-        document.getElementById('cart-discount').value = bill.diskon ? formatInputRibuan(bill.diskon) : "";
+        
         if(bill.voucher) { appliedVoucher = bill.voucher; document.getElementById('voucher-code').value = bill.voucherCode || ""; }
         
         activeMember = null;
@@ -818,11 +824,11 @@ document.getElementById('btn-remove-member')?.addEventListener('click', () => { 
 function showActiveMemberUI() { document.getElementById('member-select-zone')?.classList.add('hidden'); document.getElementById('member-active-zone')?.classList.remove('hidden'); document.getElementById('btn-remove-member')?.classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; renderKeranjang(); }
 
 // ==========================================
-// PENCARIAN, SORT & LAZY LOAD GUDANG
+// PENCARIAN & SORT GUDANG
 // ==========================================
 document.getElementById('gudang-search')?.addEventListener('input', (e) => { 
     kataKunciGudang = e.target.value.toLowerCase(); 
-    gudangItemLimit = 30; 
+    gudangItemLimit = 30; // Reset Limit
     renderGudangList(); 
 });
 
@@ -830,7 +836,7 @@ window.toggleSortGudang = () => {
     sortGudangOrder = sortGudangOrder === 'asc' ? 'desc' : 'asc';
     const btn = document.getElementById('btn-sort-gudang');
     if (btn) btn.innerHTML = sortGudangOrder === 'asc' ? 'Urutkan: A-Z ⬇️' : 'Urutkan: Z-A ⬆️';
-    gudangItemLimit = 30; 
+    gudangItemLimit = 30; // Reset Limit
     renderGudangList();
 };
 
@@ -845,6 +851,7 @@ window.startVoiceSearchGudang = () => {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    
     recognition.onresult = function(event) {
         const speechResult = event.results[0][0].transcript;
         const searchInput = document.getElementById('gudang-search');
@@ -855,11 +862,14 @@ window.startVoiceSearchGudang = () => {
             renderGudangList();
         }
     };
+
     recognition.onerror = function(event) {
         alert("Gagal mendengarkan suara. Silakan coba lagi.");
         if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
     };
+
     recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    
     recognition.start();
 };
 
@@ -874,6 +884,7 @@ window.startVoiceSearchKasir = () => {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    
     recognition.onresult = function(event) {
         const speechResult = event.results[0][0].transcript;
         const searchInput = document.getElementById('kasir-search');
@@ -884,17 +895,21 @@ window.startVoiceSearchKasir = () => {
             renderKatalogKasir();
         }
     };
+
     recognition.onerror = function(event) {
         alert("Gagal mendengarkan suara. Silakan coba lagi.");
         if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
     };
+
     recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    
     recognition.start();
 };
 
+
 document.getElementById('kasir-search')?.addEventListener('input', (e) => { 
     kataKunciPencarian = e.target.value.toLowerCase(); 
-    kasirItemLimit = 36; 
+    kasirItemLimit = 36; // Reset Limit
     renderKatalogKasir(); 
 });
 
@@ -946,7 +961,7 @@ window.loadMoreKasir = () => { kasirItemLimit += 36; renderKatalogKasir(); };
 
 window.setFilterKategori = (cat) => { 
     filterKategoriAktif = cat; 
-    kasirItemLimit = 36; 
+    kasirItemLimit = 36; // Reset Limit
     renderKatalogKasir(); 
 };
 
@@ -1038,7 +1053,6 @@ window.setQuickCash = (amount) => {
 };
 
 // ✨ BUG FIX & FITUR BARU: KALKULASI KEMBALIAN REAL-TIME ✨
-// Daftarkan listener input agar kembalian ter-update saat kasir mengetik
 document.getElementById('cash-paid')?.addEventListener('input', hitungUangKembalian);
 
 function hitungUangKembalian() {
@@ -1060,7 +1074,8 @@ function hitungUangKembalian() {
         else if (appliedVoucher.type === "nominal") { diskonVoucher = appliedVoucher.value; }
     }
 
-    const rawDiskonManual = Math.max(0, Math.round(parseInputRibuan(document.getElementById('cart-discount').value)));
+    // ✨ Diskon Manual Dihapus: Langsung gunakan 0
+    const rawDiskonManual = 0; 
     globalDiskon = Math.min(globalSubtotal, rawDiskonManual + diskonOtomatisMember + diskonVoucher);
     globalGrandTotal = Math.round(Math.max(0, globalSubtotal - globalDiskon));
     
@@ -1078,7 +1093,6 @@ function hitungUangKembalian() {
         const cashInputVal = Math.max(0, parseInputRibuan(document.getElementById('cash-paid').value));
         const kembalian = cashInputVal - globalGrandTotal;
         
-        // Atur Visual Tampilan Kembalian
         if (kembalianInfo) kembalianInfo.classList.remove('hidden');
         if (kembalianNilai) {
             if (document.getElementById('cash-paid').value === "") {
@@ -1191,7 +1205,7 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
         if (!isBluetoothPrinted) { cetakStrukThermal(trxData); }
 
         keranjang = []; localStorage.removeItem("pos_recovery_cart");
-        appliedVoucher = null; document.getElementById('voucher-code').value = ""; document.getElementById('cart-discount').value = ""; document.getElementById('cash-paid').value = "";
+        appliedVoucher = null; document.getElementById('voucher-code').value = ""; document.getElementById('cash-paid').value = "";
         btnCash?.click(); document.getElementById('btn-remove-member')?.click(); renderKeranjang(); 
         applyFiltersAndStats(); window.switchCartTab('list');
         
