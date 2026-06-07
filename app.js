@@ -18,7 +18,6 @@ let chartInstance = null, unsubscribeItems = null, unsubscribeSales = null, unsu
 let filterKategoriAktif = "Semua", kataKunciPencarian = "", globalSubtotal = 0, globalDiskon = 0, globalGrandTotal = 0;
 let currentUserRole = "kasir", activeShiftSession = null, currentUserId = null, isSyncingOffline = false;
 
-// ✨ Variabel Pencarian Gudang
 let kataKunciGudang = "";
 
 let selectedPaymentMethod = "Tunai"; 
@@ -592,9 +591,6 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
 document.getElementById('btn-remove-member')?.addEventListener('click', () => { activeMember = null; localStorage.removeItem("pos_recovery_member"); document.getElementById('member-select-zone')?.classList.remove('hidden'); document.getElementById('member-active-zone')?.classList.add('hidden'); document.getElementById('btn-remove-member')?.classList.add('hidden'); document.getElementById('member-search-input').value = ""; renderKeranjang(); btnCash?.click(); });
 function showActiveMemberUI() { document.getElementById('member-select-zone')?.classList.add('hidden'); document.getElementById('member-active-zone')?.classList.remove('hidden'); document.getElementById('btn-remove-member')?.classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; renderKeranjang(); }
 
-// ==========================================
-// 🔍 FITUR PENCARIAN GUDANG (BARU)
-// ==========================================
 document.getElementById('gudang-search')?.addEventListener('input', (e) => { 
     kataKunciGudang = e.target.value.toLowerCase(); 
     renderGudangList(); 
@@ -901,9 +897,6 @@ function renderAuditLogs() {
         </tr>`).join('');
 }
 
-// ==========================================
-// ✨ UPDATE: MASTER GUDANG (+ KATEGORI) ✨
-// ==========================================
 const itemForm = document.getElementById('item-form');
 itemForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); 
@@ -919,7 +912,6 @@ itemForm?.addEventListener('submit', async (e) => {
         const rawStk = Math.max(0, parseInt(document.getElementById('item-stock')?.value) || 0);
         const nName = document.getElementById('item-name')?.value.trim() || 'Barang Baru';
         
-        // 🛒 Tangkap Nilai Kategori
         const nCat = document.getElementById('item-category')?.value.trim() || 'Umum';
         const supId = document.getElementById('item-supplier')?.value || "";
         
@@ -930,25 +922,50 @@ itemForm?.addEventListener('submit', async (e) => {
     } catch(err) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
 });
 
+// ✨ FUNGSI BARU: DUPLIKAT BARANG ✨
+window.duplikatBarang = (id) => {
+    const item = databaseBarang.find(x => x.id === id); if (!item) return;
+    
+    document.getElementById('item-id').value = ""; // ID kosong = Terdeteksi sebagai Barang Baru
+    document.getElementById('item-barcode').value = ""; // Kosongkan barcode mencegah duplikat
+    document.getElementById('item-name').value = item.nama + " (Copy)"; 
+    document.getElementById('item-category').value = item.kategori || "Umum";
+    document.getElementById('item-cost').value = item.cost || 0; 
+    document.getElementById('item-price').value = item.harga || 0; 
+    document.getElementById('item-stock').value = item.stok || 0; 
+    
+    const supSelect = document.getElementById('item-supplier'); 
+    if (supSelect) supSelect.value = item.supplierId || "";
+    
+    document.getElementById('btn-cancel')?.classList.remove('hidden');
+    
+    // Auto-Scroll ke form
+    window.scrollTo({ top: 0, behavior: 'smooth' }); 
+    
+    // Auto-Select nama barang agar siap diganti
+    setTimeout(() => { 
+        const nameInput = document.getElementById('item-name'); 
+        if(nameInput) { nameInput.focus(); nameInput.select(); }
+    }, 100);
+};
+
 window.editBarang = (id) => {
     const item = databaseBarang.find(x => x.id === id); if (!item) return;
     document.getElementById('item-id').value = item.id; document.getElementById('item-barcode').value = item.barcode || ""; 
     document.getElementById('item-name').value = item.nama; 
-    
-    // 🛒 Set Nilai Kategori saat di-edit
     document.getElementById('item-category').value = item.kategori || "Umum";
-    
     document.getElementById('item-cost').value = item.cost || 0; document.getElementById('item-price').value = item.harga || 0; document.getElementById('item-stock').value = item.stok || 0; 
     const supSelect = document.getElementById('item-supplier'); if (supSelect) supSelect.value = item.supplierId || "";
     document.getElementById('btn-cancel')?.classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
+
 window.hapusBarang = async (id) => { if (!navigator.onLine) return alert("Butuh internet."); const item = databaseBarang.find(x => x.id === id); if(!item) return; if(confirm(`Hapus permanen ${item.nama}?`)) { await deleteDoc(doc(db, "barang", id)); } };
 document.getElementById('btn-cancel')?.addEventListener('click', () => { document.getElementById('item-form')?.reset(); document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden'); });
 
 function renderGudangList() {
     const container = document.getElementById('gudang-list'); if(!container) return;
     
-    // ✨ Logika Pencarian Gudang ✨
     const filtered = databaseBarang.filter(i => {
         const keyword = kataKunciGudang.toLowerCase();
         return (i.nama || '').toLowerCase().includes(keyword) || 
@@ -973,7 +990,11 @@ function renderGudangList() {
                 <h3 class="font-bold text-gray-100 text-sm">${escapeHTML(i.nama||'Item')}</h3>
                 <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${(i.stok||0)<=5?'!bg-red-900/30 !text-red-400':''}">Stok: ${i.stok||0}</span></div>
             </div>
-            <div class="flex gap-2"><button onclick="window.editBarang('${i.id}')" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-lg transition-colors">Ubah</button><button onclick="window.hapusBarang('${i.id}')" class="px-3 py-2 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/50 text-xs font-bold rounded-lg transition-colors">Hapus</button></div>
+            <div class="flex gap-2">
+                <button onclick="window.duplikatBarang('${i.id}')" class="px-3 py-2 bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-400 border border-indigo-900/50 text-xs font-bold rounded-lg transition-colors" title="Duplikat Barang">Copy</button>
+                <button onclick="window.editBarang('${i.id}')" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-lg transition-colors">Ubah</button>
+                <button onclick="window.hapusBarang('${i.id}')" class="px-3 py-2 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/50 text-xs font-bold rounded-lg transition-colors">Hapus</button>
+            </div>
         </div>`
     }).join('');
 }
