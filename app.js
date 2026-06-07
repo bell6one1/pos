@@ -5,7 +5,20 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https:/
 // ==========================================
 // PENGATURAN VIP & VARIABEL GLOBAL
 // ==========================================
-const ADMIN_PIN = "123456"; 
+let globalSettings = {
+    namaToko: "TOKO MODERN POS",
+    alamatToko: "Jl. Teknologi No.123",
+    footerStruk: "TERIMA KASIH!",
+    pinAdmin: "123456",
+    batasStok: 5,
+    kelipatanPoin: 10000,
+    tema: "dark",
+    showExport: true,
+    printerSize: 32, // 32 untuk 58mm, 48 untuk 80mm
+    payNonCash: true,
+    payKasbon: true
+};
+
 window.itemAkanDihapus = null; 
 
 let databaseBarang = [], riwayatPenjualan = [], dataPenjualanTerfilter = [], dataShiftAll = [], auditLogsData = [], memberDataAll = [];
@@ -14,7 +27,7 @@ let databasePemasok = [];
 let memberDataAllCached = JSON.parse(localStorage.getItem("pos_cached_members") || "[]");
 memberDataAll = memberDataAllCached.length > 0 ? memberDataAllCached : [];
 
-let chartInstance = null, unsubscribeItems = null, unsubscribeSales = null, unsubscribeMembers = null, unsubscribeActiveShift = null, unsubscribeShifts = null, unsubscribeAudit = null, unsubscribePemasok = null;
+let chartInstance = null, unsubscribeItems = null, unsubscribeSales = null, unsubscribeMembers = null, unsubscribeActiveShift = null, unsubscribeShifts = null, unsubscribeAudit = null, unsubscribePemasok = null, unsubscribeSettings = null;
 let filterKategoriAktif = "Semua", kataKunciPencarian = "", globalSubtotal = 0, globalDiskon = 0, globalGrandTotal = 0;
 let currentUserRole = "kasir", activeShiftSession = null, currentUserId = null, isSyncingOffline = false;
 
@@ -57,7 +70,7 @@ try {
 
 
 // ==========================================
-// 💡 BUG FIX: MESIN PARSER KEBAL (Unified Parser)
+// MESIN FORMAT RIBUAN OTOMATIS
 // ==========================================
 const parseInputRibuan = (val) => {
     if (val === undefined || val === null || val === '') return 0;
@@ -70,6 +83,14 @@ const formatInputRibuan = (val) => {
     if (val === null || val === undefined || val === '') return '';
     const numStr = val.toString().replace(/[^0-9]/g, '');
     return numStr ? new Intl.NumberFormat('id-ID').format(numStr) : '';
+};
+
+const parseExcelNum = (val) => {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return val;
+    const cleanStr = val.toString().replace(/[^0-9]/g, '');
+    const parsed = parseInt(cleanStr, 10);
+    return isNaN(parsed) ? 0 : parsed;
 };
 
 document.addEventListener('input', (e) => {
@@ -135,7 +156,8 @@ async function syncOfflineTransactions() {
                             if (sale.memberId && sale.metodePembayaran === "Kasbon") {
                                 await updateDoc(doc(db, "members", sale.memberId), { hutang: increment(sale.totalAkhir) });
                             } else if (sale.memberId && sale.metodePembayaran !== "Kasbon") {
-                                const addPoin = Math.floor(sale.totalAkhir / 10000); 
+                                // ✨ IMPLEMENTASI KELIPATAN POIN DINAMIS ✨
+                                const addPoin = Math.floor(sale.totalAkhir / (globalSettings.kelipatanPoin || 10000)); 
                                 if (addPoin > 0) await updateDoc(doc(db, "members", sale.memberId), { poin: increment(addPoin) }); 
                             }
                             if (sale.shiftId) await updateDoc(doc(db, "shift", sale.shiftId), { totalPenjualan: increment(sale.totalAkhir), totalTunai: increment(tunaiMasukLaci) });
@@ -238,7 +260,7 @@ document.getElementById('btn-logout')?.addEventListener('click', async () => {
     if(confirm("Keluar dari sistem?")) { 
         try { await signOut(auth); } catch (e) {} 
         finally { 
-            sessionStorage.removeItem('pos_admin_authorized'); // Hapus hak akses admin
+            sessionStorage.removeItem('pos_admin_authorized');
             localStorage.clear(); location.reload(); 
         } 
     } 
@@ -258,7 +280,8 @@ tabsBtns.forEach(tab => { tab.addEventListener('click', () => { switchTab(tab.id
 window.switchTab = switchTab;
 
 function applyRoleAccess() {
-    ['tab-dashboard-btn', 'tab-gudang-btn', 'tab-pemasok-btn', 'admin-shift-log-section'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', currentUserRole !== "admin"); });
+    // ✨ TAB PENGATURAN DITAMBAHKAN UNTUK ADMIN ✨
+    ['tab-dashboard-btn', 'tab-gudang-btn', 'tab-pemasok-btn', 'tab-pengaturan-btn', 'admin-shift-log-section'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', currentUserRole !== "admin"); });
     switchTab(currentUserRole === "admin" ? 'dashboard' : 'kasir');
 }
 
@@ -317,7 +340,7 @@ window.triggerTutupShift = () => {
             await logActivity("SHIFT_TUTUP", `Tutup Shift. Selisih laci: ${toRupiah(selisih)}`);
             alert(`Shift Berhasil Ditutup. Selisih Laci: ${toRupiah(selisih)}`);
             
-            sessionStorage.removeItem('pos_admin_authorized'); // Hapus hak akses admin saat tutup sesi
+            sessionStorage.removeItem('pos_admin_authorized');
             
             document.getElementById('shift-modal')?.classList.add('hidden'); activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false);
         } catch(e) { alert("Error: " + e.message); } finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = "Tutup Shift"; } form.reset(); }
@@ -325,8 +348,65 @@ window.triggerTutupShift = () => {
     document.getElementById('shift-modal')?.classList.remove('hidden');
 };
 
+// ✨ IMPLEMENTASI PENERAPAN PENGATURAN KE LAYAR UI ✨
+function terapkanPengaturanLayar() {
+    // 1. TEMA
+    const themeStyle = document.getElementById('dynamic-theme');
+    if (globalSettings.tema === 'light-blue') {
+        themeStyle.innerHTML = `
+            .bg-dark-7 { background-color: #f1f5f9 !important; }
+            .bg-dark-8 { background-color: #ffffff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            .bg-dark-6 { background-color: #e2e8f0 !important; }
+            .bg-dark-5 { background-color: #cbd5e1 !important; color: #0f172a !important; }
+            .text-white, .text-gray-100, .text-gray-200, .text-gray-300 { color: #0f172a !important; }
+            .text-dark-0, .text-dark-1, .text-dark-2, .text-dark-3 { color: #475569 !important; }
+            .border-dark-4, .border-dark-5 { border-color: #cbd5e1 !important; }
+            input, select { color: #0f172a !important; }
+            ::placeholder { color: #94a3b8 !important; }
+        `;
+    } else { themeStyle.innerHTML = ''; }
+
+    // 2. VISIBILITAS TOMBOL EXPORT/IMPORT GUDANG
+    const btnExport = document.getElementById('btn-export-gudang');
+    const btnImport = document.getElementById('btn-import-gudang');
+    if (btnExport && btnImport) {
+        const ctn = document.getElementById('gudang-export-container');
+        if (ctn) ctn.classList.toggle('hidden', !globalSettings.showExport);
+    }
+
+    // 3. VISIBILITAS METODE PEMBAYARAN KASIR
+    document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !globalSettings.payNonCash);
+    document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !globalSettings.payKasbon);
+
+    // 4. MENGISI FORM PENGATURAN (JIKA ADMIN MEMBUKA TAB PENGATURAN)
+    if(document.getElementById('set-nama')) document.getElementById('set-nama').value = globalSettings.namaToko;
+    if(document.getElementById('set-alamat')) document.getElementById('set-alamat').value = globalSettings.alamatToko;
+    if(document.getElementById('set-footer')) document.getElementById('set-footer').value = globalSettings.footerStruk;
+    if(document.getElementById('set-pin')) document.getElementById('set-pin').value = globalSettings.pinAdmin;
+    if(document.getElementById('set-printer')) document.getElementById('set-printer').value = globalSettings.printerSize;
+    if(document.getElementById('set-stok')) document.getElementById('set-stok').value = globalSettings.batasStok;
+    if(document.getElementById('set-poin')) document.getElementById('set-poin').value = globalSettings.kelipatanPoin;
+    if(document.getElementById('set-tema')) document.getElementById('set-tema').value = globalSettings.tema;
+    if(document.getElementById('set-export')) document.getElementById('set-export').checked = globalSettings.showExport;
+    if(document.getElementById('set-noncash')) document.getElementById('set-noncash').checked = globalSettings.payNonCash;
+    if(document.getElementById('set-kasbon')) document.getElementById('set-kasbon').checked = globalSettings.payKasbon;
+
+    // Refresh UI untuk menerapkan Peringatan Stok Menipis terbaru
+    renderKatalogKasir();
+    renderGudangList();
+}
+
 function initRealtimeListeners() {
     stopRealtimeListeners();
+    
+    // ✨ LISTENER PENGATURAN GLOBAL (DIBACA OLEH SEMUA USER/KASIR)
+    unsubscribeSettings = onSnapshot(doc(db, "pengaturan", "global"), (docSnap) => {
+        if (docSnap.exists()) {
+            globalSettings = { ...globalSettings, ...docSnap.data() };
+        }
+        terapkanPengaturanLayar();
+    });
+
     unsubscribeItems = onSnapshot(query(itemsRef, orderBy("nama", "asc")), (snapshot) => { 
         databaseBarang = []; snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() })); localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang)); renderKatalogKasir(); renderGudangList();
     });
@@ -356,8 +436,42 @@ function initRealtimeListeners() {
 function stopRealtimeListeners() { 
     if(unsubscribeItems) unsubscribeItems(); if(unsubscribeSales) unsubscribeSales(); if(unsubscribeMembers) unsubscribeMembers();
     if(unsubscribeShifts) unsubscribeShifts(); if(unsubscribeAudit) unsubscribeAudit(); if(unsubscribeActiveShift) unsubscribeActiveShift();
-    if(unsubscribePemasok) unsubscribePemasok(); 
+    if(unsubscribePemasok) unsubscribePemasok(); if(unsubscribeSettings) unsubscribeSettings();
 }
+
+// ✨ MENYIMPAN PENGATURAN GLOBAL (HANYA ADMIN) ✨
+document.getElementById('settings-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!navigator.onLine) return alert("Peringatan: Butuh internet untuk menyimpan pengaturan global.");
+    
+    const btn = document.getElementById('btn-save-settings');
+    const origText = btn.textContent;
+    btn.textContent = "Menyimpan ke Server..."; btn.disabled = true;
+
+    const newData = {
+        namaToko: document.getElementById('set-nama').value.trim() || "TOKO POS",
+        alamatToko: document.getElementById('set-alamat').value.trim() || "Alamat Toko",
+        footerStruk: document.getElementById('set-footer').value.trim() || "Terima Kasih",
+        pinAdmin: document.getElementById('set-pin').value.trim() || "123456",
+        printerSize: parseInt(document.getElementById('set-printer').value) || 32,
+        batasStok: parseInt(document.getElementById('set-stok').value) || 5,
+        kelipatanPoin: parseInt(document.getElementById('set-poin').value) || 10000,
+        tema: document.getElementById('set-tema').value,
+        showExport: document.getElementById('set-export').checked,
+        payNonCash: document.getElementById('set-noncash').checked,
+        payKasbon: document.getElementById('set-kasbon').checked
+    };
+
+    try {
+        await setDoc(doc(db, "pengaturan", "global"), newData);
+        alert("Pembaruan Sistem Berhasil Diterapkan!");
+    } catch (err) {
+        alert("Gagal menyimpan pengaturan: " + err.message);
+    } finally {
+        btn.textContent = origText; btn.disabled = false;
+    }
+});
+
 
 const pemasokForm = document.getElementById('pemasok-form');
 pemasokForm?.addEventListener('submit', async (e) => {
@@ -649,7 +763,6 @@ window.toggleSortGudang = () => {
 window.startVoiceSearchGudang = () => {
     const btn = document.getElementById('btn-voice-search');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
     if (!SpeechRecognition) { alert("Maaf, browser (atau HP) Anda tidak mendukung fitur Pencarian Suara."); return; }
 
     const recognition = new SpeechRecognition();
@@ -658,32 +771,27 @@ window.startVoiceSearchGudang = () => {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
-    
     recognition.onresult = function(event) {
         const speechResult = event.results[0][0].transcript;
         const searchInput = document.getElementById('gudang-search');
         if(searchInput) {
             searchInput.value = speechResult;
             kataKunciGudang = speechResult.toLowerCase();
-            gudangItemLimit = 30; // Reset Limit
+            gudangItemLimit = 30;
             renderGudangList();
         }
     };
-
     recognition.onerror = function(event) {
         alert("Gagal mendengarkan suara. Silakan coba lagi.");
         if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
     };
-
     recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
-    
     recognition.start();
 };
 
 window.startVoiceSearchKasir = () => {
     const btn = document.getElementById('btn-voice-search-kasir');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
     if (!SpeechRecognition) { alert("Maaf, browser (atau HP) Anda tidak mendukung fitur Pencarian Suara."); return; }
 
     const recognition = new SpeechRecognition();
@@ -692,25 +800,21 @@ window.startVoiceSearchKasir = () => {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
-    
     recognition.onresult = function(event) {
         const speechResult = event.results[0][0].transcript;
         const searchInput = document.getElementById('kasir-search');
         if(searchInput) {
             searchInput.value = speechResult;
             kataKunciPencarian = speechResult.toLowerCase();
-            kasirItemLimit = 36; // Reset Limit
+            kasirItemLimit = 36;
             renderKatalogKasir();
         }
     };
-
     recognition.onerror = function(event) {
         alert("Gagal mendengarkan suara. Silakan coba lagi.");
         if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
     };
-
     recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
-    
     recognition.start();
 };
 
@@ -737,17 +841,23 @@ function renderKatalogKasir() {
     
     const toShow = filtered.slice(0, kasirItemLimit);
     
-    katContainer.innerHTML = toShow.map(i => `
+    katContainer.innerHTML = toShow.map(i => {
+        // ✨ HIGHLIGHT STOK MENIPIS DARI PENGATURAN GLOBAL ✨
+        const isLowStock = (i.stok||0) <= (globalSettings.batasStok || 5);
+        const stockClass = isLowStock ? 'bg-red-900/30 text-red-400' : 'bg-dark-5 text-dark-2';
+        
+        return `
         <div onclick="window.tambahKeKeranjang('${i.id}')" class="bg-dark-6 p-4 rounded-xl border border-dark-4 hover:border-mantine-blue cursor-pointer select-none flex flex-col justify-between active:scale-[0.98] transition-all group shadow-sm">
             <div>
                 <div class="flex justify-between items-start gap-2 mb-2">
                     <span class="text-[10px] font-bold text-mantine-blue uppercase truncate bg-mantine-blue/10 px-2 py-1 rounded-md">${escapeHTML(i.kategori||'Umum')}</span>
-                    <span class="text-[10px] px-2 py-1 rounded-md font-bold ${(i.stok||0)<=3?'bg-red-900/30 text-red-400':'bg-dark-5 text-dark-2'}">Stok: ${formatInputRibuan(i.stok||0)}</span>
+                    <span class="text-[10px] px-2 py-1 rounded-md font-bold ${stockClass}">Stok: ${formatInputRibuan(i.stok||0)}</span>
                 </div>
                 <h4 class="font-bold text-xs text-gray-100 leading-snug group-hover:text-mantine-blue transition-colors">${escapeHTML(i.nama||'Item')}</h4>
             </div>
             <p class="text-sm font-black text-green-400 mt-4">${toRupiah(i.harga)}</p>
-        </div>`).join('');
+        </div>`
+    }).join('');
         
     if (filtered.length > kasirItemLimit) {
         katContainer.innerHTML += `
@@ -779,7 +889,6 @@ window.tambahKeKeranjang = (id) => {
 window.ubahQtyCart = (id, delta) => {
     const index = keranjang.findIndex(k => k.id === id); if(index === -1) return;
     if (keranjang[index].qty + delta <= 0) {
-        // ✨ LOGIKA OTORISASI PER SESI ✨
         if (sessionStorage.getItem("pos_admin_authorized") === "true") {
             keranjang.splice(index, 1);
             localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang));
@@ -798,8 +907,9 @@ window.ubahQtyCart = (id, delta) => {
 
 document.getElementById('btn-verify-pin')?.addEventListener('click', () => {
     const inputPin = document.getElementById('auth-pin-input').value;
-    if (inputPin === ADMIN_PIN) {
-        // ✨ SIMPAN OTORISASI HANYA UNTUK SESI INI ✨
+    
+    // ✨ VALIDASI PIN OTORISASI DINAMIS DARI PENGATURAN GLOBAL ✨
+    if (inputPin === (globalSettings.pinAdmin || ADMIN_PIN)) {
         sessionStorage.setItem("pos_admin_authorized", "true");
 
         if (window.itemAkanDihapus) {
@@ -837,7 +947,6 @@ function renderKeranjang() {
 }
 
 function hitungUangKembalian() {
-    // ✨ BUG FIX CRITICAL: BATALKAN SPLIT JIKA ADA PERUBAHAN KERANJANG ✨
     if(isSplitPayment) {
         resetPaymentUI(); 
         selectedPaymentMethod = 'Tunai'; 
@@ -927,7 +1036,7 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
                 if (selectedPaymentMethod === 'Kasbon' && activeMember) {
                     await updateDoc(doc(db, "members", activeMember.id), { hutang: increment(globalGrandTotal) });
                 } else if (activeMember && selectedPaymentMethod !== 'Kasbon') {
-                    const addPoin = Math.floor(globalGrandTotal / 10000);
+                    const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000));
                     if (addPoin > 0) await updateDoc(doc(db, "members", activeMember.id), { poin: increment(addPoin) });
                 }
 
@@ -952,7 +1061,7 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
                 if(mIdx > -1) { memberDataAll[mIdx].hutang = (memberDataAll[mIdx].hutang||0) + globalGrandTotal; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); }
             } else if (activeMember && selectedPaymentMethod !== 'Kasbon') {
                 const mIdx = memberDataAll.findIndex(m => m.id === activeMember.id);
-                const addPoin = Math.floor(globalGrandTotal / 10000);
+                const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000));
                 if(mIdx > -1 && addPoin > 0) { memberDataAll[mIdx].poin = (memberDataAll[mIdx].poin||0) + addPoin; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); }
             }
 
@@ -974,23 +1083,43 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
     finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; }
 });
 
-// ✨ BUG FIX TAMPILAN BLUETOOTH ✨
+// ✨ FUNGSI FORMAT STRUK BLUETOOTH CUSTOM ✨
+function padCenter(str, len) {
+    if(str.length >= len) return str;
+    const left = Math.floor((len - str.length) / 2);
+    const right = len - str.length - left;
+    return " ".repeat(left) + str + " ".repeat(right);
+}
+
 function formatStrukBT(data) {
-    let struk = "====== TOKO MODERN POS ======\nJl. Teknologi No.123\n------------------------------\n";
-    struk += `ID   : ${data.id}\nWaktu: ${new Date().toLocaleString('id-ID')}\nKasir: ${data.namaKasir.toUpperCase()}\n------------------------------\n`;
+    const lineLen = globalSettings.printerSize || 32; 
+    const lineChar = "-".repeat(lineLen);
+    const eqChar = "=".repeat(lineLen);
+
+    let struk = eqChar + "\n";
+    struk += padCenter(globalSettings.namaToko, lineLen) + "\n";
+    struk += padCenter(globalSettings.alamatToko, lineLen) + "\n";
+    struk += lineChar + "\n";
+    struk += `ID   : ${data.id}\nWaktu: ${new Date().toLocaleString('id-ID')}\nKasir: ${data.namaKasir.toUpperCase()}\n`;
+    struk += lineChar + "\n";
+    
     data.items.forEach(i => { struk += `${i.nama}\n${i.qty} x ${toRupiah(i.harga)} = ${toRupiah(i.qty * i.harga)}\n`; });
-    struk += `------------------------------\nSubtotal : ${toRupiah(data.subtotal)}\nDiskon   : -${toRupiah(data.diskon)}\nTOTAL    : ${toRupiah(data.totalAkhir)}\nBayar    : ${toRupiah(data.uangBayar)}\nKembali  : ${toRupiah(data.kembalian)}\n`;
+    
+    struk += lineChar + "\n";
+    struk += `Subtotal : ${toRupiah(data.subtotal)}\nDiskon   : -${toRupiah(data.diskon)}\nTOTAL    : ${toRupiah(data.totalAkhir)}\nBayar    : ${toRupiah(data.uangBayar)}\nKembali  : ${toRupiah(data.kembalian)}\n`;
     if(data.memberName) struk += `\nMember   : ${data.memberName.toUpperCase()}\n`;
-    struk += "------------------------------\n       TERIMA KASIH!          \n";
+    struk += lineChar + "\n";
+    struk += padCenter(globalSettings.footerStruk, lineLen) + "\n\n\n\n";
     return struk;
 }
 
+// ✨ FUNGSI CETAK THERMAL WEB CUSTOM ✨
 function cetakStrukThermal(data) {
     const printArea = document.getElementById('print-area'); if(!printArea) return;
     const tglStruk = data.waktuLokal ? new Date(data.waktuLokal) : new Date();
     printArea.innerHTML = `
         <div style="font-family:monospace; color:black; max-width:300px; margin:0 auto; padding:10px;">
-            <div style="text-align:center; margin-bottom:10px;"><h3 style="margin:0; font-size:16px; font-weight:bold;">Toko Modern POS</h3><p style="margin:2px 0; font-size:10px;">Jl. Teknologi No.123</p></div>
+            <div style="text-align:center; margin-bottom:10px;"><h3 style="margin:0; font-size:16px; font-weight:bold;">${escapeHTML(globalSettings.namaToko)}</h3><p style="margin:2px 0; font-size:10px;">${escapeHTML(globalSettings.alamatToko)}</p></div>
             <div style="border-top:1px dashed black; margin:8px 0;"></div>
             <div style="font-size:10px; margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><span>Trx ID:</span> <span>${data.id || 'OFFLINE'}</span></div><div style="display:flex; justify-content:space-between;"><span>Waktu:</span> <span>${tglStruk.toLocaleString('id-ID')}</span></div><div style="display:flex; justify-content:space-between;"><span>Kasir:</span> <span>${escapeHTML(data.namaKasir ? data.namaKasir.toUpperCase() : 'SISTEM')}</span></div></div>
             <div style="border-top:1px dashed black; margin:8px 0;"></div>
@@ -1006,7 +1135,7 @@ function cetakStrukThermal(data) {
             </div>
             ${data.memberName ? `<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; text-align:center;"><p style="margin:2px 0;">Member: <strong>${escapeHTML(data.memberName.toUpperCase())}</strong></p></div>` : ''}
             <div style="border-top:1px dashed black; margin:8px 0;"></div>
-            <div style="text-align:center; font-size:10px; margin-top:10px;"><p style="margin:0; font-weight:bold;">Terima Kasih!</p></div>
+            <div style="text-align:center; font-size:10px; margin-top:10px;"><p style="margin:0; font-weight:bold;">${escapeHTML(globalSettings.footerStruk)}</p></div>
         </div>`;
     printArea.classList.remove('hidden'); window.print(); printArea.classList.add('hidden');
 }
@@ -1160,6 +1289,10 @@ function renderGudangList() {
         let supName = "";
         if(i.supplierId) { const sup = databasePemasok.find(x => x.id === i.supplierId); if(sup) supName = sup.nama; }
         
+        // ✨ HIGHLIGHT STOK MENIPIS DI GUDANG ✨
+        const isLowStock = (i.stok||0) <= (globalSettings.batasStok || 5);
+        const stockClass = isLowStock ? '!bg-red-900/30 !text-red-400 border-red-900/50' : '';
+
         return `
         <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 flex justify-between items-center gap-3 shadow-sm hover:border-dark-3 transition-colors">
             <div>
@@ -1170,7 +1303,7 @@ function renderGudangList() {
                 </span>
                 <h3 class="font-bold text-gray-100 text-sm">${escapeHTML(i.nama||'Item')}</h3>
                 ${i.catatan ? `<p class="text-[10px] text-dark-3 mt-0.5 italic">📝 ${escapeHTML(i.catatan)}</p>` : ''}
-                <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${(i.stok||0)<=5?'!bg-red-900/30 !text-red-400':''}">Stok: ${formatInputRibuan(i.stok||0)}</span></div>
+                <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${stockClass}">Stok: ${formatInputRibuan(i.stok||0)}</span></div>
             </div>
             <div class="flex gap-2">
                 <button onclick="window.duplikatBarang('${i.id}')" class="px-3 py-2 bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-400 border border-indigo-900/50 text-xs font-bold rounded-lg transition-colors" title="Duplikat Barang">Copy</button>
@@ -1243,10 +1376,9 @@ document.getElementById('file-import-gudang')?.addEventListener('change', async 
                 const nama = row['Nama Barang'] || row['nama'] || row['Nama'] || '';
                 if (!nama) continue;
 
-                // ✨ PENGGUNAAN FUNGSI BARU ANTI-NAN ✨
-                const hrgModal = parseInputRibuan(row['Harga Modal'] || row['cost'] || row['Cost']);
-                const hrgJual = parseInputRibuan(row['Harga Jual'] || row['harga'] || row['Harga']);
-                const stok = parseInputRibuan(row['Stok'] || row['stok'] || row['Qty']);
+                const hrgModal = parseExcelNum(row['Harga Modal'] || row['cost'] || row['Cost']);
+                const hrgJual = parseExcelNum(row['Harga Jual'] || row['harga'] || row['Harga']);
+                const stok = parseExcelNum(row['Stok'] || row['stok'] || row['Qty']);
                 
                 const kategori = row['Kategori'] || row['kategori'] || 'Umum';
                 const catatan = row['Catatan'] || row['catatan'] || '';
