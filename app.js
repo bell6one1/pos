@@ -18,7 +18,9 @@ let chartInstance = null, unsubscribeItems = null, unsubscribeSales = null, unsu
 let filterKategoriAktif = "Semua", kataKunciPencarian = "", globalSubtotal = 0, globalDiskon = 0, globalGrandTotal = 0;
 let currentUserRole = "kasir", activeShiftSession = null, currentUserId = null, isSyncingOffline = false;
 
+// ✨ Variabel Global Gudang
 let kataKunciGudang = "";
+let sortGudangOrder = 'asc'; // 'asc' untuk A-Z, 'desc' untuk Z-A
 
 let selectedPaymentMethod = "Tunai"; 
 let isSplitPayment = false;
@@ -53,7 +55,7 @@ try {
 
 
 // ==========================================
-// ✨ MESIN FORMAT RIBUAN OTOMATIS ✨
+// MESIN FORMAT RIBUAN OTOMATIS
 // ==========================================
 const formatInputRibuan = (val) => {
     if (val === null || val === undefined || val === '') return '';
@@ -66,7 +68,6 @@ const parseInputRibuan = (val) => {
     return parseInt(val.toString().replace(/\./g, ''), 10) || 0;
 };
 
-// Event Listener Global untuk semua input angka
 document.addEventListener('input', (e) => {
     if (e.target && e.target.classList && e.target.classList.contains('input-ribuan')) {
         e.target.value = formatInputRibuan(e.target.value);
@@ -280,7 +281,6 @@ window.triggerBukaShift = () => {
         if (!navigator.onLine) return alert("Peringatan: Koneksi internet dibutuhkan.");
         const btnSubmit = document.getElementById('btn-shift-submit'); if(btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan..."; }
         try {
-            // ✨ PEMISAH RIBUAN PARSING ✨
             const val = Math.round(Math.max(0, parseInputRibuan(document.getElementById('shift-cash-input')?.value)));
             const docRef = await addDoc(shiftsRef, { userId: currentUserId, namaKasir: auth.currentUser?.email.split('@')[0], waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, totalTunai: 0, status: "buka" });
             activeShiftSession = { id: docRef.id, userId: currentUserId, namaKasir: auth.currentUser?.email.split('@')[0], modalAwal: val, totalPenjualan: 0, totalTunai: 0, status: "buka" };
@@ -301,7 +301,6 @@ window.triggerTutupShift = () => {
         if (!navigator.onLine) return alert("Peringatan: Koneksi internet dibutuhkan.");
         const btnSubmit = document.getElementById('btn-shift-submit'); if(btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = "Validasi..."; }
         try {
-            // ✨ PEMISAH RIBUAN PARSING ✨
             const val = Math.round(Math.max(0, parseInputRibuan(document.getElementById('shift-cash-input')?.value)));
             const selisih = Math.round(val - (activeShiftSession.modalAwal + (activeShiftSession.totalTunai || 0)));
             await updateDoc(doc(db, "shift", activeShiftSession.id), { waktuTutup: serverTimestamp(), uangFisikAktual: val, selisih: selisih, status: "tutup" });
@@ -420,7 +419,6 @@ window.bukaModalBayarPiutang = (memberId) => {
 document.getElementById('btn-submit-piutang')?.addEventListener('click', async () => {
     if(!piutangAktifDipilih || !activeShiftSession) return alert("Peringatan: Sesi Shift harus aktif untuk menerima pembayaran.");
     
-    // ✨ PEMISAH RIBUAN PARSING ✨
     const inputVal = Math.max(0, parseInputRibuan(document.getElementById('piutang-bayar-input').value));
     if(inputVal <= 0 || inputVal > piutangAktifDipilih.hutang) return alert("Nominal pelunasan tidak valid!");
     
@@ -514,14 +512,12 @@ btnSplit?.addEventListener('click', () => {
 window.batalSplitPayment = () => { document.getElementById('split-modal').classList.add('hidden'); btnCash?.click(); };
 
 document.getElementById('split-amount-1')?.addEventListener('input', (e) => {
-    // ✨ PEMISAH RIBUAN PARSING ✨
     const val1 = Math.max(0, parseInputRibuan(e.target.value)); 
     const sisa = Math.max(0, globalGrandTotal - val1);
     document.getElementById('split-amount-2').value = formatInputRibuan(sisa);
 });
 
 document.getElementById('btn-save-split')?.addEventListener('click', () => {
-    // ✨ PEMISAH RIBUAN PARSING ✨
     const v1 = Math.max(0, parseInputRibuan(document.getElementById('split-amount-1').value)); 
     const v2 = Math.max(0, parseInputRibuan(document.getElementById('split-amount-2').value));
     const totalBayarSplit = v1 + v2;
@@ -539,7 +535,6 @@ document.getElementById('btn-hold-bill')?.addEventListener('click', () => {
     holdName = holdName.trim() || `Order #${Date.now().toString().slice(-4)}`;
     const heldBills = JSON.parse(localStorage.getItem('pos_held_bills') || '[]');
     
-    // ✨ PEMISAH RIBUAN PARSING ✨
     const discVal = Math.max(0, parseInputRibuan(document.getElementById('cart-discount').value));
     heldBills.push({ id: Date.now().toString(), tag: holdName, waktu: new Date().toLocaleString('id-ID'), items: keranjang, diskon: discVal, activeMember: activeMember, voucher: appliedVoucher, voucherCode: document.getElementById('voucher-code').value });
     localStorage.setItem('pos_held_bills', JSON.stringify(heldBills));
@@ -577,10 +572,7 @@ window.loadHeldBill = async (id) => {
         if (hasChanges) alert("Beberapa produk disesuaikan berdasarkan stok gudang.");
         
         keranjang = validatedItems; localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); 
-        
-        // ✨ FORMAT RIBUAN SAAT LOAD ✨
         document.getElementById('cart-discount').value = bill.diskon ? formatInputRibuan(bill.diskon) : "";
-        
         if(bill.voucher) { appliedVoucher = bill.voucher; document.getElementById('voucher-code').value = bill.voucherCode || ""; }
         
         activeMember = null;
@@ -624,10 +616,60 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
 document.getElementById('btn-remove-member')?.addEventListener('click', () => { activeMember = null; localStorage.removeItem("pos_recovery_member"); document.getElementById('member-select-zone')?.classList.remove('hidden'); document.getElementById('member-active-zone')?.classList.add('hidden'); document.getElementById('btn-remove-member')?.classList.add('hidden'); document.getElementById('member-search-input').value = ""; renderKeranjang(); btnCash?.click(); });
 function showActiveMemberUI() { document.getElementById('member-select-zone')?.classList.add('hidden'); document.getElementById('member-active-zone')?.classList.remove('hidden'); document.getElementById('btn-remove-member')?.classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; renderKeranjang(); }
 
+// ==========================================
+// ✨ UPDATE: PENCARIAN SUARA & SORTING GUDANG
+// ==========================================
 document.getElementById('gudang-search')?.addEventListener('input', (e) => { 
     kataKunciGudang = e.target.value.toLowerCase(); 
     renderGudangList(); 
 });
+
+window.toggleSortGudang = () => {
+    sortGudangOrder = sortGudangOrder === 'asc' ? 'desc' : 'asc';
+    const btn = document.getElementById('btn-sort-gudang');
+    if (btn) btn.innerHTML = sortGudangOrder === 'asc' ? 'Urutkan: A-Z ⬇️' : 'Urutkan: Z-A ⬆️';
+    renderGudangList();
+};
+
+window.startVoiceSearchGudang = () => {
+    const btn = document.getElementById('btn-voice-search');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        alert("Maaf, browser (atau HP) Anda tidak mendukung fitur Pencarian Suara.");
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'id-ID'; // Bahasa Indonesia
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = function() {
+        if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; }
+    };
+
+    recognition.onresult = function(event) {
+        const speechResult = event.results[0][0].transcript;
+        const searchInput = document.getElementById('gudang-search');
+        if(searchInput) {
+            searchInput.value = speechResult;
+            kataKunciGudang = speechResult.toLowerCase();
+            renderGudangList();
+        }
+    };
+
+    recognition.onerror = function(event) {
+        alert("Gagal mendengarkan suara. Silakan coba lagi.");
+        if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
+    };
+
+    recognition.onend = function() {
+        if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
+    };
+
+    recognition.start();
+};
 
 document.getElementById('kasir-search')?.addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase(); renderKatalogKasir(); });
 
@@ -727,7 +769,6 @@ function hitungUangKembalian() {
         else if (appliedVoucher.type === "nominal") { diskonVoucher = appliedVoucher.value; }
     }
 
-    // ✨ PEMISAH RIBUAN PARSING ✨
     const rawDiskonManual = Math.max(0, Math.round(parseInputRibuan(document.getElementById('cart-discount').value)));
     globalDiskon = Math.min(globalSubtotal, rawDiskonManual + diskonOtomatisMember + diskonVoucher);
     globalGrandTotal = Math.round(Math.max(0, globalSubtotal - globalDiskon));
@@ -740,7 +781,6 @@ function hitungUangKembalian() {
     btnCheckout.textContent = "Selesaikan Bayar";
     
     if (selectedPaymentMethod === 'Tunai') {
-        // ✨ PEMISAH RIBUAN PARSING ✨
         const cashInput = Math.max(0, parseInputRibuan(document.getElementById('cash-paid').value));
         btnCheckout.disabled = (cashInput < globalGrandTotal || keranjang.length === 0);
     } else {
@@ -782,7 +822,6 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
     } else if (selectedPaymentMethod === 'Kasbon') {
         trxData.metodePembayaran = "Kasbon"; trxData.uangBayar = 0; trxData.kembalian = 0;
     } else if (selectedPaymentMethod === 'Tunai') {
-        // ✨ PEMISAH RIBUAN PARSING ✨
         trxData.metodePembayaran = "Tunai"; trxData.uangBayar = Math.max(0, parseInputRibuan(document.getElementById('cash-paid').value)); trxData.kembalian = trxData.uangBayar - globalGrandTotal;
         tunaiMasukLaci = globalGrandTotal;
     } else {
@@ -943,7 +982,6 @@ itemForm?.addEventListener('submit', async (e) => {
     
     const btnSubmit = document.getElementById('btn-submit'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan..."; }
     try {
-        // ✨ PEMISAH RIBUAN PARSING ✨
         const rawCost = Math.max(0, parseInputRibuan(document.getElementById('item-cost')?.value)); 
         const rawHrg = Math.max(0, parseInputRibuan(document.getElementById('item-price')?.value)); 
         const rawStk = Math.max(0, parseInputRibuan(document.getElementById('item-stock')?.value));
@@ -969,7 +1007,6 @@ window.duplikatBarang = (id) => {
     document.getElementById('item-category').value = item.kategori || "Umum";
     document.getElementById('item-notes').value = item.catatan || "";
     
-    // ✨ FORMAT RIBUAN SAAT MUNCUL ✨
     document.getElementById('item-cost').value = formatInputRibuan(item.cost); 
     document.getElementById('item-price').value = formatInputRibuan(item.harga); 
     document.getElementById('item-stock').value = formatInputRibuan(item.stok); 
@@ -989,7 +1026,6 @@ window.editBarang = (id) => {
     document.getElementById('item-category').value = item.kategori || "Umum";
     document.getElementById('item-notes').value = item.catatan || "";
     
-    // ✨ FORMAT RIBUAN SAAT MUNCUL ✨
     document.getElementById('item-cost').value = formatInputRibuan(item.cost); 
     document.getElementById('item-price').value = formatInputRibuan(item.harga); 
     document.getElementById('item-stock').value = formatInputRibuan(item.stok); 
@@ -1003,15 +1039,28 @@ window.hapusBarang = async (id) => { if (!navigator.onLine) return alert("Butuh 
 document.getElementById('btn-cancel')?.addEventListener('click', () => { document.getElementById('item-form')?.reset(); document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden'); });
 
 function renderGudangList() {
-    const container = document.getElementById('gudang-list'); if(!container) return;
+    const container = document.getElementById('gudang-list'); 
+    const totalEl = document.getElementById('gudang-total-item');
+    if(!container) return;
     
-    const filtered = databaseBarang.filter(i => {
+    let filtered = databaseBarang.filter(i => {
         const keyword = kataKunciGudang.toLowerCase();
         return (i.nama || '').toLowerCase().includes(keyword) || 
                (i.barcode || '').toLowerCase().includes(keyword) ||
                (i.kategori || '').toLowerCase().includes(keyword) ||
                (i.catatan || '').toLowerCase().includes(keyword);
     });
+
+    // ✨ LOGIKA SORTING (A-Z / Z-A) ✨
+    filtered.sort((a, b) => {
+        const nameA = (a.nama || '').toLowerCase();
+        const nameB = (b.nama || '').toLowerCase();
+        if (sortGudangOrder === 'asc') return nameA.localeCompare(nameB);
+        return nameB.localeCompare(nameA);
+    });
+
+    // Update Angka Total Barang
+    if (totalEl) totalEl.textContent = formatInputRibuan(filtered.length);
 
     if(filtered.length === 0) { container.innerHTML = `<p class="text-[11px] text-dark-2 italic text-center py-4">Barang tidak ditemukan.</p>`; return; }
     
@@ -1029,7 +1078,7 @@ function renderGudangList() {
                 </span>
                 <h3 class="font-bold text-gray-100 text-sm">${escapeHTML(i.nama||'Item')}</h3>
                 ${i.catatan ? `<p class="text-[10px] text-dark-3 mt-0.5 italic">📝 ${escapeHTML(i.catatan)}</p>` : ''}
-                <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${(i.stok||0)<=5?'!bg-red-900/30 !text-red-400':''}">Stok: ${i.stok||0}</span></div>
+                <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${(i.stok||0)<=5?'!bg-red-900/30 !text-red-400':''}">Stok: ${formatInputRibuan(i.stok||0)}</span></div>
             </div>
             <div class="flex gap-2">
                 <button onclick="window.duplikatBarang('${i.id}')" class="px-3 py-2 bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-400 border border-indigo-900/50 text-xs font-bold rounded-lg transition-colors" title="Duplikat Barang">Copy</button>

@@ -315,9 +315,20 @@
                 </div>
                 
                 <div class="lg:col-span-2 flex flex-col gap-4">
-                    <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 flex items-center gap-3 sticky top-24 z-10 shadow-sm">
-                        <span class="text-lg">🔍</span>
-                        <input type="text" id="gudang-search" placeholder="Cari nama barang, catatan, barcode, atau kategori..." class="w-full bg-transparent border-none text-white text-sm outline-none placeholder-dark-3">
+                    <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 sticky top-24 z-10 shadow-sm space-y-3">
+                        <div class="flex items-center gap-3 bg-dark-7 p-2 rounded-lg border border-dark-5">
+                            <span class="text-lg ml-2">🔍</span>
+                            <input type="text" id="gudang-search" placeholder="Cari nama barang, catatan, atau kategori..." class="w-full bg-transparent border-none text-white text-sm outline-none placeholder-dark-3">
+                            <button onclick="window.startVoiceSearchGudang()" id="btn-voice-search" class="w-9 h-9 flex items-center justify-center bg-dark-5 hover:bg-dark-4 rounded-md text-white transition-colors border border-dark-4 shrink-0" title="Cari dengan Suara">
+                                🎤
+                            </button>
+                        </div>
+                        <div class="flex justify-between items-center px-1">
+                            <span class="text-xs font-bold text-dark-2 uppercase tracking-wider">Total: <span id="gudang-total-item" class="text-mantine-blue font-black text-sm">0</span> Barang</span>
+                            <button onclick="window.toggleSortGudang()" id="btn-sort-gudang" class="text-xs font-bold bg-dark-5 px-3 py-1.5 rounded-lg text-gray-200 hover:text-white transition-colors flex items-center gap-1.5 border border-dark-4 shadow-sm">
+                                Urutkan: A-Z ⬇️
+                            </button>
+                        </div>
                     </div>
 
                     <div id="gudang-list" class="space-y-3"></div>
