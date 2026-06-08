@@ -8,7 +8,7 @@
   "theme_color": "#1971c2",
   "icons": [
     {
-      "src": "https://github.com/bell6one1/pospro.png",
+      "src": "https://github.com/bell6one1/pos/pospro.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
