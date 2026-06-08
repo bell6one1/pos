@@ -947,11 +947,10 @@ document.getElementById('file-import-gudang')?.addEventListener('change', async 
 });
 
 // =======================================================================
-// LOGIKA OPERASIONAL PENGATURAN PROFIL, PAJAK, & DATA BACKUP LOKAL
+// HANDLER PENGATURAN TOKO, PAJAK, DAN ENGINE BACKUP-RESTORE DATABASE JSON
 // =======================================================================
 
-// Fungsi untuk mengisi otomatis nilai setting ke input form saat aplikasi dimuat
-function sinkronisasiSettingKeForm() {
+function isiDataSettingKeForm() {
     if (document.getElementById('set-nama-toko')) {
         document.getElementById('set-nama-toko').value = globalSettings.namaToko || '';
         document.getElementById('set-alamat-toko').value = globalSettings.alamatToko || '';
@@ -961,89 +960,91 @@ function sinkronisasiSettingKeForm() {
     }
 }
 
-// Interseptor form simpan pengaturan bawaan agar menangkap nilai identitas & pajak baru
-document.getElementById('btn-save-settings')?.addEventListener('click', async () => {
+// Menangkap event klik simpan untuk memperbarui variabel lokal runtime
+document.getElementById('btn-save-settings')?.addEventListener('click', () => {
     if (document.getElementById('set-nama-toko')) {
         globalSettings.namaToko = document.getElementById('set-nama-toko').value;
         globalSettings.alamatToko = document.getElementById('set-alamat-toko').value;
         globalSettings.footerStruk = document.getElementById('set-footer-toko').value;
         globalSettings.pajakPersen = parseFloat(document.getElementById('set-pajak').value) || 0;
         globalSettings.serviceChargePersen = parseFloat(document.getElementById('set-service').value) || 0;
+        
+        // Cadangan lokal agar persisten saat halaman dimuat ulang sebelum sinkronisasi cloud penuh
+        localStorage.setItem("pos_saved_global_settings", JSON.stringify(globalSettings));
     }
 });
 
-// Pemicu backup data barang ke format JSON lokal
+// Engine pembuat file unduhan backup .json
 document.getElementById('btn-backup-data')?.addEventListener('click', () => {
     try {
         if (!databaseBarang || databaseBarang.length === 0) {
-            return alert("Gagal mengekspor: Database barang Anda kosong saat ini.");
+            return alert("Gagal Ekspor: Database barang Anda saat ini kosong.");
         }
 
-        const bundlingData = {
-            identitasSistem: "POS_ENTERPRISE_BACKUP",
-            waktuEkspor: new Date().toISOString(),
-            pengaturan: globalSettings,
-            daftarBarang: databaseBarang
+        const paketCadangan = {
+            metadata: "POS_MODERN_PRO_BACKUP",
+            tanggalPembuatan: new Date().toISOString(),
+            pengaturanSistem: globalSettings,
+            dataProduk: databaseBarang
         };
 
-        const formatDataString = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bundlingData, null, 2));
-        const triggerDownload = document.createElement('a');
-        const tanggalSkarang = new Date().toISOString().split('T')[0];
+        const stringifikasi = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(paketCadangan, null, 2));
+        const tautanUnduhan = document.createElement('a');
+        const tanggalHariIni = new Date().toISOString().split('T')[0];
         
-        triggerDownload.setAttribute("href", formatDataString);
-        triggerDownload.setAttribute("download", `CADANGAN_DATABASE_POS_${tanggalSkarang}.json`);
-        document.body.appendChild(triggerDownload);
-        triggerDownload.click();
-        triggerDownload.remove();
+        tautanUnduhan.setAttribute("href", stringifikasi);
+        tautanUnduhan.setAttribute("download", `BACKUP_POS_ITEMS_${tanggalHariIni}.json`);
+        document.body.appendChild(tautanUnduhan);
+        tautanUnduhan.click();
+        tautanUnduhan.remove();
         
-        alert("🎉 Berhasil! File cadangan JSON telah diunduh ke perangkat Anda.");
-    } catch (err) {
-        alert("Terjadi kesalahan backup: " + err.message);
+        alert("🎉 Sukses! File database JSON berhasil diekspor ke folder unduhan perangkat Anda.");
+    } catch (gagal) {
+        alert("Gagal melakukan enkapsulasi data: " + gagal.message);
     }
 });
 
-// Pemicu Pemulihan/Restore Data dari berkas JSON ke Firebase Firestore
+// Engine pembaca file restorasi (.json) untuk dimasukkan ke Firebase Firestore secara sekuensial
 document.getElementById('btn-restore-data')?.addEventListener('click', () => {
-    const selectorFile = document.getElementById('input-restore-file');
-    if (!selectorFile.files || selectorFile.files.length === 0) {
-        return alert("Harap pilih file .json cadangan Anda terlebih dahulu.");
+    const komponenFile = document.getElementById('input-restore-file');
+    if (!komponenFile.files || komponenFile.files.length === 0) {
+        return alert("Pilih file cadangan (.json) terlebih dahulu sebelum eksekusi.");
     }
 
-    const fileTerpilih = selectorFile.files[0];
-    const pembacaBerkas = new FileReader();
+    const berkas = komponenFile.files[0];
+    const readerBerkas = new FileReader();
 
-    pembacaBerkas.onload = async (event) => {
+    readerBerkas.onload = async (e) => {
         try {
-            const dataJSON = JSON.parse(event.target.result);
+            const hasilParse = JSON.parse(e.target.result);
             
-            if (!dataJSON.daftarBarang || !Array.isArray(dataJSON.daftarBarang)) {
-                throw new Error("Format file JSON salah atau bukan dokumen backup resmi.");
+            if (!hasilParse.dataProduk || !Array.isArray(hasilParse.dataProduk)) {
+                throw new Error("Struktur file tidak dikenali sebagai skema pencadangan resmi.");
             }
 
-            const konfirmasiUser = confirm("⚠️ PERINGATAN: Aksi ini akan memasukkan data dari file JSON langsung ke dalam Firebase Firestore Anda. Lanjutkan proses?");
-            if (!konfirmasiUser) return;
+            const validasiTindakan = confirm("⚠️ PERINGATAN: Aksi ini akan menulis ulang data langsung ke Firebase Firestore Anda. Lanjutkan restorasi?");
+            if (!validasiTindakan) return;
 
-            alert("Memulai sinkronisasi data ke Firebase... Mohon jangan tutup halaman ini.");
+            alert("Proses injeksi data dimulai. Mohon tunggu dan jangan muat ulang halaman...");
 
-            // Inject data barang ke database Firebase secara sekuensial memakai referensi itemsRef asli
-            for (const item dari dataJSON.daftarBarang) {
-                const idDokumen = item.id || Date.now().toString() + Math.random().toString(36).substr(2, 5);
-                // Impor dokumen ke Firebase Firestore memakai setDoc
-                await setDoc(doc(db, "barang", idDokumen), item);
+            // Iterasi sekuensial mengunggah item ke referensi tabel barang (itemsRef) bawaan Anda
+            for (const item dari hasilParse.dataProduk) {
+                const docId = item.id || "GEN_" + Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                await setDoc(doc(db, "barang", docId), item);
             }
 
-            alert("🔄 Restorasi basis data sukses! Sistem POS akan memuat ulang halaman.");
+            alert("🔄 Basis data sukses dipulihkan ke cloud Firestore! Sistem akan memuat ulang halaman.");
             window.location.reload();
 
-        } catch (error) {
-            alert("Gagal memproses file restorasi: " + error.message);
+        } catch (err) {
+            alert("Terjadi kegagalan baca data: " + err.message);
         }
     };
-    pembacaBerkas.readAsText(fileTerpilih);
+    readerBerkas.readAsText(berkas);
 });
 
-// Jalankan sinkronisasi form ketika variabel global selesai ditarik atau window terbuka
-setTimeout(sinkronisasiSettingKeForm, 2000);
+// Menjalankan sinkronisasi pengisian input form setelah inisialisasi awal aplikasi selesai
+setTimeout(isiDataSettingKeForm, 1500);
 
 // ✨ FUNGSI EXPORT RIWAYAT EXCEL DENGAN PENANGANAN ERROR ✨
 document.getElementById('btn-export-excel')?.addEventListener('click', () => {
