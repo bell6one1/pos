@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pos-cache-v7'; // Naikkan versi cache
+const CACHE_NAME = 'pos-cache-v6';
 const urlsToCache = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(urlsToCache);
@@ -31,10 +32,12 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Abaikan request ke Firestore/Firebase Auth agar real-time tetap jalan
   if (event.request.url.includes('firestore.googleapis.com') || event.request.url.includes('firebaseauthv1')) {
     return; 
   }
 
+  // Network First, Fallback to Cache
   event.respondWith(
     fetch(event.request)
       .then(response => {

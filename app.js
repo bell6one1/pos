@@ -12,7 +12,7 @@ let globalSettings = {
     pinAdmin: "123456",
     batasStok: 5,
     kelipatanPoin: 10000,
-    taxRate: 0, // Pajak Default
+    taxRate: 0, 
     tema: "dark",
     showExport: true,
     printerSize: 32,
@@ -71,7 +71,166 @@ try {
 
 
 // ==========================================
-// MESIN FORMAT RIBUAN OTOMATIS
+// 💡 FUNGSI UTAMA RENDER UI (Diangkat ke Atas untuk Mencegah ReferenceError)
+// ==========================================
+
+function renderKatalogKasir() {
+    const categoriesSet = new Set(databaseBarang.map(i => i.kategori || 'Umum'));
+    const catContainer = document.getElementById('kasir-categories');
+    if(catContainer) {
+        catContainer.innerHTML = `<button onclick="window.setFilterKategori('Semua')" class="px-4 py-2 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition-colors ${filterKategoriAktif==='Semua'?'bg-mantine-blue text-white':'bg-dark-6 border border-dark-4 text-dark-1'}">Semua Kategori</button>` + 
+        Array.from(categoriesSet).map(cat => `<button onclick="window.setFilterKategori('${escapeJS(cat)}')" class="px-4 py-2 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition-colors ${filterKategoriAktif===cat?'bg-mantine-blue text-white':'bg-dark-6 border border-dark-4 text-dark-1'}">${escapeHTML(cat)}</button>`).join('');
+    }
+
+    const filtered = databaseBarang.filter(i => (filterKategoriAktif === 'Semua' || (i.kategori||'Umum') === filterKategoriAktif) && ((i.nama||'').toLowerCase().includes(kataKunciPencarian) || (i.barcode && i.barcode.toLowerCase().includes(kataKunciPencarian))));
+    const katContainer = document.getElementById('kasir-katalog');
+    if(!katContainer) return;
+
+    if (filtered.length === 0) { katContainer.innerHTML = `<p class="text-xs text-dark-2 italic col-span-full text-center py-8">Produk tidak ditemukan.</p>`; return; }
+    
+    const toShow = filtered.slice(0, kasirItemLimit);
+    
+    katContainer.innerHTML = toShow.map(i => {
+        const isLowStock = (i.stok||0) <= (globalSettings.batasStok || 5);
+        const stockClass = isLowStock ? 'bg-red-900/30 text-red-400' : 'bg-dark-5 text-dark-2';
+        
+        return `
+        <div onclick="window.tambahKeKeranjang('${i.id}')" class="bg-dark-6 p-4 rounded-xl border border-dark-4 hover:border-mantine-blue cursor-pointer select-none flex flex-col justify-between active:scale-[0.98] transition-all group shadow-sm">
+            <div>
+                <div class="flex justify-between items-start gap-2 mb-2">
+                    <span class="text-[10px] font-bold text-mantine-blue uppercase truncate bg-mantine-blue/10 px-2 py-1 rounded-md">${escapeHTML(i.kategori||'Umum')}</span>
+                    <span class="text-[10px] px-2 py-1 rounded-md font-bold ${stockClass}">Stok: ${formatInputRibuan(i.stok||0)}</span>
+                </div>
+                <h4 class="font-bold text-xs text-gray-100 leading-snug group-hover:text-mantine-blue transition-colors">${escapeHTML(i.nama||'Item')}</h4>
+            </div>
+            <p class="text-sm font-black text-green-400 mt-4">${toRupiah(i.harga)}</p>
+        </div>`
+    }).join('');
+        
+    if (filtered.length > kasirItemLimit) {
+        katContainer.innerHTML += `
+            <div class="col-span-full flex justify-center py-6">
+                <button onclick="window.loadMoreKasir()" class="px-6 py-2.5 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-xl shadow transition-colors border border-dark-4">
+                    Tampilkan Lebih Banyak (${filtered.length - kasirItemLimit})
+                </button>
+            </div>
+        `;
+    }
+}
+
+function renderGudangList() {
+    const container = document.getElementById('gudang-list'); 
+    const totalEl = document.getElementById('gudang-total-item');
+    if(!container) return;
+    
+    let filtered = databaseBarang.filter(i => {
+        const keyword = kataKunciGudang.toLowerCase();
+        return (i.nama || '').toLowerCase().includes(keyword) || 
+               (i.barcode || '').toLowerCase().includes(keyword) ||
+               (i.kategori || '').toLowerCase().includes(keyword) ||
+               (i.catatan || '').toLowerCase().includes(keyword);
+    });
+
+    filtered.sort((a, b) => {
+        const nameA = (a.nama || '').toLowerCase();
+        const nameB = (b.nama || '').toLowerCase();
+        if (sortGudangOrder === 'asc') return nameA.localeCompare(nameB);
+        return nameB.localeCompare(nameA);
+    });
+
+    if (totalEl) totalEl.textContent = formatInputRibuan(filtered.length);
+
+    if(filtered.length === 0) { container.innerHTML = `<p class="text-[11px] text-dark-2 italic text-center py-4">Barang tidak ditemukan.</p>`; return; }
+    
+    const toShowGudang = filtered.slice(0, gudangItemLimit);
+
+    container.innerHTML = toShowGudang.map(i => {
+        let supName = "";
+        if(i.supplierId) { const sup = databasePemasok.find(x => x.id === i.supplierId); if(sup) supName = sup.nama; }
+        
+        const isLowStock = (i.stok||0) <= (globalSettings.batasStok || 5);
+        const stockClass = isLowStock ? '!bg-red-900/30 !text-red-400 border-red-900/50' : '';
+
+        return `
+        <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 flex justify-between items-center gap-3 shadow-sm hover:border-dark-3 transition-colors">
+            <div>
+                <span class="text-[9px] font-bold text-dark-2 mb-1 block uppercase tracking-wider">
+                    ${escapeHTML(i.barcode ? '📟 '+i.barcode : 'NO BARCODE')} 
+                    <span class="text-amber-500"> | 🏷️ ${escapeHTML(i.kategori || 'Umum')}</span>
+                    ${supName ? '<span class="text-mantine-blue"> | 🚚 '+escapeHTML(supName)+'</span>' : ''}
+                </span>
+                <h3 class="font-bold text-gray-100 text-sm">${escapeHTML(i.nama||'Item')}</h3>
+                ${i.catatan ? `<p class="text-[10px] text-dark-3 mt-0.5 italic">📝 ${escapeHTML(i.catatan)}</p>` : ''}
+                <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${stockClass}">Stok: ${formatInputRibuan(i.stok||0)}</span></div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="window.duplikatBarang('${i.id}')" class="px-3 py-2 bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-400 border border-indigo-900/50 text-xs font-bold rounded-lg transition-colors" title="Duplikat Barang">Copy</button>
+                <button onclick="window.editBarang('${i.id}')" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-lg transition-colors">Ubah</button>
+                <button onclick="window.hapusBarang('${i.id}')" class="px-3 py-2 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/50 text-xs font-bold rounded-lg transition-colors">Hapus</button>
+            </div>
+        </div>`
+    }).join('');
+
+    if (filtered.length > gudangItemLimit) {
+        container.innerHTML += `
+            <div class="flex justify-center py-4">
+                <button onclick="window.loadMoreGudang()" class="px-6 py-2.5 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-xl shadow transition-colors border border-dark-4">
+                    Tampilkan Lebih Banyak (${filtered.length - gudangItemLimit} item lagi)
+                </button>
+            </div>
+        `;
+    }
+}
+
+function renderKeranjang() {
+    const listEl = document.getElementById('cart-list');
+    document.getElementById('cart-total-qty-badge').textContent = `${keranjang.reduce((a, b) => a + b.qty, 0)} Item`;
+    if(keranjang.length === 0) {
+        if(listEl) listEl.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-dark-3 absolute inset-0"><p class="text-sm font-medium italic">Keranjang belanja kosong</p></div>`;
+        document.getElementById('btn-checkout').disabled = true; 
+        document.getElementById('cart-grand-total').textContent = "Rp 0";
+        document.getElementById('pane1-grand-total').textContent = "Rp 0";
+        appliedVoucher = null; 
+        if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = "";
+        
+        const kembalianInfo = document.getElementById('kembalian-info');
+        if(kembalianInfo) kembalianInfo.classList.add('hidden');
+        
+        return;
+    }
+    if(listEl) listEl.innerHTML = keranjang.map(k => `
+        <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 shadow-sm hover:border-dark-3 transition-colors">
+            <div class="flex-1">
+                <h5 class="text-sm font-bold text-gray-100 leading-snug">${escapeHTML(k.nama)}</h5>
+                <p class="text-xs text-dark-2 mt-1.5">${toRupiah(k.harga)} x <span class="font-bold text-gray-300">${k.qty}</span></p>
+            </div>
+            <div class="flex items-center gap-3 bg-dark-8 p-1.5 rounded-lg border border-dark-4 shrink-0 max-w-min">
+                <button onclick="window.ubahQtyCart('${k.id}', -1)" class="w-8 h-8 bg-dark-5 hover:bg-dark-4 text-gray-100 rounded-md text-lg font-black flex items-center justify-center transition-colors">-</button>
+                <span class="text-sm font-bold px-2 text-gray-200 min-w-[1.5rem] text-center">${k.qty}</span>
+                <button onclick="window.ubahQtyCart('${k.id}', 1)" class="w-8 h-8 bg-dark-5 hover:bg-dark-4 text-gray-100 rounded-md text-lg font-black flex items-center justify-center transition-colors">+</button>
+            </div>
+        </div>`).join('');
+    hitungUangKembalian();
+}
+
+function renderPiutangList() {
+    const listContainer = document.getElementById('piutang-list'); if(!listContainer) return;
+    const memberBerhutang = memberDataAll.filter(m => (m.hutang || 0) > 0).sort((a,b) => b.hutang - a.hutang);
+    
+    if(memberBerhutang.length === 0) { listContainer.innerHTML = `<div class="col-span-full bg-dark-8 p-6 rounded-xl border border-dark-4 text-center"><p class="text-sm font-bold text-green-400">🎉 Bersih! Tidak ada pelanggan yang berhutang.</p></div>`; return; }
+
+    listContainer.innerHTML = memberBerhutang.map(m => `
+        <div class="bg-dark-8 p-5 rounded-xl border border-dark-4 flex flex-col gap-3 relative overflow-hidden shadow-sm">
+            <div class="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+            <div><p class="text-sm font-black text-gray-100">${escapeHTML(m.nama)}</p><p class="text-[10px] text-dark-2">HP: ${escapeHTML(m.id)}</p></div>
+            <div class="bg-dark-7 p-3 rounded-lg border border-dark-4"><p class="text-[10px] font-bold text-dark-2 uppercase tracking-wider">Total Hutang</p><p class="text-lg font-black text-red-400">${toRupiah(m.hutang)}</p></div>
+            <button onclick="window.bukaModalBayarPiutang('${m.id}')" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition-colors shadow">Lunasi Cicilan</button>
+        </div>`).join('');
+}
+
+
+// ==========================================
+// MESIN PARSER KEBAL
 // ==========================================
 const formatInputRibuan = (val) => {
     if (val === null || val === undefined || val === '') return '';
@@ -407,18 +566,205 @@ window.hapusVoucherAdmin = async (code) => {
     } catch(e) { alert("Gagal menghapus voucher."); }
 };
 
-// ✨ FUNGSI VISIBILITAS SWITCH TOGGLE ✨
+window.setQuickCash = (amount) => {
+    const cashInput = document.getElementById('cash-paid');
+    if (!cashInput) return;
+    if (amount === 'pas') {
+        cashInput.value = formatInputRibuan(globalGrandTotal);
+    } else if (amount === 'clear') {
+        cashInput.value = "";
+    } else {
+        cashInput.value = formatInputRibuan(amount);
+    }
+    hitungUangKembalian();
+};
+
+document.getElementById('cash-paid')?.addEventListener('input', hitungUangKembalian);
+
+function hitungUangKembalian() {
+    if(isSplitPayment) {
+        resetPaymentUI(); 
+        selectedPaymentMethod = 'Tunai'; 
+        const btnCash = document.getElementById('pay-method-cash');
+        if (btnCash) btnCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; 
+        document.getElementById('cash-paid').classList.remove('hidden');
+        document.getElementById('quick-cash-zone')?.classList.remove('hidden');
+    }
+    
+    globalSubtotal = Math.round(keranjang.reduce((acc, i) => acc + ((i.harga||0) * i.qty), 0));
+    let diskonOtomatisMember = activeMember ? Math.floor(globalSubtotal * 0.05) : 0;
+    
+    let diskonVoucher = 0;
+    if (appliedVoucher) {
+        if (appliedVoucher.type === "percent") { diskonVoucher = Math.floor(globalSubtotal * (appliedVoucher.value / 100)); } 
+        else if (appliedVoucher.type === "nominal") { diskonVoucher = appliedVoucher.value; }
+    }
+
+    const rawDiskonManual = 0; 
+    globalDiskon = Math.min(globalSubtotal, rawDiskonManual + diskonOtomatisMember + diskonVoucher);
+    
+    const baseTotal = Math.max(0, globalSubtotal - globalDiskon);
+    const taxRate = parseFloat(globalSettings.taxRate) || 0;
+    globalTaxAmount = Math.round(baseTotal * (taxRate / 100));
+    globalGrandTotal = baseTotal + globalTaxAmount;
+    
+    document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal); 
+    document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
+    document.getElementById('pane1-grand-total').textContent = toRupiah(globalGrandTotal);
+    
+    const taxZone = document.getElementById('cart-tax-zone');
+    if(taxZone) {
+        if (taxRate > 0) {
+            taxZone.classList.remove('hidden');
+            document.getElementById('cart-tax-rate-display').textContent = taxRate;
+            document.getElementById('cart-tax-amount').textContent = "+" + toRupiah(globalTaxAmount);
+        } else {
+            taxZone.classList.add('hidden');
+        }
+    }
+    
+    const btnCheckout = document.getElementById('btn-checkout');
+    btnCheckout.textContent = "Selesaikan Bayar";
+    
+    const kembalianInfo = document.getElementById('kembalian-info');
+    const kembalianNilai = document.getElementById('kembalian-nilai');
+    
+    if (selectedPaymentMethod === 'Tunai') {
+        const cashInputVal = Math.max(0, parseInputRibuan(document.getElementById('cash-paid').value));
+        const kembalian = cashInputVal - globalGrandTotal;
+        
+        if (kembalianInfo) kembalianInfo.classList.remove('hidden');
+        if (kembalianNilai) {
+            if (document.getElementById('cash-paid').value === "") {
+                kembalianNilai.textContent = "Rp 0";
+                kembalianNilai.className = "text-lg font-black text-dark-2";
+            } else if (kembalian < 0) {
+                kembalianNilai.textContent = "Kurang: " + toRupiah(Math.abs(kembalian));
+                kembalianNilai.className = "text-lg font-black text-red-400";
+            } else {
+                kembalianNilai.textContent = "Kembali: " + toRupiah(kembalian);
+                kembalianNilai.className = "text-lg font-black text-green-400";
+            }
+        }
+        btnCheckout.disabled = (cashInputVal < globalGrandTotal || keranjang.length === 0);
+    } else {
+        if(kembalianInfo) kembalianInfo.classList.add('hidden');
+        btnCheckout.disabled = (keranjang.length === 0);
+    }
+}
+
+document.getElementById('btn-checkout')?.addEventListener('click', async (e) => {
+    const btnCheckout = e.currentTarget;
+    if(btnCheckout.disabled || keranjang.length === 0 || !activeShiftSession) return;
+    btnCheckout.disabled = true; btnCheckout.textContent = "MEMPROSES...";
+
+    let totalModalHPP = 0;
+    keranjang.forEach(item => { totalModalHPP += ((item.cost || 0) * item.qty); });
+    const totalProfit = (globalGrandTotal - globalTaxAmount) - totalModalHPP; 
+
+    let tunaiMasukLaci = 0;
+
+    const trxData = { 
+        id: "TRX-" + Date.now().toString().slice(-6),
+        items: [...keranjang], subtotal: globalSubtotal, diskon: globalDiskon, pajak: globalTaxAmount, totalAkhir: globalGrandTotal, totalModal: totalModalHPP, profit: totalProfit,
+        namaKasir: (auth.currentUser ? auth.currentUser.email.split('@')[0] : 'Sistem'), 
+        memberId: activeMember ? activeMember.id : null, memberName: activeMember ? activeMember.nama : null,
+        voucherDigunakan: appliedVoucher ? document.getElementById('voucher-code')?.value.toUpperCase() : null,
+        shiftId: activeShiftSession.id
+    };
+
+    if (isSplitPayment) {
+        trxData.metodePembayaran = `Split (${splitDetails.method1} & ${splitDetails.method2})`;
+        trxData.uangBayar = splitDetails.amount1 + splitDetails.amount2;
+        trxData.kembalian = splitDetails.kembalian;
+        trxData.splitDetails = splitDetails;
+        
+        let masukLaciSplit = 0;
+        if(splitDetails.method1 === 'Tunai') masukLaciSplit += splitDetails.amount1;
+        if(splitDetails.method2 === 'Tunai') masukLaciSplit += splitDetails.amount2;
+        if (trxData.kembalian > 0 && masukLaciSplit > 0) masukLaciSplit -= trxData.kembalian;
+        tunaiMasukLaci = Math.max(0, masukLaciSplit);
+    } else if (selectedPaymentMethod === 'Kasbon') {
+        trxData.metodePembayaran = "Kasbon"; trxData.uangBayar = 0; trxData.kembalian = 0;
+    } else if (selectedPaymentMethod === 'Tunai') {
+        trxData.metodePembayaran = "Tunai"; trxData.uangBayar = Math.max(0, parseInputRibuan(document.getElementById('cash-paid').value)); trxData.kembalian = trxData.uangBayar - globalGrandTotal;
+        tunaiMasukLaci = globalGrandTotal;
+    } else {
+        trxData.metodePembayaran = selectedPaymentMethod; trxData.uangBayar = globalGrandTotal; trxData.kembalian = 0;
+    }
+
+    let isOnlineSuccess = false;
+
+    try {
+        if (navigator.onLine) {
+            try {
+                trxData.waktu = serverTimestamp(); trxData.waktuLokal = new Date().toISOString(); 
+                await addDoc(salesRef, trxData);
+                
+                for (const item of trxData.items) { try { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); } catch(e) {} }
+                
+                if (selectedPaymentMethod === 'Kasbon' && activeMember) {
+                    await updateDoc(doc(db, "members", activeMember.id), { hutang: increment(globalGrandTotal) });
+                } else if (activeMember && selectedPaymentMethod !== 'Kasbon') {
+                    const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000));
+                    if (addPoin > 0) await updateDoc(doc(db, "members", activeMember.id), { poin: increment(addPoin) });
+                }
+
+                await updateDoc(doc(db, "shift", activeShiftSession.id), { totalPenjualan: increment(globalGrandTotal), totalTunai: increment(tunaiMasukLaci) });
+                isOnlineSuccess = true;
+            } catch(e) { console.error(e); }
+        }
+
+        if (!isOnlineSuccess) {
+            trxData.waktuLokal = new Date().toISOString(); 
+            trxData.isOfflinePending = true;
+            trxData.tunaiMasukLaci = tunaiMasukLaci;
+            
+            const isSaved = await saveTransactionOffline(trxData);
+            if (!isSaved) throw new Error("Memori Penuh.");
+            
+            for (const item of trxData.items) { const found = databaseBarang.find(x => x.id === item.id); if (found) found.stok = Math.max(0, (found.stok||0) - item.qty); }
+            localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang));
+            
+            if (selectedPaymentMethod === 'Kasbon' && activeMember) {
+                const mIdx = memberDataAll.findIndex(m => m.id === activeMember.id);
+                if(mIdx > -1) { memberDataAll[mIdx].hutang = (memberDataAll[mIdx].hutang||0) + globalGrandTotal; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); }
+            } else if (activeMember && selectedPaymentMethod !== 'Kasbon') {
+                const mIdx = memberDataAll.findIndex(m => m.id === activeMember.id);
+                const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000));
+                if(mIdx > -1 && addPoin > 0) { memberDataAll[mIdx].poin = (memberDataAll[mIdx].poin||0) + addPoin; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); }
+            }
+
+            activeShiftSession.totalPenjualan += globalGrandTotal;
+            activeShiftSession.totalTunai += tunaiMasukLaci;
+            localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
+            updateShiftUI(true); renderKatalogKasir();
+        }
+
+        const isBluetoothPrinted = await printDirectBluetooth(formatStrukBT(trxData));
+        if (!isBluetoothPrinted) { cetakStrukThermal(trxData); }
+
+        keranjang = []; localStorage.removeItem("pos_recovery_cart");
+        appliedVoucher = null; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = ""; document.getElementById('cash-paid').value = "";
+        btnCash?.click(); document.getElementById('btn-remove-member')?.click(); renderKeranjang(); 
+        applyFiltersAndStats(); window.switchCartTab('list');
+        
+    } catch(e) { alert("GAGAL MEMPROSES TRANSAKSI: " + e.message); } 
+    finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; }
+});
+
+
+// ✨ VISIBILITY TOGGLES
 function updateFiturVisibility() {
     const showMember = document.getElementById('switch-fitur-member')?.checked ?? true;
     const showVoucher = document.getElementById('switch-fitur-voucher')?.checked ?? true;
     const showHold = document.getElementById('switch-fitur-hold')?.checked ?? true;
 
-    document.getElementById('section-member')?.classList.toggle('hidden', !showMember);
-    document.getElementById('section-voucher')?.classList.toggle('hidden', !showVoucher);
-    document.getElementById('section-hold-bill')?.classList.toggle('hidden', !showHold);
+    document.getElementById('section-kasir-member')?.classList.toggle('hidden', !showMember);
+    document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !showVoucher);
+    document.getElementById('container-hold-bill')?.classList.toggle('hidden', !showHold);
 }
 
-// Listener Local Storage Toggles
 ['switch-fitur-member', 'switch-fitur-voucher', 'switch-fitur-hold'].forEach(id => {
     const el = document.getElementById(id);
     if(el) {
@@ -431,7 +777,6 @@ function updateFiturVisibility() {
     }
 });
 
-// ✨ FUNGSI BACKUP & RESTORE DATA LOKAL ✨
 window.backupDataLokal = () => {
     if(databaseBarang.length === 0) return alert("Database Gudang masih kosong.");
     const dataToExport = {
@@ -462,7 +807,6 @@ document.getElementById('file-restore-db')?.addEventListener('change', async (e)
             if (!data.barang || !Array.isArray(data.barang)) throw new Error("Format file JSON tidak valid.");
             
             let successBarang = 0;
-            // Restore Barang
             for(let item of data.barang) {
                 const id = item.id;
                 const docData = { ...item }; delete docData.id;
@@ -472,7 +816,6 @@ document.getElementById('file-restore-db')?.addEventListener('change', async (e)
             }
             
             let successPemasok = 0;
-            // Restore Pemasok
             if (data.pemasok && Array.isArray(data.pemasok)) {
                 for(let p of data.pemasok) {
                     const id = p.id;
@@ -536,7 +879,7 @@ function terapkanPengaturanLayar() {
     renderKatalogKasir();
     renderGudangList();
     updateFiturVisibility();
-    hitungUangKembalian(); // Memastikan ulang perhitungan pajak
+    hitungUangKembalian(); 
 }
 
 function initRealtimeListeners() {
@@ -662,832 +1005,23 @@ function renderPemasokDropdown() {
     if(currentVal) select.value = currentVal;
 }
 
-function renderPiutangList() {
-    const listContainer = document.getElementById('piutang-list'); if(!listContainer) return;
-    const memberBerhutang = memberDataAll.filter(m => (m.hutang || 0) > 0).sort((a,b) => b.hutang - a.hutang);
+document.getElementById('btn-apply-voucher')?.addEventListener('click', () => {
+    const code = document.getElementById('voucher-code').value.trim().toUpperCase(); if (!code) return;
+    const activeVouchers = globalSettings.vouchers || {};
     
-    if(memberBerhutang.length === 0) { listContainer.innerHTML = `<div class="col-span-full bg-dark-8 p-6 rounded-xl border border-dark-4 text-center"><p class="text-sm font-bold text-green-400">🎉 Bersih! Tidak ada pelanggan yang berhutang.</p></div>`; return; }
-
-    listContainer.innerHTML = memberBerhutang.map(m => `
-        <div class="bg-dark-8 p-5 rounded-xl border border-dark-4 flex flex-col gap-3 relative overflow-hidden shadow-sm">
-            <div class="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
-            <div><p class="text-sm font-black text-gray-100">${escapeHTML(m.nama)}</p><p class="text-[10px] text-dark-2">HP: ${escapeHTML(m.id)}</p></div>
-            <div class="bg-dark-7 p-3 rounded-lg border border-dark-4"><p class="text-[10px] font-bold text-dark-2 uppercase tracking-wider">Total Hutang</p><p class="text-lg font-black text-red-400">${toRupiah(m.hutang)}</p></div>
-            <button onclick="window.bukaModalBayarPiutang('${m.id}')" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition-colors shadow">Lunasi Cicilan</button>
-        </div>`).join('');
-}
-
-window.bukaModalBayarPiutang = (memberId) => {
-    piutangAktifDipilih = memberDataAll.find(m => m.id === memberId);
-    if(!piutangAktifDipilih) return;
-    document.getElementById('piutang-member-name').textContent = piutangAktifDipilih.nama.toUpperCase();
-    document.getElementById('piutang-sisa-hutang').textContent = toRupiah(piutangAktifDipilih.hutang);
-    document.getElementById('piutang-bayar-input').value = ""; document.getElementById('bayar-piutang-modal').classList.remove('hidden');
-};
-
-document.getElementById('btn-submit-piutang')?.addEventListener('click', async () => {
-    if(!piutangAktifDipilih || !activeShiftSession) return alert("Peringatan: Sesi Shift harus aktif untuk menerima pembayaran.");
-    
-    const inputVal = Math.max(0, parseInputRibuan(document.getElementById('piutang-bayar-input').value));
-    if(inputVal <= 0 || inputVal > piutangAktifDipilih.hutang) return alert("Nominal pelunasan tidak valid!");
-    
-    document.getElementById('btn-submit-piutang').textContent = "...";
-
-    if (!navigator.onLine) {
-        try {
-            const trxData = { waktuLokal: new Date().toISOString(), tipe: "pelunasan_piutang", totalAkhir: inputVal, profit: 0, metodePembayaran: "Pelunasan Hutang (Tunai)", namaKasir: auth.currentUser?.email.split('@')[0], memberId: piutangAktifDipilih.id, memberName: piutangAktifDipilih.nama, tunaiMasukLaci: inputVal, shiftId: activeShiftSession.id, isOfflinePending: true };
-            const isSaved = await saveTransactionOffline(trxData);
-            if (!isSaved) throw new Error("Memori Penuh.");
-
-            const memberIndex = memberDataAll.findIndex(m => m.id === piutangAktifDipilih.id);
-            if(memberIndex > -1) { memberDataAll[memberIndex].hutang -= inputVal; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); }
-
-            activeShiftSession.totalTunai += inputVal; localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
-
-            alert("OFFLINE: Pelunasan dicatat lokal. Akan diunggah otomatis saat online!");
-            document.getElementById('bayar-piutang-modal').classList.add('hidden'); renderPiutangList(); updateShiftUI(true);
-        } catch(e) { alert("Gagal memproses pelunasan offline."); }
-        document.getElementById('btn-submit-piutang').textContent = "Lunasi";
-        return;
+    if (activeVouchers[code]) { 
+        appliedVoucher = activeVouchers[code]; 
+        alert(`✅ Voucher ${code} berhasil diklaim!`); 
+        hitungUangKembalian(); 
+    } else { 
+        alert("❌ Kode Voucher tidak valid atau kadaluarsa."); 
+        appliedVoucher = null; 
+        document.getElementById('voucher-code').value = ""; 
+        hitungUangKembalian(); 
     }
-
-    try {
-        await updateDoc(doc(db, "members", piutangAktifDipilih.id), { hutang: increment(-inputVal) });
-        await logActivity("PELUNASAN_KASBON", `Terima pelunasan Rp${inputVal} dari ${piutangAktifDipilih.nama}`);
-        await addDoc(salesRef, { waktu: serverTimestamp(), tipe: "pelunasan_piutang", totalAkhir: inputVal, profit: 0, metodePembayaran: "Pelunasan Hutang (Tunai)", namaKasir: auth.currentUser?.email.split('@')[0], memberId: piutangAktifDipilih.id, memberName: piutangAktifDipilih.nama });
-        await updateDoc(doc(db, "shift", activeShiftSession.id), { totalTunai: increment(inputVal) });
-        alert("Pelunasan berhasil dicatat di Laci & Z-Report!"); document.getElementById('bayar-piutang-modal').classList.add('hidden');
-    } catch(e) { alert("Gagal memproses pelunasan."); }
-    document.getElementById('btn-submit-piutang').textContent = "Lunasi";
 });
 
-async function applyFiltersAndStats() {
-    let totalOmset = 0; let totalProfit = 0; let totalTrx = 0; let totalItems = 0; let produkCounts = {};
-    let allSales = [...riwayatPenjualan];
-    const offlineSales = await loadOfflineTransactions();
-    if (offlineSales && offlineSales.length > 0) { allSales = [...offlineSales.reverse(), ...allSales]; }
-
-    dataPenjualanTerfilter = allSales.filter(sale => sale.tipe !== "pelunasan_piutang"); 
-
-    dataPenjualanTerfilter.forEach(sale => { 
-        totalOmset += Math.round(sale.totalAkhir || 0); totalProfit += Math.round(sale.profit || 0); totalTrx++;
-        if (Array.isArray(sale.items)) { sale.items.forEach(i => { totalItems += i.qty || 0; produkCounts[i.nama||'Item'] = (produkCounts[i.nama||'Item'] || 0) + i.qty; }); } 
-    });
-
-    const omsetDOM = document.getElementById('dash-omset'); if(omsetDOM) omsetDOM.textContent = toRupiah(totalOmset);
-    const profitDOM = document.getElementById('dash-profit'); if(profitDOM) profitDOM.textContent = toRupiah(totalProfit); 
-    const trxDOM = document.getElementById('dash-transaksi'); if(trxDOM) trxDOM.textContent = totalTrx;
-    const itemsDOM = document.getElementById('dash-items'); if(itemsDOM) itemsDOM.innerHTML = `${totalItems}`;
-    
-    const sortedProduk = Object.entries(produkCounts).sort((a,b) => b[1] - a[1]).slice(0,5); 
-    renderChart(sortedProduk.map(p => p[0]), sortedProduk.map(p => p[1])); renderRiwayatTable();
-}
-
-function renderChart(labels, values) {
-    if (typeof Chart === 'undefined') return; const ctx = document.getElementById('chartProdukTerlaris'); if(!ctx) return; if (chartInstance) chartInstance.destroy();
-    if (labels.length === 0) { labels = ["Belum ada data"]; values = [0]; }
-    chartInstance = new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Qty Terjual', data: values, backgroundColor: '#1971c2', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#909296', font: { family: 'Inter', size: 10 } } }, y: { grid: { color: '#373A40' }, ticks: { color: '#909296', font: { family: 'Inter', size: 10 }, precision: 0 } } } } });
-}
-
-const btnCash = document.getElementById('pay-method-cash'), btnNonCash = document.getElementById('pay-method-noncash');
-const btnKasbon = document.getElementById('pay-method-kasbon'), btnSplit = document.getElementById('pay-method-split');
-
-function resetPaymentUI() {
-    [btnCash, btnNonCash, btnKasbon].forEach(b => { if(b) b.className = "py-2.5 text-[11px] font-bold text-dark-1 hover:text-gray-100 rounded-md transition-all"; });
-    if(btnSplit) btnSplit.className = "w-full py-2.5 mb-3 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all";
-    document.getElementById('cash-paid').classList.add('hidden'); 
-    document.getElementById('noncash-ref').classList.add('hidden');
-    document.getElementById('quick-cash-zone').classList.add('hidden');
-    document.getElementById('kembalian-info').classList.add('hidden');
-    isSplitPayment = false;
-}
-
-btnCash?.addEventListener('click', () => { 
-    resetPaymentUI(); selectedPaymentMethod = 'Tunai'; 
-    btnCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; 
-    document.getElementById('cash-paid').classList.remove('hidden'); 
-    document.getElementById('quick-cash-zone').classList.remove('hidden');
-    hitungUangKembalian(); 
-});
-btnNonCash?.addEventListener('click', () => { resetPaymentUI(); selectedPaymentMethod = 'Non-Tunai'; btnNonCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; document.getElementById('noncash-ref').classList.remove('hidden'); hitungUangKembalian(); });
-btnKasbon?.addEventListener('click', () => { if(!activeMember) { alert("Pilih Pelanggan terlebih dahulu untuk melakukan Kasbon!"); return; } resetPaymentUI(); selectedPaymentMethod = 'Kasbon'; btnKasbon.className = "py-2.5 text-[11px] font-bold bg-amber-500 text-white rounded-md transition-all shadow"; hitungUangKembalian(); });
-
-btnSplit?.addEventListener('click', () => {
-    if(keranjang.length === 0) return alert("Keranjang kosong!");
-    resetPaymentUI(); isSplitPayment = true; selectedPaymentMethod = 'Split';
-    btnSplit.className = "w-full py-2.5 mb-3 text-[11px] font-bold text-white bg-mantine-blue rounded-lg shadow-lg shadow-mantine-blue/30 transition-all";
-    document.getElementById('split-total-tagihan').textContent = toRupiah(globalGrandTotal);
-    document.getElementById('split-amount-1').value = ""; document.getElementById('split-amount-2').value = formatInputRibuan(globalGrandTotal);
-    document.getElementById('split-modal').classList.remove('hidden');
-});
-
-window.batalSplitPayment = () => { document.getElementById('split-modal').classList.add('hidden'); btnCash?.click(); };
-
-document.getElementById('split-amount-1')?.addEventListener('input', (e) => {
-    const val1 = Math.max(0, parseInputRibuan(e.target.value)); 
-    const sisa = Math.max(0, globalGrandTotal - val1);
-    document.getElementById('split-amount-2').value = formatInputRibuan(sisa);
-});
-
-document.getElementById('btn-save-split')?.addEventListener('click', () => {
-    const v1 = Math.max(0, parseInputRibuan(document.getElementById('split-amount-1').value)); 
-    const v2 = Math.max(0, parseInputRibuan(document.getElementById('split-amount-2').value));
-    const totalBayarSplit = v1 + v2;
-    
-    if(totalBayarSplit < globalGrandTotal) return alert("Total split kurang dari tagihan!");
-    
-    const kembalianSplit = Math.max(0, totalBayarSplit - globalGrandTotal);
-    splitDetails = { method1: document.getElementById('split-method-1').value, amount1: v1, method2: document.getElementById('split-method-2').value, amount2: v2, kembalian: kembalianSplit };
-    
-    document.getElementById('split-modal').classList.add('hidden'); document.getElementById('btn-checkout').disabled = false; document.getElementById('btn-checkout').textContent = kembalianSplit > 0 ? `BAYAR (KEMBALI ${toRupiah(kembalianSplit)})` : `BAYAR (SPLIT)`;
-});
-
-document.getElementById('btn-hold-bill')?.addEventListener('click', () => {
-    if (keranjang.length === 0) return alert("Keranjang kosong!");
-    let holdName = prompt("Nama Penanda (cth: Meja 5):"); if (holdName === null) return;
-    holdName = holdName.trim() || `Order #${Date.now().toString().slice(-4)}`;
-    const heldBills = JSON.parse(localStorage.getItem('pos_held_bills') || '[]');
-    
-    const discVal = 0; // Manual diskon dihilangkan
-    
-    heldBills.push({ id: Date.now().toString(), tag: holdName, waktu: new Date().toLocaleString('id-ID'), items: keranjang, diskon: discVal, activeMember: activeMember, voucher: appliedVoucher, voucherCode: document.getElementById('voucher-code')?.value });
-    localStorage.setItem('pos_held_bills', JSON.stringify(heldBills));
-    
-    keranjang = []; localStorage.removeItem("pos_recovery_cart"); activeMember = null; localStorage.removeItem("pos_recovery_member"); 
-    appliedVoucher = null; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = ""; document.getElementById('btn-remove-member')?.click(); renderKeranjang(); updateHoldCountBadge(); alert("Pesanan ditangguhkan.");
-    window.switchCartTab('list');
-});
-
-document.getElementById('btn-recall-bill')?.addEventListener('click', () => { renderHoldModalList(); document.getElementById('hold-modal')?.classList.remove('hidden'); });
-
-function updateHoldCountBadge() { const badge = document.getElementById('hold-count-badge'); if(!badge) return; const counts = JSON.parse(localStorage.getItem('pos_held_bills') || '[]').length; badge.textContent = counts; if(counts > 0) badge.classList.remove('hidden'); else badge.classList.add('hidden'); }
-
-function renderHoldModalList() {
-    const listContainer = document.getElementById('hold-bills-list'); if(!listContainer) return;
-    const heldBills = JSON.parse(localStorage.getItem('pos_held_bills') || '[]');
-    if (heldBills.length === 0) { listContainer.innerHTML = `<p class="text-xs text-dark-2 italic text-center py-4">Kosong.</p>`; return; }
-    listContainer.innerHTML = heldBills.map(bill => `<div class="bg-dark-8 p-4 rounded-xl border border-dark-4 flex justify-between items-center gap-3"><div class="flex-1 min-w-0"><div class="flex justify-between items-center mb-1"><span class="font-bold text-xs text-amber-400 truncate">${escapeHTML(bill.tag)}</span></div><p class="text-[10px] text-dark-1 truncate">${bill.items.map(i => `${escapeHTML(i.nama)} (${i.qty}x)`).join(', ')}</p></div><div class="flex gap-2 shrink-0"><button onclick="window.loadHeldBill('${bill.id}')" class="px-3 py-1.5 bg-mantine-blue text-white rounded-lg text-xs font-bold transition-all">Buka</button><button onclick="window.deleteHeldBill('${bill.id}')" class="px-3 py-1.5 bg-red-950/40 text-red-400 border border-red-900 rounded-lg text-xs font-bold transition-all">🗑️</button></div></div>`).join('');
-}
-
-window.loadHeldBill = async (id) => {
-    if (keranjang.length > 0 && !confirm("Ganti keranjang saat ini dengan pesanan tertunda?")) return;
-    const heldBills = JSON.parse(localStorage.getItem('pos_held_bills') || '[]'); const idx = heldBills.findIndex(b => b.id === id);
-    if (idx > -1) {
-        const bill = heldBills[idx]; let validatedItems = []; let hasChanges = false;
-        for (let item of bill.items) {
-            const dbItem = databaseBarang.find(i => i.id === item.id);
-            if (!dbItem || (dbItem.stok || 0) <= 0) { hasChanges = true; continue; }
-            if (item.qty > dbItem.stok) { item.qty = dbItem.stok; hasChanges = true; }
-            if (item.harga !== dbItem.harga) { item.harga = dbItem.harga; hasChanges = true; }
-            if (item.cost !== dbItem.cost) { item.cost = dbItem.cost || 0; hasChanges = true; } 
-            validatedItems.push(item);
-        }
-        if (validatedItems.length === 0) { alert("Semua produk di pesanan ini telah habis."); heldBills.splice(idx, 1); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills)); renderHoldModalList(); updateHoldCountBadge(); return; }
-        if (hasChanges) alert("Beberapa produk disesuaikan berdasarkan stok gudang.");
-        
-        keranjang = validatedItems; localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); 
-        
-        if(bill.voucher) { appliedVoucher = bill.voucher; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = bill.voucherCode || ""; }
-        
-        activeMember = null;
-        if (bill.activeMember && bill.activeMember.id) {
-            if(navigator.onLine) {
-                try { const snap = await getDoc(doc(db, "members", bill.activeMember.id)); if(snap.exists()) activeMember = { id: snap.id, ...snap.data() }; } 
-                catch(e) { activeMember = bill.activeMember; }
-            } else { activeMember = bill.activeMember; }
-            localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI();
-        } else { document.getElementById('btn-remove-member')?.click(); }
-        
-        heldBills.splice(idx, 1); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills)); document.getElementById('hold-modal')?.classList.add('hidden'); renderKeranjang(); updateHoldCountBadge();
-        window.switchCartTab('list');
-    }
-};
-
-window.deleteHeldBill = (id) => { const heldBills = JSON.parse(localStorage.getItem('pos_held_bills') || '[]'); localStorage.setItem('pos_held_bills', JSON.stringify(heldBills.filter(b => b.id !== id))); renderHoldModalList(); updateHoldCountBadge(); };
-
-document.getElementById('btn-check-member')?.addEventListener('click', async () => {
-    const phone = document.getElementById('member-search-input')?.value.trim(); if (!phone) return;
-    const btnCheck = document.getElementById('btn-check-member'); if(btnCheck) { btnCheck.disabled = true; btnCheck.textContent = "..."; }
-    try {
-        const docSnap = await getDoc(doc(db, "members", phone));
-        if (docSnap.exists()) { activeMember = { id: phone, ...docSnap.data() }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); } 
-        else { if (confirm(`Member ${phone} belum terdaftar. Daftarkan?`)) { document.getElementById('member-reg-phone').value = phone; document.getElementById('member-reg-name').value = ""; document.getElementById('member-modal').classList.remove('hidden'); } }
-    } catch(e) {} finally { if(btnCheck) { btnCheck.disabled = false; btnCheck.textContent = "Cari"; } }
-});
-
-document.getElementById('member-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault(); if (!navigator.onLine) return alert("Butuh internet.");
-    const btnSubmit = e.target.querySelector('button[type="submit"]'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Memproses..."; }
-    try {
-        const phone = document.getElementById('member-reg-phone')?.value.trim() || ''; const name = document.getElementById('member-reg-name')?.value.trim() || '';
-        const checkSnap = await getDoc(doc(db, "members", phone));
-        if(checkSnap.exists()) return alert("Nomor terdaftar!");
-        await setDoc(doc(db, "members", phone), { nama: name, poin: 0 }); 
-        activeMember = { id: phone, nama: name, poin: 0 }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); document.getElementById('member-modal')?.classList.add('hidden');
-    } catch(e) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
-});
-
-document.getElementById('btn-remove-member')?.addEventListener('click', () => { activeMember = null; localStorage.removeItem("pos_recovery_member"); document.getElementById('member-select-zone')?.classList.remove('hidden'); document.getElementById('member-active-zone')?.classList.add('hidden'); document.getElementById('btn-remove-member')?.classList.add('hidden'); document.getElementById('member-search-input').value = ""; renderKeranjang(); btnCash?.click(); });
-function showActiveMemberUI() { document.getElementById('member-select-zone')?.classList.add('hidden'); document.getElementById('member-active-zone')?.classList.remove('hidden'); document.getElementById('btn-remove-member')?.classList.remove('hidden'); document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; renderKeranjang(); }
-
-// ==========================================
-// PENCARIAN, SORT & LAZY LOAD GUDANG
-// ==========================================
-document.getElementById('gudang-search')?.addEventListener('input', (e) => { 
-    kataKunciGudang = e.target.value.toLowerCase(); 
-    gudangItemLimit = 30; 
-    renderGudangList(); 
-});
-
-window.toggleSortGudang = () => {
-    sortGudangOrder = sortGudangOrder === 'asc' ? 'desc' : 'asc';
-    const btn = document.getElementById('btn-sort-gudang');
-    if (btn) btn.innerHTML = sortGudangOrder === 'asc' ? 'Urutkan: A-Z ⬇️' : 'Urutkan: Z-A ⬆️';
-    gudangItemLimit = 30; 
-    renderGudangList();
-};
-
-window.startVoiceSearchGudang = () => {
-    const btn = document.getElementById('btn-voice-search');
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert("Maaf, browser (atau HP) Anda tidak mendukung fitur Pencarian Suara."); return; }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'id-ID'; 
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
-    recognition.onresult = function(event) {
-        const speechResult = event.results[0][0].transcript;
-        const searchInput = document.getElementById('gudang-search');
-        if(searchInput) {
-            searchInput.value = speechResult;
-            kataKunciGudang = speechResult.toLowerCase();
-            gudangItemLimit = 30;
-            renderGudangList();
-        }
-    };
-    recognition.onerror = function(event) {
-        alert("Gagal mendengarkan suara. Silakan coba lagi.");
-        if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
-    };
-    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
-    recognition.start();
-};
-
-window.startVoiceSearchKasir = () => {
-    const btn = document.getElementById('btn-voice-search-kasir');
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert("Maaf, browser (atau HP) Anda tidak mendukung fitur Pencarian Suara."); return; }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'id-ID'; 
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
-    recognition.onresult = function(event) {
-        const speechResult = event.results[0][0].transcript;
-        const searchInput = document.getElementById('kasir-search');
-        if(searchInput) {
-            searchInput.value = speechResult;
-            kataKunciPencarian = speechResult.toLowerCase();
-            kasirItemLimit = 36;
-            renderKatalogKasir();
-        }
-    };
-    recognition.onerror = function(event) {
-        alert("Gagal mendengarkan suara. Silakan coba lagi.");
-        if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; }
-    };
-    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
-    recognition.start();
-};
-
-document.getElementById('kasir-search')?.addEventListener('input', (e) => { 
-    kataKunciPencarian = e.target.value.toLowerCase(); 
-    kasirItemLimit = 36; 
-    renderKatalogKasir(); 
-});
-
-function renderKatalogKasir() {
-    const categoriesSet = new Set(databaseBarang.map(i => i.kategori || 'Umum'));
-    const catContainer = document.getElementById('kasir-categories');
-    if(catContainer) {
-        catContainer.innerHTML = `<button onclick="window.setFilterKategori('Semua')" class="px-4 py-2 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition-colors ${filterKategoriAktif==='Semua'?'bg-mantine-blue text-white':'bg-dark-6 border border-dark-4 text-dark-1'}">Semua Kategori</button>` + 
-        Array.from(categoriesSet).map(cat => `<button onclick="window.setFilterKategori('${escapeJS(cat)}')" class="px-4 py-2 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition-colors ${filterKategoriAktif===cat?'bg-mantine-blue text-white':'bg-dark-6 border border-dark-4 text-dark-1'}">${escapeHTML(cat)}</button>`).join('');
-    }
-
-    const filtered = databaseBarang.filter(i => (filterKategoriAktif === 'Semua' || (i.kategori||'Umum') === filterKategoriAktif) && ((i.nama||'').toLowerCase().includes(kataKunciPencarian) || (i.barcode && i.barcode.toLowerCase().includes(kataKunciPencarian))));
-    const katContainer = document.getElementById('kasir-katalog');
-    if(!katContainer) return;
-
-    if (filtered.length === 0) { katContainer.innerHTML = `<p class="text-xs text-dark-2 italic col-span-full text-center py-8">Produk tidak ditemukan.</p>`; return; }
-    
-    const toShow = filtered.slice(0, kasirItemLimit);
-    
-    katContainer.innerHTML = toShow.map(i => {
-        const isLowStock = (i.stok||0) <= (globalSettings.batasStok || 5);
-        const stockClass = isLowStock ? 'bg-red-900/30 text-red-400' : 'bg-dark-5 text-dark-2';
-        
-        return `
-        <div onclick="window.tambahKeKeranjang('${i.id}')" class="bg-dark-6 p-4 rounded-xl border border-dark-4 hover:border-mantine-blue cursor-pointer select-none flex flex-col justify-between active:scale-[0.98] transition-all group shadow-sm">
-            <div>
-                <div class="flex justify-between items-start gap-2 mb-2">
-                    <span class="text-[10px] font-bold text-mantine-blue uppercase truncate bg-mantine-blue/10 px-2 py-1 rounded-md">${escapeHTML(i.kategori||'Umum')}</span>
-                    <span class="text-[10px] px-2 py-1 rounded-md font-bold ${stockClass}">Stok: ${formatInputRibuan(i.stok||0)}</span>
-                </div>
-                <h4 class="font-bold text-xs text-gray-100 leading-snug group-hover:text-mantine-blue transition-colors">${escapeHTML(i.nama||'Item')}</h4>
-            </div>
-            <p class="text-sm font-black text-green-400 mt-4">${toRupiah(i.harga)}</p>
-        </div>`
-    }).join('');
-        
-    if (filtered.length > kasirItemLimit) {
-        katContainer.innerHTML += `
-            <div class="col-span-full flex justify-center py-6">
-                <button onclick="window.loadMoreKasir()" class="px-6 py-2.5 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-xl shadow transition-colors border border-dark-4">
-                    Tampilkan Lebih Banyak (${filtered.length - kasirItemLimit})
-                </button>
-            </div>
-        `;
-    }
-}
-
-window.loadMoreKasir = () => { kasirItemLimit += 36; renderKatalogKasir(); };
-
-window.setFilterKategori = (cat) => { 
-    filterKategoriAktif = cat; 
-    kasirItemLimit = 36; 
-    renderKatalogKasir(); 
-};
-
-window.tambahKeKeranjang = (id) => {
-    const item = databaseBarang.find(i => i.id === id); if(!item || (item.stok||0) <= 0) return alert("Stok habis!");
-    const existing = keranjang.find(k => k.id === id);
-    if (existing) { if(existing.qty >= item.stok) return alert("Melebihi stok gudang maksimal!"); existing.qty++; } 
-    else { keranjang.push({ id: item.id, nama: item.nama, harga: item.harga||0, cost: item.cost||0, qty: 1 }); } 
-    localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); renderKeranjang();
-};
-
-window.ubahQtyCart = (id, delta) => {
-    const index = keranjang.findIndex(k => k.id === id); if(index === -1) return;
-    if (keranjang[index].qty + delta <= 0) {
-        if (sessionStorage.getItem("pos_admin_authorized") === "true") {
-            keranjang.splice(index, 1);
-            localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang));
-            renderKeranjang();
-        } else {
-            window.itemAkanDihapus = id; 
-            document.getElementById('pin-modal').classList.remove('hidden'); 
-            setTimeout(() => document.getElementById('auth-pin-input').focus(), 100); 
-        }
-        return; 
-    }
-    const itemDb = databaseBarang.find(i => i.id === id);
-    if (delta > 0 && itemDb && keranjang[index].qty >= (itemDb.stok||0)) return alert("Melebihi stok gudang maksimal!");
-    keranjang[index].qty += delta; localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); renderKeranjang();
-};
-
-document.getElementById('btn-verify-pin')?.addEventListener('click', () => {
-    const inputPin = document.getElementById('auth-pin-input').value;
-    
-    if (inputPin === (globalSettings.pinAdmin || ADMIN_PIN)) {
-        sessionStorage.setItem("pos_admin_authorized", "true");
-
-        if (window.itemAkanDihapus) {
-            const index = keranjang.findIndex(k => k.id === window.itemAkanDihapus);
-            if (index > -1) { keranjang.splice(index, 1); localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); renderKeranjang(); }
-        }
-        document.getElementById('pin-modal').classList.add('hidden'); window.itemAkanDihapus = null;
-    } else { alert("PIN SALAH!"); document.getElementById('auth-pin-input').value = ""; }
-});
-
-// ✨ FUNGSI KALKULASI PAJAK/PPN & KEMBALIAN REAL-TIME ✨
-document.getElementById('cash-paid')?.addEventListener('input', hitungUangKembalian);
-
-function hitungUangKembalian() {
-    if(isSplitPayment) {
-        resetPaymentUI(); 
-        selectedPaymentMethod = 'Tunai'; 
-        const btnCash = document.getElementById('pay-method-cash');
-        if (btnCash) btnCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; 
-        document.getElementById('cash-paid').classList.remove('hidden');
-        document.getElementById('quick-cash-zone')?.classList.remove('hidden');
-    }
-    
-    globalSubtotal = Math.round(keranjang.reduce((acc, i) => acc + ((i.harga||0) * i.qty), 0));
-    let diskonOtomatisMember = activeMember ? Math.floor(globalSubtotal * 0.05) : 0;
-    
-    let diskonVoucher = 0;
-    if (appliedVoucher) {
-        if (appliedVoucher.type === "percent") { diskonVoucher = Math.floor(globalSubtotal * (appliedVoucher.value / 100)); } 
-        else if (appliedVoucher.type === "nominal") { diskonVoucher = appliedVoucher.value; }
-    }
-
-    const rawDiskonManual = 0; 
-    globalDiskon = Math.min(globalSubtotal, rawDiskonManual + diskonOtomatisMember + diskonVoucher);
-    
-    // Dasar Total Sebelum Pajak
-    const baseTotal = Math.max(0, globalSubtotal - globalDiskon);
-    
-    // Pajak/PPN
-    const taxRate = parseFloat(globalSettings.taxRate) || 0;
-    globalTaxAmount = Math.round(baseTotal * (taxRate / 100));
-    
-    // Grand Total Aktual
-    globalGrandTotal = baseTotal + globalTaxAmount;
-    
-    document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal); 
-    document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
-    document.getElementById('pane1-grand-total').textContent = toRupiah(globalGrandTotal);
-    
-    // Tampilan UI Pajak
-    const taxZone = document.getElementById('cart-tax-zone');
-    if(taxZone) {
-        if (taxRate > 0) {
-            taxZone.classList.remove('hidden');
-            document.getElementById('cart-tax-rate-display').textContent = taxRate;
-            document.getElementById('cart-tax-amount').textContent = "+" + toRupiah(globalTaxAmount);
-        } else {
-            taxZone.classList.add('hidden');
-        }
-    }
-    
-    const btnCheckout = document.getElementById('btn-checkout');
-    btnCheckout.textContent = "Selesaikan Bayar";
-    
-    const kembalianInfo = document.getElementById('kembalian-info');
-    const kembalianNilai = document.getElementById('kembalian-nilai');
-    
-    if (selectedPaymentMethod === 'Tunai') {
-        const cashInputVal = Math.max(0, parseInputRibuan(document.getElementById('cash-paid').value));
-        const kembalian = cashInputVal - globalGrandTotal;
-        
-        if (kembalianInfo) kembalianInfo.classList.remove('hidden');
-        if (kembalianNilai) {
-            if (document.getElementById('cash-paid').value === "") {
-                kembalianNilai.textContent = "Rp 0";
-                kembalianNilai.className = "text-lg font-black text-dark-2";
-            } else if (kembalian < 0) {
-                kembalianNilai.textContent = "Kurang: " + toRupiah(Math.abs(kembalian));
-                kembalianNilai.className = "text-lg font-black text-red-400";
-            } else {
-                kembalianNilai.textContent = "Kembali: " + toRupiah(kembalian);
-                kembalianNilai.className = "text-lg font-black text-green-400";
-            }
-        }
-        btnCheckout.disabled = (cashInputVal < globalGrandTotal || keranjang.length === 0);
-    } else {
-        if(kembalianInfo) kembalianInfo.classList.add('hidden');
-        btnCheckout.disabled = (keranjang.length === 0);
-    }
-}
-
-document.getElementById('btn-checkout')?.addEventListener('click', async (e) => {
-    const btnCheckout = e.currentTarget;
-    if(btnCheckout.disabled || keranjang.length === 0 || !activeShiftSession) return;
-    btnCheckout.disabled = true; btnCheckout.textContent = "MEMPROSES...";
-
-    let totalModalHPP = 0;
-    keranjang.forEach(item => { totalModalHPP += ((item.cost || 0) * item.qty); });
-    const totalProfit = (globalGrandTotal - globalTaxAmount) - totalModalHPP; // Profit dihitung tanpa pajak
-
-    let tunaiMasukLaci = 0;
-
-    const trxData = { 
-        id: "TRX-" + Date.now().toString().slice(-6),
-        items: [...keranjang], subtotal: globalSubtotal, diskon: globalDiskon, pajak: globalTaxAmount, totalAkhir: globalGrandTotal, totalModal: totalModalHPP, profit: totalProfit,
-        namaKasir: (auth.currentUser ? auth.currentUser.email.split('@')[0] : 'Sistem'), 
-        memberId: activeMember ? activeMember.id : null, memberName: activeMember ? activeMember.nama : null,
-        voucherDigunakan: appliedVoucher ? document.getElementById('voucher-code')?.value.toUpperCase() : null,
-        shiftId: activeShiftSession.id
-    };
-
-    if (isSplitPayment) {
-        trxData.metodePembayaran = `Split (${splitDetails.method1} & ${splitDetails.method2})`;
-        trxData.uangBayar = splitDetails.amount1 + splitDetails.amount2;
-        trxData.kembalian = splitDetails.kembalian;
-        trxData.splitDetails = splitDetails;
-        
-        let masukLaciSplit = 0;
-        if(splitDetails.method1 === 'Tunai') masukLaciSplit += splitDetails.amount1;
-        if(splitDetails.method2 === 'Tunai') masukLaciSplit += splitDetails.amount2;
-        if (trxData.kembalian > 0 && masukLaciSplit > 0) masukLaciSplit -= trxData.kembalian;
-        tunaiMasukLaci = Math.max(0, masukLaciSplit);
-    } else if (selectedPaymentMethod === 'Kasbon') {
-        trxData.metodePembayaran = "Kasbon"; trxData.uangBayar = 0; trxData.kembalian = 0;
-    } else if (selectedPaymentMethod === 'Tunai') {
-        trxData.metodePembayaran = "Tunai"; trxData.uangBayar = Math.max(0, parseInputRibuan(document.getElementById('cash-paid').value)); trxData.kembalian = trxData.uangBayar - globalGrandTotal;
-        tunaiMasukLaci = globalGrandTotal;
-    } else {
-        trxData.metodePembayaran = selectedPaymentMethod; trxData.uangBayar = globalGrandTotal; trxData.kembalian = 0;
-    }
-
-    let isOnlineSuccess = false;
-
-    try {
-        if (navigator.onLine) {
-            try {
-                trxData.waktu = serverTimestamp(); trxData.waktuLokal = new Date().toISOString(); 
-                await addDoc(salesRef, trxData);
-                
-                for (const item of trxData.items) { try { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); } catch(e) {} }
-                
-                if (selectedPaymentMethod === 'Kasbon' && activeMember) {
-                    await updateDoc(doc(db, "members", activeMember.id), { hutang: increment(globalGrandTotal) });
-                } else if (activeMember && selectedPaymentMethod !== 'Kasbon') {
-                    const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000));
-                    if (addPoin > 0) await updateDoc(doc(db, "members", activeMember.id), { poin: increment(addPoin) });
-                }
-
-                await updateDoc(doc(db, "shift", activeShiftSession.id), { totalPenjualan: increment(globalGrandTotal), totalTunai: increment(tunaiMasukLaci) });
-                isOnlineSuccess = true;
-            } catch(e) { console.error(e); }
-        }
-
-        if (!isOnlineSuccess) {
-            trxData.waktuLokal = new Date().toISOString(); 
-            trxData.isOfflinePending = true;
-            trxData.tunaiMasukLaci = tunaiMasukLaci;
-            
-            const isSaved = await saveTransactionOffline(trxData);
-            if (!isSaved) throw new Error("Memori Penuh.");
-            
-            for (const item of trxData.items) { const found = databaseBarang.find(x => x.id === item.id); if (found) found.stok = Math.max(0, (found.stok||0) - item.qty); }
-            localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang));
-            
-            if (selectedPaymentMethod === 'Kasbon' && activeMember) {
-                const mIdx = memberDataAll.findIndex(m => m.id === activeMember.id);
-                if(mIdx > -1) { memberDataAll[mIdx].hutang = (memberDataAll[mIdx].hutang||0) + globalGrandTotal; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); }
-            } else if (activeMember && selectedPaymentMethod !== 'Kasbon') {
-                const mIdx = memberDataAll.findIndex(m => m.id === activeMember.id);
-                const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000));
-                if(mIdx > -1 && addPoin > 0) { memberDataAll[mIdx].poin = (memberDataAll[mIdx].poin||0) + addPoin; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); }
-            }
-
-            activeShiftSession.totalPenjualan += globalGrandTotal;
-            activeShiftSession.totalTunai += tunaiMasukLaci;
-            localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
-            updateShiftUI(true); renderKatalogKasir();
-        }
-
-        const isBluetoothPrinted = await printDirectBluetooth(formatStrukBT(trxData));
-        if (!isBluetoothPrinted) { cetakStrukThermal(trxData); }
-
-        keranjang = []; localStorage.removeItem("pos_recovery_cart");
-        appliedVoucher = null; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = ""; document.getElementById('cash-paid').value = "";
-        btnCash?.click(); document.getElementById('btn-remove-member')?.click(); renderKeranjang(); 
-        applyFiltersAndStats(); window.switchCartTab('list');
-        
-    } catch(e) { alert("GAGAL MEMPROSES TRANSAKSI: " + e.message); } 
-    finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; }
-});
-
-function padCenter(str, len) {
-    if(str.length >= len) return str;
-    const left = Math.floor((len - str.length) / 2);
-    const right = len - str.length - left;
-    return " ".repeat(left) + str + " ".repeat(right);
-}
-
-function formatStrukBT(data) {
-    const lineLen = globalSettings.printerSize || 32; 
-    const lineChar = "-".repeat(lineLen);
-    const eqChar = "=".repeat(lineLen);
-
-    let struk = eqChar + "\n";
-    struk += padCenter(globalSettings.namaToko, lineLen) + "\n";
-    struk += padCenter(globalSettings.alamatToko, lineLen) + "\n";
-    struk += lineChar + "\n";
-    struk += `ID   : ${data.id}\nWaktu: ${new Date().toLocaleString('id-ID')}\nKasir: ${data.namaKasir.toUpperCase()}\n`;
-    struk += lineChar + "\n";
-    
-    data.items.forEach(i => { struk += `${i.nama}\n${i.qty} x ${toRupiah(i.harga)} = ${toRupiah(i.qty * i.harga)}\n`; });
-    
-    struk += lineChar + "\n";
-    struk += `Subtotal : ${toRupiah(data.subtotal)}\nDiskon   : -${toRupiah(data.diskon)}\n`;
-    if ((data.pajak || 0) > 0) struk += `Pajak    : +${toRupiah(data.pajak)}\n`;
-    struk += `TOTAL    : ${toRupiah(data.totalAkhir)}\nBayar    : ${toRupiah(data.uangBayar)}\nKembali  : ${toRupiah(data.kembalian)}\n`;
-    if(data.memberName) struk += `\nMember   : ${data.memberName.toUpperCase()}\n`;
-    struk += lineChar + "\n";
-    struk += padCenter(globalSettings.footerStruk, lineLen) + "\n\n\n\n";
-    return struk;
-}
-
-function cetakStrukThermal(data) {
-    const printArea = document.getElementById('print-area'); if(!printArea) return;
-    const tglStruk = data.waktuLokal ? new Date(data.waktuLokal) : new Date();
-    printArea.innerHTML = `
-        <div style="font-family:monospace; color:black; max-width:300px; margin:0 auto; padding:10px;">
-            <div style="text-align:center; margin-bottom:10px;"><h3 style="margin:0; font-size:16px; font-weight:bold;">${escapeHTML(globalSettings.namaToko)}</h3><p style="margin:2px 0; font-size:10px;">${escapeHTML(globalSettings.alamatToko)}</p></div>
-            <div style="border-top:1px dashed black; margin:8px 0;"></div>
-            <div style="font-size:10px; margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><span>Trx ID:</span> <span>${data.id || 'OFFLINE'}</span></div><div style="display:flex; justify-content:space-between;"><span>Waktu:</span> <span>${tglStruk.toLocaleString('id-ID')}</span></div><div style="display:flex; justify-content:space-between;"><span>Kasir:</span> <span>${escapeHTML(data.namaKasir ? data.namaKasir.toUpperCase() : 'SISTEM')}</span></div></div>
-            <div style="border-top:1px dashed black; margin:8px 0;"></div>
-            <div style="margin-bottom:8px;">${(data.items||[]).map(i => `<div style="margin-bottom:4px;"><div style="font-size:10px; font-weight:bold;">${escapeHTML(i.nama||'Item')}</div><div style="display:flex; justify-content:space-between; font-size:10px;"><span>${i.qty} x ${toRupiah(i.harga)}</span><span>${toRupiah((i.harga||0) * i.qty)}</span></div></div>`).join('')}</div>
-            <div style="border-top:1px dashed black; margin:8px 0;"></div>
-            <div style="font-size:10px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Subtotal:</span><span>${toRupiah(data.subtotal)}</span></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Diskon:</span><span>-${toRupiah(data.diskon)}</span></div>
-                ${(data.pajak || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Pajak:</span><span>+${toRupiah(data.pajak)}</span></div>` : ''}
-                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:12px; margin-top:4px; margin-bottom:4px;"><span>Total:</span><span>${toRupiah(data.totalAkhir)}</span></div>
-                <div style="border-top:1px dashed black; margin:6px 0;"></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Bayar (${escapeHTML(data.metodePembayaran||'Tunai')}):</span><span>${toRupiah(data.uangBayar)}</span></div>
-                <div style="display:flex; justify-content:space-between;"><span>Kembali:</span><span>${toRupiah(data.kembalian)}</span></div>
-            </div>
-            ${data.memberName ? `<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; text-align:center;"><p style="margin:2px 0;">Member: <strong>${escapeHTML(data.memberName.toUpperCase())}</strong></p></div>` : ''}
-            <div style="border-top:1px dashed black; margin:8px 0;"></div>
-            <div style="text-align:center; font-size:10px; margin-top:10px;"><p style="margin:0; font-weight:bold;">${escapeHTML(globalSettings.footerStruk)}</p></div>
-        </div>`;
-    printArea.classList.remove('hidden'); window.print(); printArea.classList.add('hidden');
-}
-
-function renderRiwayatTable() {
-    const tbody = document.getElementById('riwayat-list'); if(!tbody) return;
-    tbody.innerHTML = dataPenjualanTerfilter.map(trx => {
-        const itemsStr = Array.isArray(trx.items) ? trx.items.map(i => `${escapeHTML(i.nama)} (${i.qty}x)`).join(', ') : '';
-        return `
-            <tr class="hover:bg-dark-5/40 border-b border-dark-4">
-                <td class="px-6 py-4 text-xs">${formatTanggal(trx.waktu || trx.waktuLokal)} ${trx.isOfflinePending ? '⏳' : ''}</td>
-                <td class="px-6 py-4 text-xs text-gray-200 max-w-[200px] truncate">${trx.tipe === 'pelunasan_piutang' ? '<i>Pembayaran Kasbon</i>' : itemsStr}</td>
-                <td class="px-6 py-4 text-xs font-bold"><span class="px-2.5 py-1 bg-dark-5 rounded border border-dark-4">${escapeHTML(trx.metodePembayaran)}</span></td>
-                <td class="px-6 py-4 text-sm text-green-400 font-black">${toRupiah(trx.totalAkhir)}</td>
-                <td class="px-6 py-4 text-right"><button onclick="window.reprintTrx('${trx.id || trx.localId}')" class="px-3 py-1.5 bg-dark-5 hover:bg-dark-4 text-white text-xs rounded-lg font-bold shadow">🖨️ Struk</button></td>
-            </tr>`;
-    }).join('');
-}
-
-window.reprintTrx = async (id) => { 
-    const offlineTrx = dataPenjualanTerfilter.find(t => t.localId == id || t.id == id);
-    if (offlineTrx) { cetakStrukThermal(offlineTrx); } 
-    else { 
-        if (!navigator.onLine) return alert("Peringatan: Butuh internet.");
-        try { const docSnap = await getDoc(doc(db, "penjualan", id)); if(docSnap.exists()) { cetakStrukThermal(docSnap.data()); } } catch(e) { alert("Data tidak ditemukan."); }
-    }
-};
-
-function renderShiftLogs() {
-    const tbody = document.getElementById('shift-log-list'); if(!tbody) return;
-    tbody.innerHTML = dataShiftAll.map(s => `
-        <tr class="hover:bg-dark-5/40 border-b border-dark-4">
-            <td class="px-5 py-3"><p class="font-bold text-xs text-gray-200">${escapeHTML((s.namaKasir||'Unknown').toUpperCase())}</p><p class="text-[10px] text-dark-2 mt-0.5">${formatTanggal(s.waktuBuka)}</p></td>
-            <td class="px-5 py-3 text-xs text-dark-1">${toRupiah(s.modalAwal)}</td>
-            <td class="px-5 py-3 text-xs text-green-400 font-bold">${toRupiah(s.totalPenjualan || 0)}</td>
-            <td class="px-5 py-3 text-xs text-dark-1">${s.status==='buka'?'-':toRupiah(s.uangFisikAktual)}</td>
-            <td class="px-5 py-3">${s.status==='buka'?'<span class="text-green-400 font-bold bg-green-950/30 px-2 py-0.5 rounded border border-green-900 text-[10px] animate-pulse">AKTIF</span>':((s.selisih||0)===0?'<span class="text-green-400 font-bold text-xs">Pas</span>':((s.selisih||0)>0?`<span class="text-blue-400 font-bold text-xs">+${toRupiah(s.selisih||0)}</span>`:`<span class="text-red-400 font-bold text-xs">${toRupiah(s.selisih||0)}</span>`))}</td>
-        </tr>`).join('');
-}
-
-function renderAuditLogs() {
-    const tbody = document.getElementById('audit-log-list'); if(!tbody) return;
-    tbody.innerHTML = auditLogsData.map(log => `
-        <tr class="hover:bg-dark-5/40 border-b border-dark-4">
-            <td class="px-5 py-3">
-                <div class="flex justify-between mb-1.5"><span class="font-bold text-[11px] text-mantine-blue uppercase">👤 ${escapeHTML(log.user||'Sistem')}</span><span class="text-[10px] text-dark-3">${formatTanggal(log.timestamp)}</span></div>
-                <span class="inline-block px-1.5 py-0.5 bg-dark-5 text-[10px] font-bold rounded mb-1.5 text-gray-300 border border-dark-4">${escapeHTML(log.action||'-')}</span>
-                <p class="text-xs text-dark-1 leading-snug">${escapeHTML(log.detail||'-')}</p>
-            </td>
-        </tr>`).join('');
-}
-
-const itemForm = document.getElementById('item-form');
-itemForm?.addEventListener('submit', async (e) => {
-    e.preventDefault(); 
-    if (!navigator.onLine) return alert("Peringatan: Butuh internet.");
-    const idInput = document.getElementById('item-id'); const barcodeInputEl = document.getElementById('item-barcode');
-    const id = idInput ? idInput.value : ''; const barcodeInput = barcodeInputEl ? barcodeInputEl.value.trim() : '';
-    if (barcodeInput !== "") { const isDuplicate = databaseBarang.find(x => (x.barcode || '').toLowerCase() === barcodeInput.toLowerCase() && x.id !== id); if (isDuplicate) return alert(`Barcode sudah dipakai: ${isDuplicate.nama}`); }
-    
-    const btnSubmit = document.getElementById('btn-submit'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan..."; }
-    try {
-        const rawCost = Math.max(0, parseInputRibuan(document.getElementById('item-cost')?.value)); 
-        const rawHrg = Math.max(0, parseInputRibuan(document.getElementById('item-price')?.value)); 
-        const rawStk = Math.max(0, parseInputRibuan(document.getElementById('item-stock')?.value));
-        const nName = document.getElementById('item-name')?.value.trim() || 'Barang Baru';
-        
-        const nCat = document.getElementById('item-category')?.value.trim() || 'Umum';
-        const supId = document.getElementById('item-supplier')?.value || "";
-        const nNotes = document.getElementById('item-notes')?.value.trim() || '';
-        
-        const data = { barcode: barcodeInput, nama: nName, kategori: nCat, catatan: nNotes, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
-        if(id) { await updateDoc(doc(db, "barang", id), data); } else { await addDoc(itemsRef, data); }
-        
-        document.getElementById('item-form')?.reset(); document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden');
-    } catch(err) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
-});
-
-window.duplikatBarang = (id) => {
-    const item = databaseBarang.find(x => x.id === id); if (!item) return;
-    
-    document.getElementById('item-id').value = ""; 
-    document.getElementById('item-barcode').value = ""; 
-    document.getElementById('item-name').value = item.nama + " (Copy)"; 
-    document.getElementById('item-category').value = item.kategori || "Umum";
-    document.getElementById('item-notes').value = item.catatan || "";
-    
-    document.getElementById('item-cost').value = formatInputRibuan(item.cost); 
-    document.getElementById('item-price').value = formatInputRibuan(item.harga); 
-    document.getElementById('item-stock').value = formatInputRibuan(item.stok); 
-    
-    const supSelect = document.getElementById('item-supplier'); 
-    if (supSelect) supSelect.value = item.supplierId || "";
-    
-    document.getElementById('btn-cancel')?.classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' }); 
-    setTimeout(() => { const nameInput = document.getElementById('item-name'); if(nameInput) { nameInput.focus(); nameInput.select(); } }, 100);
-};
-
-window.editBarang = (id) => {
-    const item = databaseBarang.find(x => x.id === id); if (!item) return;
-    document.getElementById('item-id').value = item.id; document.getElementById('item-barcode').value = item.barcode || ""; 
-    document.getElementById('item-name').value = item.nama; 
-    document.getElementById('item-category').value = item.kategori || "Umum";
-    document.getElementById('item-notes').value = item.catatan || "";
-    
-    document.getElementById('item-cost').value = formatInputRibuan(item.cost); 
-    document.getElementById('item-price').value = formatInputRibuan(item.harga); 
-    document.getElementById('item-stock').value = formatInputRibuan(item.stok); 
-    
-    const supSelect = document.getElementById('item-supplier'); if (supSelect) supSelect.value = item.supplierId || "";
-    document.getElementById('btn-cancel')?.classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-
-window.hapusBarang = async (id) => { if (!navigator.onLine) return alert("Butuh internet."); const item = databaseBarang.find(x => x.id === id); if(!item) return; if(confirm(`Hapus permanen ${item.nama}?`)) { await deleteDoc(doc(db, "barang", id)); } };
-
-document.getElementById('btn-cancel')?.addEventListener('click', () => { 
-    document.getElementById('item-form')?.reset(); 
-    document.getElementById('item-id').value = ""; 
-    document.getElementById('btn-cancel')?.classList.add('hidden'); 
-});
-
-function renderGudangList() {
-    const container = document.getElementById('gudang-list'); 
-    const totalEl = document.getElementById('gudang-total-item');
-    if(!container) return;
-    
-    let filtered = databaseBarang.filter(i => {
-        const keyword = kataKunciGudang.toLowerCase();
-        return (i.nama || '').toLowerCase().includes(keyword) || 
-               (i.barcode || '').toLowerCase().includes(keyword) ||
-               (i.kategori || '').toLowerCase().includes(keyword) ||
-               (i.catatan || '').toLowerCase().includes(keyword);
-    });
-
-    filtered.sort((a, b) => {
-        const nameA = (a.nama || '').toLowerCase();
-        const nameB = (b.nama || '').toLowerCase();
-        if (sortGudangOrder === 'asc') return nameA.localeCompare(nameB);
-        return nameB.localeCompare(nameA);
-    });
-
-    if (totalEl) totalEl.textContent = formatInputRibuan(filtered.length);
-
-    if(filtered.length === 0) { container.innerHTML = `<p class="text-[11px] text-dark-2 italic text-center py-4">Barang tidak ditemukan.</p>`; return; }
-    
-    const toShowGudang = filtered.slice(0, gudangItemLimit);
-
-    container.innerHTML = toShowGudang.map(i => {
-        let supName = "";
-        if(i.supplierId) { const sup = databasePemasok.find(x => x.id === i.supplierId); if(sup) supName = sup.nama; }
-        
-        const isLowStock = (i.stok||0) <= (globalSettings.batasStok || 5);
-        const stockClass = isLowStock ? '!bg-red-900/30 !text-red-400 border-red-900/50' : '';
-
-        return `
-        <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 flex justify-between items-center gap-3 shadow-sm hover:border-dark-3 transition-colors">
-            <div>
-                <span class="text-[9px] font-bold text-dark-2 mb-1 block uppercase tracking-wider">
-                    ${escapeHTML(i.barcode ? '📟 '+i.barcode : 'NO BARCODE')} 
-                    <span class="text-amber-500"> | 🏷️ ${escapeHTML(i.kategori || 'Umum')}</span>
-                    ${supName ? '<span class="text-mantine-blue"> | 🚚 '+escapeHTML(supName)+'</span>' : ''}
-                </span>
-                <h3 class="font-bold text-gray-100 text-sm">${escapeHTML(i.nama||'Item')}</h3>
-                ${i.catatan ? `<p class="text-[10px] text-dark-3 mt-0.5 italic">📝 ${escapeHTML(i.catatan)}</p>` : ''}
-                <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${stockClass}">Stok: ${formatInputRibuan(i.stok||0)}</span></div>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="window.duplikatBarang('${i.id}')" class="px-3 py-2 bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-400 border border-indigo-900/50 text-xs font-bold rounded-lg transition-colors" title="Duplikat Barang">Copy</button>
-                <button onclick="window.editBarang('${i.id}')" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-lg transition-colors">Ubah</button>
-                <button onclick="window.hapusBarang('${i.id}')" class="px-3 py-2 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/50 text-xs font-bold rounded-lg transition-colors">Hapus</button>
-            </div>
-        </div>`
-    }).join('');
-
-    if (filtered.length > gudangItemLimit) {
-        container.innerHTML += `
-            <div class="flex justify-center py-4">
-                <button onclick="window.loadMoreGudang()" class="px-6 py-2.5 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-xl shadow transition-colors border border-dark-4">
-                    Tampilkan Lebih Banyak (${filtered.length - gudangItemLimit} item lagi)
-                </button>
-            </div>
-        `;
-    }
-}
-
-window.loadMoreGudang = () => { gudangItemLimit += 30; renderGudangList(); };
-
+// EVENT LISTENER BUTTON EXPORT IMPORT
 document.getElementById('btn-export-gudang')?.addEventListener('click', () => {
     if (databaseBarang.length === 0) return alert("Gudang kosong.");
     const dataExcel = databaseBarang.map(i => ({
