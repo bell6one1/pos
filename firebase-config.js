@@ -1,8 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// Konfigurasi Database Anda
 const firebaseConfig = {
     apiKey: "AIzaSyAsLKh24L8KxN8vqUgLQujmrfeVzc0F9YM",
     authDomain: "pos-system-ef6ee.firebaseapp.com",
@@ -12,12 +11,18 @@ const firebaseConfig = {
     appId: "1:1090528334356:web:ef7bddb8fe623427538d01"
 };
 
-// Inisialisasi Firebase Core
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// Inisialisasi Koleksi Tabel
+enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code == 'failed-precondition') {
+        console.warn("Persistence gagal: Beberapa tab terbuka sekaligus.");
+    } else if (err.code == 'unimplemented') {
+        console.warn("Browser tidak mendukung offline persistence.");
+    }
+});
+
 export const itemsRef = collection(db, "barang");
 export const salesRef = collection(db, "penjualan");
 export const shiftsRef = collection(db, "shift");
