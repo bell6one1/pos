@@ -6,8 +6,8 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https:/
 // PENGATURAN VIP & VARIABEL GLOBAL
 // ==========================================
 let globalSettings = {
-    namaToko: "TOKO MODERN POS",
-    alamatToko: "Jl. Teknologi No.123",
+    namaToko: "TOKO NUR ALAM",
+    alamatToko: "Jl. Pabentengan No.22",
     footerStruk: "TERIMA KASIH!",
     pinAdmin: "123456",
     batasStok: 5,
@@ -20,6 +20,8 @@ let globalSettings = {
     showMember: true,
     showVoucher: true,
     showHoldBill: true,
+	pajakPersen: 0,
+    serviceChargePersen: 0,
     vouchers: {
         "PROMO20": { type: "percent", value: 20 },
         "POTONG10K": { type: "nominal", value: 10000 }
@@ -234,15 +236,22 @@ function hitungUangKembalian() {
 
     const rawDiskonManual = 0; 
     globalDiskon = Math.min(globalSubtotal, rawDiskonManual + diskonOtomatisMember + diskonVoucher);
-    globalGrandTotal = Math.round(Math.max(0, globalSubtotal - globalDiskon));
     
-    document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal); 
+    // --- INTEGRASI KALKULASI FITUR PAJAK & SERVICE CHARGE ---
+    let totalSebelumPajak = Math.max(0, globalSubtotal - globalDiskon);
+    let nominalPajak = Math.round(totalSebelumPajak * ((globalSettings.pajakPersen || 0) / 100));
+    let nominalService = Math.round(totalSebelumPajak * ((globalSettings.serviceChargePersen || 0) / 100));
+    
+    // Menggabungkan total belanja setelah dikurangi diskon, ditambah beban biaya eksternal
+    globalGrandTotal = Math.round(totalSebelumPajak + nominalPajak + nominalService);
+    
+    // Sinkronisasi teks nominal ke elemen antarmuka pengguna (UI)
+    document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal);
     document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
     document.getElementById('pane1-grand-total').textContent = toRupiah(globalGrandTotal);
     
     const btnCheckout = document.getElementById('btn-checkout');
-    btnCheckout.textContent = "Selesaikan Bayar";
-    
+    btnCheckout.textContent = "Selesaikan Bayar"; 
     if (selectedPaymentMethod === 'Tunai') {
         const cashInput = Math.max(0, parseInputRibuan(document.getElementById('cash-paid').value));
         btnCheckout.disabled = (cashInput < globalGrandTotal || keranjang.length === 0);
@@ -984,3 +993,103 @@ document.getElementById('btn-export-excel')?.addEventListener('click', () => {
         alert("Terjadi kesalahan saat membuat file Excel.");
     }
 });
+
+// =======================================================================
+// HANDLER PENGATURAN TOKO, PAJAK, DAN ENGINE BACKUP-RESTORE DATABASE JSON
+// =======================================================================
+
+function isiDataSettingKeForm() {
+    if (document.getElementById('set-nama-toko')) {
+        document.getElementById('set-nama-toko').value = globalSettings.namaToko || '';
+        document.getElementById('set-alamat-toko').value = globalSettings.alamatToko || '';
+        document.getElementById('set-footer-toko').value = globalSettings.footerStruk || '';
+        document.getElementById('set-pajak').value = globalSettings.pajakPersen || 0;
+        document.getElementById('set-service').value = globalSettings.serviceChargePersen || 0;
+    }
+}
+
+// Menangkap event klik simpan untuk memperbarui variabel lokal runtime
+document.getElementById('btn-save-settings')?.addEventListener('click', () => {
+    if (document.getElementById('set-nama-toko')) {
+        globalSettings.namaToko = document.getElementById('set-nama-toko').value;
+        globalSettings.alamatToko = document.getElementById('set-alamat-toko').value;
+        globalSettings.footerStruk = document.getElementById('set-footer-toko').value;
+        globalSettings.pajakPersen = parseFloat(document.getElementById('set-pajak').value) || 0;
+        globalSettings.serviceChargePersen = parseFloat(document.getElementById('set-service').value) || 0;
+        
+        // Cadangan lokal agar persisten saat halaman dimuat ulang sebelum sinkronisasi cloud penuh
+        localStorage.setItem("pos_saved_global_settings", JSON.stringify(globalSettings));
+    }
+});
+
+// Engine pembuat file unduhan backup .json
+document.getElementById('btn-backup-data')?.addEventListener('click', () => {
+    try {
+        if (!databaseBarang || databaseBarang.length === 0) {
+            return alert("Gagal Ekspor: Database barang Anda saat ini kosong.");
+        }
+
+        const paketCadangan = {
+            metadata: "POS_MODERN_PRO_BACKUP",
+            tanggalPembuatan: new Date().toISOString(),
+            pengaturanSistem: globalSettings,
+            dataProduk: databaseBarang
+        };
+
+        const stringifikasi = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(paketCadangan, null, 2));
+        const tautanUnduhan = document.createElement('a');
+        const tanggalHariIni = new Date().toISOString().split('T')[0];
+        
+        tautanUnduhan.setAttribute("href", stringifikasi);
+        tautanUnduhan.setAttribute("download", `BACKUP_POS_ITEMS_${tanggalHariIni}.json`);
+        document.body.appendChild(tautanUnduhan);
+        tautanUnduhan.click();
+        tautanUnduhan.remove();
+        
+        alert("🎉 Sukses! File database JSON berhasil diekspor ke folder unduhan perangkat Anda.");
+    } catch (gagal) {
+        alert("Gagal melakukan enkapsulasi data: " + gagal.message);
+    }
+});
+
+// Engine pembaca file restorasi (.json) untuk dimasukkan ke Firebase Firestore secara sekuensial
+document.getElementById('btn-restore-data')?.addEventListener('click', () => {
+    const komponenFile = document.getElementById('input-restore-file');
+    if (!komponenFile.files || komponenFile.files.length === 0) {
+        return alert("Pilih file cadangan (.json) terlebih dahulu sebelum eksekusi.");
+    }
+
+    const berkas = komponenFile.files[0];
+    const readerBerkas = new FileReader();
+
+    readerBerkas.onload = async (e) => {
+        try {
+            const hasilParse = JSON.parse(e.target.result);
+            
+            if (!hasilParse.dataProduk || !Array.isArray(hasilParse.dataProduk)) {
+                throw new Error("Struktur file tidak dikenali sebagai skema pencadangan resmi.");
+            }
+
+            const validasiTindakan = confirm("⚠️ PERINGATAN: Aksi ini akan menulis ulang data langsung ke Firebase Firestore Anda. Lanjutkan restorasi?");
+            if (!validasiTindakan) return;
+
+            alert("Proses injeksi data dimulai. Mohon tunggu dan jangan muat ulang halaman...");
+
+            // Iterasi sekuensial mengunggah item ke referensi tabel barang (itemsRef) bawaan Anda
+            for (const item dari hasilParse.dataProduk) {
+                const docId = item.id || "GEN_" + Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                await setDoc(doc(db, "barang", docId), item);
+            }
+
+            alert("🔄 Basis data sukses dipulihkan ke cloud Firestore! Sistem akan memuat ulang halaman.");
+            window.location.reload();
+
+        } catch (err) {
+            alert("Terjadi kegagalan baca data: " + err.message);
+        }
+    };
+    readerBerkas.readAsText(berkas);
+});
+
+// Menjalankan sinkronisasi pengisian input form setelah inisialisasi awal aplikasi selesai
+setTimeout(isiDataSettingKeForm, 1500);
