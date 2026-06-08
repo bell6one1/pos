@@ -1,28 +1,681 @@
-<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>POS Modern Pro - Enterprise Edition</title><link rel="manifest" href="./manifest.json"><meta name="theme-color" content="#1A1B1E"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script><link rel="stylesheet" href="./style.css"><style id="dynamic-theme"></style>
-<script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','sans-serif']},colors:{dark:{0:'#C1C2C5',1:'#A6A7AB',2:'#909296',3:'#5C5F66',4:'#373A40',5:'#2C2E33',6:'#25262B',7:'#1A1B1E',8:'#141517',9:'#101113'},mantine:{blue:'#1971c2',hover:'#1864ab'}}}}}</script></head>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Modern Pro - Enterprise Edition</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#1A1B1E">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <link rel="stylesheet" href="./style.css">
+
+    <style id="dynamic-theme"></style>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        dark: { 
+                            0: '#C1C2C5', 1: '#A6A7AB', 2: '#909296', 3: '#5C5F66', 
+                            4: '#373A40', 5: '#2C2E33', 6: '#25262B', 7: '#1A1B1E', 
+                            8: '#141517', 9: '#101113' 
+                        },
+                        mantine: { blue: '#1971c2', hover: '#1864ab' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
 <body class="bg-dark-7 text-dark-0 font-sans antialiased min-h-screen selection:bg-mantine-blue selection:text-white overflow-y-scroll transition-colors duration-300">
-<div id="auth-loading" class="fixed inset-0 bg-dark-7/90 backdrop-blur-sm flex flex-col items-center justify-center z-[100] transition-colors duration-300"><div class="w-8 h-8 border-[3px] border-mantine-blue border-t-transparent rounded-full animate-spin"></div><p class="text-sm text-dark-1 mt-4 font-medium tracking-wide">Menghubungkan ke sistem...</p></div>
-<div id="offline-indicator" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white text-xs font-bold text-center py-1 z-[120] animate-pulse shadow-lg">⚠️ KONEKSI TERPUTUS - MODE OFFLINE AKTIF</div>
-<div id="pin-modal" class="hidden fixed inset-0 bg-dark-9/90 backdrop-blur-md flex items-center justify-center z-[110] p-4"><div class="bg-dark-6 p-7 rounded-2xl shadow-2xl border border-red-900/50 w-full max-w-xs text-center relative overflow-hidden transition-colors duration-300"><div class="absolute top-0 left-0 w-full h-1 bg-red-600"></div><h3 class="text-lg font-black text-red-400 mb-1 uppercase tracking-widest">Otorisasi Admin</h3><p class="text-xs text-dark-1 mb-5">Masukkan PIN otorisasi.</p><input type="password" id="auth-pin-input" maxlength="6" placeholder="••••••" class="w-full px-4 py-3 text-center tracking-[1em] text-2xl font-black bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none mb-5 focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"><div class="flex gap-2"><button type="button" onclick="document.getElementById('pin-modal').classList.add('hidden'); document.getElementById('auth-pin-input').value=''; window.itemAkanDihapus = null;" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl transition-colors">Batal</button><button type="button" id="btn-verify-pin" class="flex-1 py-3 text-xs font-black bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg transition-all">Verifikasi</button></div></div></div>
-<div id="split-modal" class="hidden fixed inset-0 bg-dark-9/90 backdrop-blur-md flex items-center justify-center z-[100] p-4"><div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-mantine-blue/50 w-full max-w-sm transition-colors duration-300"><div class="flex justify-between items-center mb-4 border-b border-dark-4 pb-3"><h3 class="text-sm font-bold text-gray-100 uppercase tracking-widest">🔀 Split Payment</h3><span id="split-total-tagihan" class="text-mantine-blue font-black text-lg">Rp 0</span></div><div class="space-y-4"><div class="bg-dark-8 p-3 rounded-xl border border-dark-4 transition-colors duration-300"><label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Pembayaran Pertama</label><div class="flex gap-2"><select id="split-method-1" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-gray-100 outline-none focus:border-mantine-blue transition-colors"><option value="Tunai">Tunai</option><option value="QRIS">QRIS</option><option value="Debit">Debit</option></select><input type="text" inputmode="numeric" id="split-amount-1" placeholder="Nominal Rp" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-gray-100 font-bold outline-none focus:border-mantine-blue input-ribuan transition-colors"></div></div><div class="bg-dark-8 p-3 rounded-xl border border-dark-4 transition-colors duration-300"><label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Pembayaran Kedua</label><div class="flex gap-2"><select id="split-method-2" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-gray-100 outline-none focus:border-mantine-blue transition-colors"><option value="QRIS">QRIS</option><option value="Tunai">Tunai</option><option value="Debit">Debit</option></select><input type="text" inputmode="numeric" id="split-amount-2" placeholder="Nominal Kedua Rp" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-gray-100 font-bold outline-none focus:border-mantine-blue input-ribuan transition-colors" readonly></div><p id="split-warning" class="text-[10px] text-red-400 mt-2 font-bold hidden">Total bayar belum sesuai tagihan!</p></div></div><div class="flex gap-2 mt-6"><button type="button" onclick="window.batalSplitPayment()" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl transition-colors">Batal</button><button type="button" id="btn-save-split" class="flex-1 py-3 text-xs font-bold bg-mantine-blue hover:bg-mantine-hover text-white rounded-xl shadow-lg">Terapkan Split</button></div></div></div>
-<div id="bayar-piutang-modal" class="hidden fixed inset-0 bg-dark-9/90 backdrop-blur-md flex items-center justify-center z-[100] p-4"><div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-amber-500/50 w-full max-w-sm text-center transition-colors duration-300"><h3 class="text-sm font-bold text-gray-100 uppercase tracking-widest mb-1">Pelunasan Kasbon</h3><p id="piutang-member-name" class="text-lg font-black text-amber-500 mb-4">Nama Pelanggan</p><div class="bg-dark-8 border border-dark-4 rounded-xl p-4 mb-4 transition-colors duration-300"><p class="text-xs text-dark-2 mb-1">Total Hutang Tersisa:</p><p id="piutang-sisa-hutang" class="text-2xl font-black text-red-400">Rp 0</p></div><div class="text-left mb-5"><label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Nominal Dibayar (Rp)</label><input type="text" inputmode="numeric" id="piutang-bayar-input" placeholder="Masukkan jumlah pelunasan" class="w-full px-4 py-3 text-base font-bold bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-amber-500 input-ribuan transition-colors"></div><div class="flex gap-2"><button type="button" onclick="document.getElementById('bayar-piutang-modal').classList.add('hidden')" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl transition-colors">Batal</button><button type="button" id="btn-submit-piutang" class="flex-1 py-3 text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow-lg">Lunasi</button></div></div></div>
-<div id="shift-modal" class="hidden fixed inset-0 bg-dark-9/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4"><div class="bg-dark-6 p-7 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-sm transition-colors duration-300"><h3 id="shift-modal-title" class="text-lg font-bold text-gray-100 mb-1">Mulai Shift Kasir</h3><form id="shift-form" class="space-y-5 mt-4"><div><label id="shift-input-label" class="block text-xs font-semibold text-dark-2 uppercase tracking-wider mb-2">Modal Laci Awal (Rp)</label><input type="text" inputmode="numeric" id="shift-cash-input" required class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue input-ribuan transition-colors"></div><div class="flex gap-3 pt-2"><button type="button" id="btn-close-shift-modal" class="hidden flex-1 py-2.5 bg-dark-5 rounded-xl text-sm font-medium transition-colors">Batal</button><button type="submit" id="btn-shift-submit" class="flex-1 py-2.5 bg-mantine-blue text-white rounded-xl text-sm font-medium">Buka Shift</button></div></form></div></div>
-<div id="hold-modal" class="hidden fixed inset-0 bg-dark-9/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4"><div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-md flex flex-col max-h-[80vh] transition-colors duration-300"><h3 class="text-lg font-bold text-gray-100 mb-1">Pesanan Tertunda (Hold Bill)</h3><div id="hold-bills-list" class="flex-1 overflow-y-auto space-y-3 pr-1 mt-4 no-scrollbar"></div><div class="mt-4 pt-3 border-t border-dark-4 flex justify-end transition-colors duration-300"><button onclick="document.getElementById('hold-modal').classList.add('hidden')" class="px-4 py-2 text-xs bg-dark-5 hover:bg-dark-4 rounded-xl text-gray-100 transition-colors">Tutup</button></div></div></div>
-<div id="member-modal" class="hidden fixed inset-0 bg-dark-9/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4"><div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-sm transition-colors duration-300"><h3 class="text-lg font-bold text-gray-100 mb-4">Registrasi Member</h3><form id="member-form" class="space-y-4"><div><label class="block text-xs font-semibold text-dark-2 uppercase mb-1">Nomor HP</label><input type="text" inputmode="numeric" id="member-reg-phone" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none transition-colors"></div><div><label class="block text-xs font-semibold text-dark-2 uppercase mb-1">Nama Lengkap</label><input type="text" id="member-reg-name" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none transition-colors"></div><div class="flex gap-2 pt-2"><button type="button" onclick="document.getElementById('member-modal').classList.add('hidden')" class="flex-1 py-2 text-xs bg-dark-5 border border-dark-4 rounded-xl transition-colors">Batal</button><button type="submit" class="flex-1 py-2 text-xs bg-mantine-blue text-white rounded-xl">Daftarkan Member</button></div></form></div></div>
-<div id="login-screen" class="hidden fixed inset-0 bg-dark-7 flex items-center justify-center z-[90] p-4 transition-colors duration-300"><div class="bg-dark-6 p-8 rounded-2xl shadow-premium border border-dark-4 w-full max-w-sm transition-colors duration-300"><div class="text-center mb-8"><h1 class="text-2xl font-black text-gray-100 tracking-tight">POS<span class="text-mantine-blue">PRO</span></h1></div><form id="login-form" class="space-y-5"><div><label class="block text-xs font-semibold text-dark-2 mb-2">Email</label><input type="email" id="login-email" required class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none transition-colors"></div><div><label class="block text-xs font-semibold text-dark-2 mb-2">Sandi</label><input type="password" id="login-password" required class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none transition-colors"></div><button type="submit" id="btn-login-submit" class="w-full py-3 mt-2 bg-mantine-blue hover:bg-mantine-hover text-white font-medium text-sm rounded-xl transition-colors">Masuk</button></form></div></div>
-<div id="app-screen" class="hidden"><nav class="bg-dark-7/90 backdrop-blur-md border-b border-dark-4 sticky top-0 z-50 transition-colors duration-300"><div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><div class="flex justify-between h-16 items-center overflow-x-auto no-scrollbar"><div class="flex h-full space-x-2 pt-2"><button id="tab-dashboard-btn" class="nav-tab border-b-2 border-mantine-blue text-mantine-blue px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">📊 Dashboard</button><button id="tab-kasir-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">🎯 Kasir</button><button id="tab-gudang-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">📦 Gudang</button><button id="tab-pemasok-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">🚚 Pemasok</button><button id="tab-piutang-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 text-amber-500 shrink-0">💳 Kasbon</button><button id="tab-riwayat-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">🧾 Riwayat</button><button id="tab-pengaturan-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0 hidden">⚙️ Pengaturan</button></div><div class="flex items-center gap-3 shrink-0 ml-4"><button id="btn-connect-printer" class="px-3 py-1.5 text-xs font-bold text-dark-1 bg-dark-8 border border-dark-4 hover:bg-dark-6 rounded-lg transition-colors flex items-center gap-1.5" title="Koneksikan Printer Thermal Bluetooth"><span class="text-sm">🖨️</span> <span class="hidden md:inline">Printer BT</span></button><button id="btn-logout" class="px-3 py-1.5 text-xs font-bold text-red-400 bg-red-950/20 border border-red-900/50 hover:bg-red-900/40 rounded-lg transition-colors">Keluar</button></div></div></div></nav>
-<main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-<div id="tab-dashboard" class="tab-content hidden space-y-6"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"><div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative transition-colors duration-300"><span class="text-xs font-bold text-dark-2 uppercase">Omset Kotor</span><h3 id="dash-omset" class="text-2xl font-extrabold text-gray-100 mt-2">Rp 0</h3></div><div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative shadow-[0_0_15px_rgba(74,222,128,0.05)] border-green-900/30 transition-colors duration-300"><span class="text-xs font-bold text-green-500 uppercase flex items-center gap-1.5">📈 Laba Bersih</span><h3 id="dash-profit" class="text-2xl font-extrabold text-green-400 mt-2">Rp 0</h3></div><div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative transition-colors duration-300"><span class="text-xs font-bold text-dark-2 uppercase">Transaksi</span><h3 id="dash-transaksi" class="text-2xl font-extrabold text-gray-100 mt-2">0</h3></div><div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative transition-colors duration-300"><span class="text-xs font-bold text-dark-2 uppercase">Item Terjual</span><h3 id="dash-items" class="text-2xl font-extrabold text-gray-100 mt-2">0</h3></div></div><div id="admin-shift-log-section" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-5"><div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden flex flex-col transition-colors duration-300"><div class="p-4 border-b border-dark-4"><h3 class="text-[11px] font-bold text-gray-100 uppercase tracking-widest">Z-Report Shift Kasir</h3></div><div class="overflow-x-auto no-scrollbar max-h-[300px]"><table class="min-w-full divide-y divide-dark-4 text-xs"><tbody id="shift-log-list" class="bg-dark-7 divide-y divide-dark-4 transition-colors"></tbody></table></div></div><div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden flex flex-col transition-colors duration-300"><div class="p-4 border-b border-dark-4"><h3 class="text-[11px] font-bold text-red-400 uppercase tracking-widest">Log Keamanan Audit</h3></div><div class="overflow-y-auto no-scrollbar max-h-[300px]"><table class="min-w-full divide-y divide-dark-4 text-xs"><tbody id="audit-log-list" class="bg-dark-7 divide-y divide-dark-4 transition-colors"></tbody></table></div></div></div></div>
-<div id="tab-kasir" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8"><div class="lg:col-span-2 space-y-6"><div id="shift-status-widget" class="bg-dark-6 border border-dark-4 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors duration-300"></div><div id="kasir-core-content" class="space-y-5 opacity-40 pointer-events-none transition-all duration-300"><div class="bg-dark-6 p-2 rounded-xl border border-dark-4 flex flex-col sm:flex-row gap-2 transition-colors duration-300"><div class="flex items-center w-full bg-dark-8 border border-dark-5 rounded-lg px-2 transition-colors duration-300"><span class="text-lg ml-2">🔍</span><input type="text" id="kasir-search" placeholder="Cari nama produk atau Scan Barcode..." class="w-full px-3 py-2 text-sm bg-transparent outline-none text-gray-100"><button onclick="window.startVoiceSearchKasir()" id="btn-voice-search-kasir" class="w-8 h-8 flex items-center justify-center bg-dark-5 hover:bg-dark-4 rounded-md text-gray-100 transition-colors border border-dark-4 shrink-0 mr-1" title="Cari dengan Suara">🎤</button></div></div><div id="kasir-categories" class="flex gap-2 overflow-x-auto no-scrollbar py-2 items-center"></div><div id="kasir-katalog" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"></div></div></div><div class="bg-dark-6 rounded-xl border border-dark-4 flex flex-col h-[calc(100vh-6rem)] sticky top-20 opacity-40 pointer-events-none transition-all duration-300 overflow-hidden" id="kasir-cart-content"><div class="px-5 py-3 border-b border-dark-4 flex justify-between items-center shrink-0 bg-dark-6 z-10 transition-colors duration-300"><h2 class="text-sm font-bold text-gray-100 uppercase tracking-widest">Keranjang</h2><span id="cart-total-qty-badge" class="bg-mantine-blue/20 text-blue-500 py-1 px-2.5 rounded-md text-xs font-bold border border-mantine-blue/30">0 Item</span></div><div class="flex border-b border-dark-5 shrink-0 bg-dark-7/50 transition-colors duration-300"><button id="tab-cart-list-btn" onclick="window.switchCartTab('list')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-mantine-blue border-b-2 border-mantine-blue transition-colors focus:outline-none">🛒 Daftar Belanja</button><button id="tab-cart-pay-btn" onclick="window.switchCartTab('pay')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-dark-2 border-b-2 border-transparent hover:text-gray-200 transition-colors focus:outline-none">💳 Pembayaran</button></div><div id="cart-pane-list" class="flex-1 flex flex-col min-h-0 bg-dark-7 relative transition-colors duration-300"><div id="cart-list" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar"></div><div class="p-4 bg-dark-6 border-t border-dark-4 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.2)] transition-colors duration-300"><div class="flex justify-between items-center mb-3"><span class="text-xs font-bold text-dark-2 uppercase">Total Sementara</span><span id="pane1-grand-total" class="text-xl font-black text-gray-100">Rp 0</span></div><button onclick="window.switchCartTab('pay')" class="w-full py-3 bg-mantine-blue hover:bg-mantine-hover text-white text-xs font-bold rounded-xl shadow-lg transition-all tracking-wide">LANJUT PEMBAYARAN ➔</button></div></div><div id="cart-pane-pay" class="flex-1 flex-col min-h-0 hidden bg-dark-6 transition-colors duration-300"><div class="flex-1 overflow-y-auto no-scrollbar p-5 space-y-5"><div id="section-kasir-member"><label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase tracking-wider">Data Pelanggan (Member)</label><div id="member-select-zone" class="flex gap-2"><input type="text" inputmode="numeric" id="member-search-input" placeholder="No HP..." class="flex-1 bg-dark-8 border border-dark-4 text-xs text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:border-mantine-blue transition-colors"><button id="btn-check-member" class="px-4 py-2 bg-dark-5 hover:bg-dark-4 text-gray-100 text-xs font-bold rounded-lg transition-colors">Cari</button></div><div id="member-active-zone" class="hidden flex justify-between items-center bg-mantine-blue/10 border border-mantine-blue/20 rounded-lg p-2.5"><div><p id="member-active-name" class="text-xs font-bold text-mantine-blue">⭐ MEMBER</p><p id="member-active-points" class="text-[10px] text-dark-1 mt-0.5">Poin: 0</p></div><button id="btn-remove-member" class="text-[10px] text-red-500 hover:text-white font-bold px-3 py-1.5 bg-red-400/10 hover:bg-red-500/20 rounded-lg transition-colors">Batal</button></div></div><div id="section-kasir-voucher" class="pt-4 border-t border-dark-5 transition-colors duration-300"><label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase tracking-wider">Potongan Harga / Voucher</label><div class="flex shadow-sm rounded-lg overflow-hidden border border-dark-4 transition-colors"><input type="text" id="voucher-code" placeholder="Kode Voucher (Cth: PROMO20)" class="flex-1 px-3 py-2 bg-dark-8 text-gray-100 outline-none uppercase text-xs placeholder-dark-3 transition-colors"><button id="btn-apply-voucher" class="px-4 py-2 bg-dark-5 hover:bg-dark-4 text-gray-100 text-xs font-bold transition-colors border-l border-dark-4">Klaim</button></div></div><div class="pt-4 border-t border-dark-5 transition-colors duration-300"><div class="flex justify-between items-center mb-1"><span class="text-xs text-dark-1">Subtotal Item</span><span id="cart-subtotal" class="text-xs text-gray-300 font-bold">Rp 0</span></div><div id="cart-tax-zone" class="flex justify-between items-center mt-1 hidden"><span class="text-xs text-dark-1">Pajak (<span id="cart-tax-rate-display">0</span>%)</span><span id="cart-tax-amount" class="text-xs text-red-400 font-bold">+Rp 0</span></div><div id="cart-service-zone" class="flex justify-between items-center mt-1 hidden"><span class="text-xs text-dark-1">Service Charge (<span id="cart-service-rate-display">0</span>%)</span><span id="cart-service-amount" class="text-xs text-red-400 font-bold">+Rp 0</span></div><div class="flex justify-between items-end mt-4"><span class="text-xs font-bold text-dark-2 uppercase tracking-widest">Total Tagihan</span><span id="cart-grand-total" class="text-3xl font-extrabold text-mantine-blue tracking-tight drop-shadow-md">Rp 0</span></div></div><div class="pt-4 border-t border-dark-5 transition-colors duration-300"><label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase tracking-wider">Pilih Metode Pembayaran</label><div class="grid grid-cols-3 gap-2 bg-dark-8 p-1.5 rounded-lg border border-dark-4 mb-2.5 transition-colors"><button type="button" id="pay-method-cash" class="py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow">Tunai</button><button type="button" id="pay-method-noncash" class="py-2.5 text-[11px] font-bold text-dark-1 hover:text-gray-100 rounded-md transition-all">Non-Tunai</button><button type="button" id="pay-method-kasbon" class="py-2.5 text-[11px] font-bold text-amber-500 hover:text-amber-400 rounded-md transition-all">Kasbon</button></div><button type="button" id="pay-method-split" class="w-full py-2.5 mb-4 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all">🔀 Split Payment</button><div id="quick-cash-zone" class="mb-3"><label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Pilih Nominal Uang Tunai</label><div class="grid grid-cols-3 gap-2 mb-2"><button type="button" onclick="window.setQuickCash(10000)" class="py-2 text-[11px] font-bold bg-dark-7 border border-dark-4 hover:bg-dark-5 text-gray-200 rounded-md transition-colors shadow-sm">10.000</button><button type="button" onclick="window.setQuickCash(20000)" class="py-2 text-[11px] font-bold bg-dark-7 border border-dark-4 hover:bg-dark-5 text-gray-200 rounded-md transition-colors shadow-sm">20.000</button><button type="button" onclick="window.setQuickCash(50000)" class="py-2 text-[11px] font-bold bg-dark-7 border border-dark-4 hover:bg-dark-5 text-gray-200 rounded-md transition-colors shadow-sm">50.000</button><button type="button" onclick="window.setQuickCash(100000)" class="py-2 text-[11px] font-bold bg-dark-7 border border-dark-4 hover:bg-dark-5 text-gray-200 rounded-md transition-colors shadow-sm">100.000</button><button type="button" onclick="window.setQuickCash('pas')" class="py-2 text-[11px] font-bold bg-green-900/30 border border-green-800 text-green-400 hover:bg-green-800/50 rounded-md transition-colors">Uang Pas</button><button type="button" onclick="window.setQuickCash('clear')" class="py-2 text-[11px] font-bold bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-800/50 rounded-md transition-colors">C (Hapus)</button></div></div><input type="text" inputmode="numeric" id="cash-paid" placeholder="Masukkan Uang Tunai (Rp)" class="w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none text-sm font-bold focus:border-mantine-blue transition-colors input-ribuan"><div id="kembalian-info" class="hidden mt-2 mb-4 p-3 bg-dark-8 border border-dark-4 rounded-lg flex justify-between items-center transition-colors shadow-sm"><span class="text-xs font-bold text-dark-2 uppercase tracking-widest">Status Tunai</span><span id="kembalian-nilai" class="text-lg font-black text-dark-2">Rp 0</span></div><input type="text" id="noncash-ref" placeholder="Ref QRIS/Debit (Opsional)" class="hidden w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none text-sm font-medium mb-4 focus:border-mantine-blue transition-colors"><div id="container-hold-bill" class="flex gap-2 mb-3 mt-3"><button id="btn-hold-bill" class="flex-1 bg-dark-8 hover:bg-dark-5 text-gray-300 rounded-lg py-3 flex items-center justify-center transition-colors border border-dark-4" title="Tunda Pesanan"><span class="text-[11px] font-bold uppercase tracking-wider">⏸️ Hold</span></button><button id="btn-recall-bill" class="flex-1 bg-dark-8 hover:bg-dark-5 text-gray-300 rounded-lg py-3 flex items-center justify-center relative transition-colors border border-dark-4" title="Buka Pesanan Tertunda"><span class="text-[11px] font-bold uppercase tracking-wider">📂 Buka</span><span id="hold-count-badge" class="absolute -top-2 -right-2 bg-mantine-blue text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow hidden">0</span></button></div><button id="btn-checkout" disabled class="w-full py-4 bg-dark-5 text-dark-3 font-black rounded-xl cursor-not-allowed transition-all uppercase tracking-widest text-sm shadow-lg mt-2">SELESAIKAN BAYAR</button></div></div></div></div></div>
-<div id="tab-gudang" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start"><div class="bg-dark-6 p-6 rounded-xl border border-dark-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar shadow-lg transition-colors duration-300"><h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide mb-6" id="form-title">Master Barang</h2><form id="item-form" class="space-y-4"><input type="hidden" id="item-id"><div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Barcode / SKU</label><input type="text" id="item-barcode" placeholder="Opsional" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Nama Barang</label><input type="text" id="item-name" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Kategori</label><input type="text" id="item-category" placeholder="Cth: Minuman, Snack, Sembako" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Pemasok / Agen</label><select id="item-supplier" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors"><option value="">-- Tanpa Pemasok --</option></select></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Catatan / Deskripsi</label><input type="text" id="item-notes" placeholder="Opsional (Cth: Exp 2027, Rak A...)" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors"></div><div class="bg-dark-8/50 p-4 rounded-xl border border-dark-4 space-y-4 mt-2 transition-colors duration-300"><div><label class="block text-[10px] font-black text-amber-500 mb-1.5 uppercase tracking-widest">Harga Modal / HPP</label><input type="text" inputmode="numeric" id="item-cost" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors input-ribuan"></div><div><label class="block text-[10px] font-black text-green-500 mb-1.5 uppercase tracking-widest">Harga Jual</label><input type="text" inputmode="numeric" id="item-price" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-green-500 transition-colors input-ribuan"></div></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Stok Gudang</label><input type="text" inputmode="numeric" id="item-stock" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors input-ribuan"></div><div class="flex gap-2 mt-5"><button type="button" id="btn-cancel" class="hidden flex-1 py-3 text-sm font-bold text-gray-100 bg-dark-5 hover:bg-dark-4 rounded-xl transition-all">Batal</button><button type="submit" id="btn-submit" class="flex-1 py-3 text-sm font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl shadow-lg shadow-mantine-blue/20 transition-all">Simpan Data</button></div></form></div><div class="lg:col-span-2 flex flex-col h-[calc(100vh-6rem)]"><div class="bg-dark-6 p-4 rounded-xl border border-dark-4 shrink-0 shadow-sm space-y-3 z-10 mb-4 transition-colors duration-300"><div class="flex gap-2 mb-1" id="gudang-export-container"><button id="btn-export-gudang" class="flex-1 py-2 bg-green-700 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow">📥 Export Excel</button><button id="btn-import-gudang" onclick="document.getElementById('file-import-gudang').click()" class="flex-1 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow">📤 Import Excel</button><input type="file" id="file-import-gudang" accept=".xlsx, .xls" class="hidden"></div><div class="flex items-center gap-3 bg-dark-7 p-2 rounded-lg border border-dark-5 transition-colors duration-300"><span class="text-lg ml-2">🔍</span><input type="text" id="gudang-search" placeholder="Cari nama barang, catatan, atau kategori..." class="w-full bg-transparent border-none text-gray-100 text-sm outline-none placeholder-dark-3"><button onclick="window.startVoiceSearchGudang()" id="btn-voice-search" class="w-9 h-9 flex items-center justify-center bg-dark-5 hover:bg-dark-4 rounded-md text-gray-100 transition-colors border border-dark-4 shrink-0" title="Cari dengan Suara">🎤</button></div><div class="flex justify-between items-center px-1"><span class="text-xs font-bold text-dark-2 uppercase tracking-wider">Total: <span id="gudang-total-item" class="text-mantine-blue font-black text-sm">0</span> Barang</span><button onclick="window.toggleSortGudang()" id="btn-sort-gudang" class="text-xs font-bold bg-dark-5 px-3 py-1.5 rounded-lg text-gray-200 hover:text-white transition-colors flex items-center gap-1.5 border border-dark-4 shadow-sm">Urutkan: A-Z ⬇️</button></div></div><div id="gudang-list" class="flex-1 overflow-y-auto space-y-3 no-scrollbar pb-10"></div></div></div>
-<div id="tab-pemasok" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8"><div><div class="bg-dark-6 p-6 rounded-xl border border-dark-4 sticky top-24 transition-colors duration-300"><h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide mb-6">Kelola Pemasok / Sales</h2><form id="pemasok-form" class="space-y-4"><input type="hidden" id="pemasok-id"><div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Nama Pemasok / Sales</label><input type="text" id="pemasok-nama" required placeholder="Cth: Agen Sembako Makmur" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">No. Telepon / WA</label><input type="text" id="pemasok-kontak" placeholder="Cth: 08123456789" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Jadwal / Keterangan</label><input type="text" id="pemasok-info" placeholder="Cth: Datang tiap hari Selasa" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors"></div><div class="flex gap-2 mt-5"><button type="button" id="btn-cancel-pemasok" class="hidden flex-1 py-3 text-sm font-bold text-gray-100 bg-dark-5 hover:bg-dark-4 rounded-xl transition-all">Batal</button><button type="submit" id="btn-submit-pemasok" class="flex-1 py-3 text-sm font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl shadow-lg shadow-mantine-blue/20 transition-all">Simpan Pemasok</button></div></form></div></div><div class="lg:col-span-2"><div id="pemasok-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div></div></div>
-<div id="tab-piutang" class="tab-content hidden space-y-6"><div class="flex justify-between items-center bg-dark-6 p-6 rounded-xl border border-dark-4 transition-colors duration-300"><div><h2 class="text-lg font-black text-amber-500">Buku Kasbon / Piutang</h2><p class="text-xs text-dark-2 mt-1">Daftar pelanggan yang memiliki tagihan belum lunas.</p></div></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="piutang-list"></div></div>
-<div id="tab-riwayat" class="tab-content hidden space-y-6"><div class="flex justify-between items-center bg-dark-6 p-6 rounded-xl border border-dark-4 transition-colors duration-300"><h2 class="text-sm font-bold text-gray-100 uppercase tracking-widest">Riwayat Transaksi</h2><button id="btn-export-excel" class="px-4 py-2 bg-green-700 hover:bg-green-600 text-white text-xs font-bold rounded-lg shadow transition-colors">📥 Export Excel</button></div><div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden transition-colors duration-300"><table class="min-w-full divide-y divide-dark-4 text-sm"><tbody id="riwayat-list" class="bg-dark-6 divide-y divide-dark-4 transition-colors"></tbody></table></div></div>
-<div id="tab-pengaturan" class="tab-content hidden space-y-6"><div class="bg-dark-6 p-6 rounded-xl border border-dark-4 transition-colors duration-300"><div class="mb-6 border-b border-dark-5 pb-4"><h2 class="text-lg font-black text-gray-100">⚙️ Pengaturan Global & Keamanan</h2><p class="text-xs text-dark-2 mt-1">Kustomisasi sistem (Perubahan berlaku untuk semua kasir yang terhubung).</p></div>
-<form id="settings-form" class="space-y-6"><div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b border-dark-5 pb-6 mb-6"><div class="bg-dark-8 p-5 rounded-xl border border-dark-4 shadow-sm space-y-4"><h4 class="text-sm font-bold text-mantine-blue uppercase tracking-wider flex items-center gap-2">🏪 Profil Toko & Aturan Biaya</h4><div class="space-y-3"><div><label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Nama Toko (Struk)</label><input type="text" id="set-nama-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Alamat Toko</label><input type="text" id="set-alamat-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Footer Pesan Nota</label><input type="text" id="set-footer-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors"></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">PPN (%)</label><input type="number" id="set-pajak" min="0" max="100" placeholder="0" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Service Charge (%)</label><input type="number" id="set-service" min="0" max="100" placeholder="0" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors"></div></div></div></div><div class="bg-dark-8 p-5 rounded-xl border border-dark-4 shadow-sm flex flex-col justify-between"><div><h4 class="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2 mb-2">💾 Ekspor & Impor Database (JSON)</h4><p class="text-[11px] text-dark-2 leading-relaxed mb-4">Amankan data produk dan pengaturan Anda ke file lokal secara mandiri.</p></div><div class="space-y-4"><button type="button" id="btn-backup-data" class="w-full py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md">📦 Unduh Backup Data Barang (.json)</button><div class="border-t border-dark-4 pt-3"><label class="block text-[11px] font-bold text-red-400 mb-2 uppercase">⚠️ Pulihkan / Restore Data Lama</label><div class="flex flex-col gap-2"><input type="file" id="input-restore-file" accept=".json" class="block w-full text-xs text-dark-1 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-semibold file:bg-dark-5 file:text-gray-200 hover:file:bg-dark-4 cursor-pointer border border-dark-4"><button type="button" id="btn-restore-data" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg transition-colors">🔄 Eksekusi Unggah & Pulihkan</button></div></div></div></div></div>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="space-y-4 bg-dark-8 p-5 rounded-xl border border-dark-4 transition-colors duration-300 shadow-sm md:col-span-2"><h3 class="text-sm font-bold text-pink-500 uppercase tracking-widest mb-4">🎟️ Manajemen Voucher Diskon</h3><div class="flex flex-col sm:flex-row gap-3"><input type="text" id="new-voucher-code" placeholder="KODE (Cth: MERDEKA)" class="flex-1 px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-pink-500 uppercase transition-colors"><select id="new-voucher-type" class="w-full sm:w-1/3 px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-pink-500 transition-colors"><option value="percent">Persen (%)</option><option value="nominal">Nominal (Rp)</option></select><input type="text" inputmode="numeric" id="new-voucher-value" placeholder="Nilai (Cth: 15.000)" class="w-full sm:w-1/3 px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-pink-500 transition-colors input-ribuan"><button type="button" onclick="window.tambahVoucherAdmin()" class="px-6 py-2 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-lg shadow transition-colors">Tambah</button></div><div class="mt-4 overflow-x-auto rounded-lg border border-dark-5"><table class="min-w-full text-left text-xs whitespace-nowrap"><thead class="bg-dark-7 text-dark-2 border-b border-dark-5"><tr><th class="py-3 px-4">Kode Voucher</th><th class="py-3 px-4">Tipe</th><th class="py-3 px-4">Nilai Potongan</th><th class="py-3 px-4 text-right">Aksi</th></tr></thead><tbody id="admin-voucher-list" class="divide-y divide-dark-5 bg-dark-8"></tbody></table></div></div><div class="space-y-4 bg-dark-8 p-5 rounded-xl border border-dark-4 transition-colors duration-300 shadow-sm md:col-span-2"><h3 class="text-sm font-bold text-gray-100 uppercase tracking-widest mb-4">⚡ Pengaturan Sistem Dasar</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">PIN Otorisasi Admin</label><input type="text" inputmode="numeric" id="set-pin" class="w-full px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors font-bold tracking-widest"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Batas Peringatan Stok Menipis</label><input type="number" id="set-stok" min="0" class="w-full px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Kelipatan Konversi Poin (Rp = 1 Poin)</label><input type="number" id="set-poin" min="1000" step="1000" class="w-full px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors"></div><div><label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Ukuran Kertas Printer Thermal</label><select id="set-printer" class="w-full px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-mantine-blue transition-colors"><option value="32">58mm (Kertas Kecil)</option><option value="48">80mm (Kertas Besar)</option></select></div></div></div><div class="bg-dark-8 p-5 rounded-xl border border-dark-4 md:col-span-2 transition-colors duration-300 shadow-sm"><h3 class="text-sm font-bold text-green-500 uppercase tracking-widest mb-4">🎛️ Visibilitas Modul Kasir & Gudang</h3><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"><label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer"><input type="checkbox" id="set-export" class="w-5 h-5 accent-mantine-blue rounded cursor-pointer"> Tombol Export/Import</label><label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer"><input type="checkbox" id="set-noncash" class="w-5 h-5 accent-mantine-blue rounded cursor-pointer"> Metode Bayar Non-Tunai</label><label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer"><input type="checkbox" id="set-kasbon" class="w-5 h-5 accent-mantine-blue rounded cursor-pointer"> Metode Bayar Kasbon</label><label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer"><input type="checkbox" id="switch-fitur-member" class="w-5 h-5 accent-amber-500 rounded cursor-pointer"> Fitur Pelanggan (Member)</label><label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer"><input type="checkbox" id="switch-fitur-voucher" class="w-5 h-5 accent-amber-500 rounded cursor-pointer"> Fitur Voucher Diskon</label><label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer"><input type="checkbox" id="switch-fitur-hold" class="w-5 h-5 accent-amber-500 rounded cursor-pointer"> Fitur Hold & Buka Bill</label></div></div></div>
-<div class="pt-4"><button type="submit" id="btn-save-settings" class="w-full py-4 text-sm tracking-widest font-black text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl shadow-lg transition-all uppercase">Simpan Pembaruan Sistem</button></div></form>
-<div class="mt-8 pt-6 border-t border-dark-5 flex flex-col items-center justify-center transition-colors duration-300"><p class="text-[10px] font-bold text-dark-2 uppercase tracking-widest mb-4">Dibuat oleh <span class="text-mantine-blue font-black">Sulfikar S.Kom</span></p></div></div></div></main></div>
-<div id="print-area" class="hidden text-black bg-white"></div>
-<script type="module" src="./app.js"></script>
-</body></html>
+
+    <div id="auth-loading" class="fixed inset-0 bg-dark-7/90 backdrop-blur-sm flex flex-col items-center justify-center z-[100] transition-colors duration-300">
+        <div class="w-8 h-8 border-[3px] border-mantine-blue border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-sm text-dark-1 mt-4 font-medium tracking-wide">Menghubungkan ke sistem...</p>
+    </div>
+    
+    <div id="offline-indicator" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white text-xs font-bold text-center py-1 z-[120] animate-pulse shadow-lg">
+        ⚠️ KONEKSI TERPUTUS - MODE OFFLINE AKTIF
+    </div>
+
+    <div id="pin-modal" class="hidden fixed inset-0 bg-dark-9/90 backdrop-blur-md flex items-center justify-center z-[110] p-4">
+        <div class="bg-dark-6 p-7 rounded-2xl shadow-2xl border border-red-900/50 w-full max-w-xs text-center relative overflow-hidden transition-colors duration-300">
+            <div class="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
+            <h3 class="text-lg font-black text-red-400 mb-1 uppercase tracking-widest">Otorisasi Admin</h3>
+            <p class="text-xs text-dark-1 mb-5">Masukkan PIN otorisasi.</p>
+            <input type="password" id="auth-pin-input" maxlength="6" placeholder="••••••" class="w-full px-4 py-3 text-center tracking-[1em] text-2xl font-black bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none mb-5 focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors">
+            <div class="flex gap-2">
+                <button type="button" onclick="document.getElementById('pin-modal').classList.add('hidden'); document.getElementById('auth-pin-input').value=''; window.itemAkanDihapus = null;" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl transition-colors">Batal</button>
+                <button type="button" id="btn-verify-pin" class="flex-1 py-3 text-xs font-black bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg transition-all">Verifikasi</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="split-modal" class="hidden fixed inset-0 bg-dark-9/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+        <div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-mantine-blue/50 w-full max-w-sm transition-colors duration-300">
+            <div class="flex justify-between items-center mb-4 border-b border-dark-4 pb-3">
+                <h3 class="text-sm font-bold text-gray-100 uppercase tracking-widest">🔀 Split Payment</h3>
+                <span id="split-total-tagihan" class="text-mantine-blue font-black text-lg">Rp 0</span>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="bg-dark-8 p-3 rounded-xl border border-dark-4 transition-colors duration-300">
+                    <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Pembayaran Pertama</label>
+                    <div class="flex gap-2">
+                        <select id="split-method-1" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                            <option value="Tunai">Tunai</option><option value="QRIS">QRIS</option><option value="Debit">Debit</option>
+                        </select>
+                        <input type="text" inputmode="numeric" id="split-amount-1" placeholder="Nominal Rp" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-gray-100 font-bold outline-none focus:border-mantine-blue input-ribuan transition-colors">
+                    </div>
+                </div>
+
+                <div class="bg-dark-8 p-3 rounded-xl border border-dark-4 transition-colors duration-300">
+                    <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Pembayaran Kedua</label>
+                    <div class="flex gap-2">
+                        <select id="split-method-2" class="w-1/3 bg-dark-7 border border-dark-4 rounded-lg px-2 text-xs text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                            <option value="QRIS">QRIS</option><option value="Tunai">Tunai</option><option value="Debit">Debit</option>
+                        </select>
+                        <input type="text" inputmode="numeric" id="split-amount-2" placeholder="Nominal Kedua Rp" class="flex-1 px-3 py-2 text-sm bg-dark-7 border border-dark-4 rounded-lg text-gray-100 font-bold outline-none focus:border-mantine-blue input-ribuan transition-colors" readonly>
+                    </div>
+                    <p id="split-warning" class="text-[10px] text-red-400 mt-2 font-bold hidden">Total bayar belum sesuai tagihan!</p>
+                </div>
+            </div>
+
+            <div class="flex gap-2 mt-6">
+                <button type="button" onclick="window.batalSplitPayment()" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl transition-colors">Batal</button>
+                <button type="button" id="btn-save-split" class="flex-1 py-3 text-xs font-bold bg-mantine-blue hover:bg-mantine-hover text-white rounded-xl shadow-lg">Terapkan Split</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="bayar-piutang-modal" class="hidden fixed inset-0 bg-dark-9/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+        <div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-amber-500/50 w-full max-w-sm text-center transition-colors duration-300">
+            <h3 class="text-sm font-bold text-gray-100 uppercase tracking-widest mb-1">Pelunasan Kasbon</h3>
+            <p id="piutang-member-name" class="text-lg font-black text-amber-500 mb-4">Nama Pelanggan</p>
+            <div class="bg-dark-8 border border-dark-4 rounded-xl p-4 mb-4 transition-colors duration-300">
+                <p class="text-xs text-dark-2 mb-1">Total Hutang Tersisa:</p>
+                <p id="piutang-sisa-hutang" class="text-2xl font-black text-red-400">Rp 0</p>
+            </div>
+            <div class="text-left mb-5">
+                <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Nominal Dibayar (Rp)</label>
+                <input type="text" inputmode="numeric" id="piutang-bayar-input" placeholder="Masukkan jumlah pelunasan" class="w-full px-4 py-3 text-base font-bold bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-amber-500 input-ribuan transition-colors">
+            </div>
+            <div class="flex gap-2">
+                <button type="button" onclick="document.getElementById('bayar-piutang-modal').classList.add('hidden')" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl transition-colors">Batal</button>
+                <button type="button" id="btn-submit-piutang" class="flex-1 py-3 text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow-lg">Lunasi</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shift-modal" class="hidden fixed inset-0 bg-dark-9/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
+        <div class="bg-dark-6 p-7 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-sm transition-colors duration-300">
+            <h3 id="shift-modal-title" class="text-lg font-bold text-gray-100 mb-1">Mulai Shift Kasir</h3>
+            <form id="shift-form" class="space-y-5 mt-4">
+                <div>
+                    <label id="shift-input-label" class="block text-xs font-semibold text-dark-2 uppercase tracking-wider mb-2">Modal Laci Awal (Rp)</label>
+                    <input type="text" inputmode="numeric" id="shift-cash-input" required class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue input-ribuan transition-colors">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" id="btn-close-shift-modal" class="hidden flex-1 py-2.5 bg-dark-5 rounded-xl text-sm font-medium transition-colors">Batal</button>
+                    <button type="submit" id="btn-shift-submit" class="flex-1 py-2.5 bg-mantine-blue text-white rounded-xl text-sm font-medium">Buka Shift</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="hold-modal" class="hidden fixed inset-0 bg-dark-9/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
+        <div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-md flex flex-col max-h-[80vh] transition-colors duration-300">
+            <h3 class="text-lg font-bold text-gray-100 mb-1">Pesanan Tertunda (Hold Bill)</h3>
+            <div id="hold-bills-list" class="flex-1 overflow-y-auto space-y-3 pr-1 mt-4 no-scrollbar"></div>
+            <div class="mt-4 pt-3 border-t border-dark-4 flex justify-end transition-colors duration-300">
+                <button onclick="document.getElementById('hold-modal').classList.add('hidden')" class="px-4 py-2 text-xs bg-dark-5 hover:bg-dark-4 rounded-xl text-gray-100 transition-colors">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="member-modal" class="hidden fixed inset-0 bg-dark-9/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
+        <div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-sm transition-colors duration-300">
+            <h3 class="text-lg font-bold text-gray-100 mb-4">Registrasi Member</h3>
+            <form id="member-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-dark-2 uppercase mb-1">Nomor HP</label>
+                    <input type="text" inputmode="numeric" id="member-reg-phone" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-dark-2 uppercase mb-1">Nama Lengkap</label>
+                    <input type="text" id="member-reg-name" required class="w-full px-4 py-2.5 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none transition-colors">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('member-modal').classList.add('hidden')" class="flex-1 py-2 text-xs bg-dark-5 border border-dark-4 rounded-xl transition-colors">Batal</button>
+                    <button type="submit" class="flex-1 py-2 text-xs bg-mantine-blue text-white rounded-xl">Daftarkan Member</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="login-screen" class="hidden fixed inset-0 bg-dark-7 flex items-center justify-center z-[90] p-4 transition-colors duration-300">
+        <div class="bg-dark-6 p-8 rounded-2xl shadow-premium border border-dark-4 w-full max-w-sm transition-colors duration-300">
+            <div class="text-center mb-8">
+                <h1 class="text-2xl font-black text-gray-100 tracking-tight">POS<span class="text-mantine-blue">PRO</span></h1>
+            </div>
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-semibold text-dark-2 mb-2">Email</label>
+                    <input type="email" id="login-email" required class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-dark-2 mb-2">Sandi</label>
+                    <input type="password" id="login-password" required class="w-full px-4 py-3 text-sm bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none transition-colors">
+                </div>
+                <button type="submit" id="btn-login-submit" class="w-full py-3 mt-2 bg-mantine-blue hover:bg-mantine-hover text-white font-medium text-sm rounded-xl transition-colors">Masuk</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-screen" class="hidden">
+        
+        <nav class="bg-dark-7/90 backdrop-blur-md border-b border-dark-4 sticky top-0 z-50 transition-colors duration-300">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16 items-center overflow-x-auto no-scrollbar">
+                    <div class="flex h-full space-x-2 pt-2">
+                        <button id="tab-dashboard-btn" class="nav-tab border-b-2 border-mantine-blue text-mantine-blue px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">📊 Dashboard</button>
+                        <button id="tab-kasir-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">🎯 Kasir</button>
+                        <button id="tab-gudang-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">📦 Gudang</button>
+                        <button id="tab-pemasok-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">🚚 Pemasok</button>
+                        <button id="tab-piutang-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 text-amber-500 shrink-0">💳 Kasbon</button>
+                        <button id="tab-riwayat-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0">🧾 Riwayat</button>
+                        <button id="tab-pengaturan-btn" class="nav-tab border-b-2 border-transparent text-dark-1 px-3 text-sm font-medium h-full flex items-center gap-2 shrink-0 hidden">⚙️ Pengaturan</button>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0 ml-4">
+                        <button id="btn-connect-printer" class="px-3 py-1.5 text-xs font-bold text-dark-1 bg-dark-8 border border-dark-4 hover:bg-dark-6 rounded-lg transition-colors flex items-center gap-1.5" title="Koneksikan Printer Thermal Bluetooth">
+                            <span class="text-sm">🖨️</span> <span class="hidden md:inline">Printer BT</span>
+                        </button>
+                        <button id="btn-logout" class="px-3 py-1.5 text-xs font-bold text-red-400 bg-red-950/20 border border-red-900/50 hover:bg-red-900/40 rounded-lg transition-colors">Keluar</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+            
+            <div id="tab-dashboard" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative transition-colors duration-300">
+                        <span class="text-xs font-bold text-dark-2 uppercase">Omset Kotor</span>
+                        <h3 id="dash-omset" class="text-2xl font-extrabold text-gray-100 mt-2">Rp 0</h3>
+                    </div>
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative shadow-[0_0_15px_rgba(74,222,128,0.05)] border-green-900/30 transition-colors duration-300">
+                        <span class="text-xs font-bold text-green-500 uppercase flex items-center gap-1.5">📈 Laba Bersih</span>
+                        <h3 id="dash-profit" class="text-2xl font-extrabold text-green-400 mt-2">Rp 0</h3>
+                    </div>
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative transition-colors duration-300">
+                        <span class="text-xs font-bold text-dark-2 uppercase">Transaksi</span>
+                        <h3 id="dash-transaksi" class="text-2xl font-extrabold text-gray-100 mt-2">0</h3>
+                    </div>
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 relative transition-colors duration-300">
+                        <span class="text-xs font-bold text-dark-2 uppercase">Item Terjual</span>
+                        <h3 id="dash-items" class="text-2xl font-extrabold text-gray-100 mt-2">0</h3>
+                    </div>
+                </div>
+                
+                <div id="admin-shift-log-section" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden flex flex-col transition-colors duration-300">
+                        <div class="p-4 border-b border-dark-4">
+                            <h3 class="text-[11px] font-bold text-gray-100 uppercase tracking-widest">Z-Report Shift Kasir</h3>
+                        </div>
+                        <div class="overflow-x-auto no-scrollbar max-h-[300px]">
+                            <table class="min-w-full divide-y divide-dark-4 text-xs">
+                                <tbody id="shift-log-list" class="bg-dark-7 divide-y divide-dark-4 transition-colors"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden flex flex-col transition-colors duration-300">
+                        <div class="p-4 border-b border-dark-4">
+                            <h3 class="text-[11px] font-bold text-red-400 uppercase tracking-widest">Log Keamanan Audit</h3>
+                        </div>
+                        <div class="overflow-y-auto no-scrollbar max-h-[300px]">
+                            <table class="min-w-full divide-y divide-dark-4 text-xs">
+                                <tbody id="audit-log-list" class="bg-dark-7 divide-y divide-dark-4 transition-colors"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-kasir" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+                
+                <div class="lg:col-span-2 space-y-6">
+                    <div id="shift-status-widget" class="bg-dark-6 border border-dark-4 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors duration-300"></div>
+                    
+                    <div id="kasir-core-content" class="space-y-5 opacity-40 pointer-events-none transition-all duration-300">
+                        <div class="bg-dark-6 p-2 rounded-xl border border-dark-4 flex flex-col sm:flex-row gap-2 transition-colors duration-300">
+                            <div class="flex items-center w-full bg-dark-8 border border-dark-5 rounded-lg px-2 transition-colors duration-300">
+                                <span class="text-lg ml-2">🔍</span>
+                                <input type="text" id="kasir-search" placeholder="Cari nama produk atau Scan Barcode..." class="w-full px-3 py-2 text-sm bg-transparent outline-none text-gray-100">
+                                <button onclick="window.startVoiceSearchKasir()" id="btn-voice-search-kasir" class="w-8 h-8 flex items-center justify-center bg-dark-5 hover:bg-dark-4 rounded-md text-gray-100 transition-colors border border-dark-4 shrink-0 mr-1" title="Cari dengan Suara">🎤</button>
+                            </div>
+                        </div>
+
+                        <div id="kasir-categories" class="flex gap-2 overflow-x-auto no-scrollbar py-2 items-center"></div>
+                        <div id="kasir-katalog" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                    </div>
+                </div>
+                
+                <div class="bg-dark-6 rounded-xl border border-dark-4 flex flex-col h-[calc(100vh-6rem)] sticky top-20 opacity-40 pointer-events-none transition-all duration-300 overflow-hidden" id="kasir-cart-content">
+                    
+                    <div class="px-5 py-3 border-b border-dark-4 flex justify-between items-center shrink-0 bg-dark-6 z-10 transition-colors duration-300">
+                        <h2 class="text-sm font-bold text-gray-100 uppercase tracking-widest">Keranjang</h2>
+                        <span id="cart-total-qty-badge" class="bg-mantine-blue/20 text-blue-500 py-1 px-2.5 rounded-md text-xs font-bold border border-mantine-blue/30">0 Item</span>
+                    </div>
+
+                    <div class="flex border-b border-dark-5 shrink-0 bg-dark-7/50 transition-colors duration-300">
+                        <button id="tab-cart-list-btn" onclick="window.switchCartTab('list')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-mantine-blue border-b-2 border-mantine-blue transition-colors focus:outline-none">🛒 Daftar Belanja</button>
+                        <button id="tab-cart-pay-btn" onclick="window.switchCartTab('pay')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-dark-2 border-b-2 border-transparent hover:text-gray-200 transition-colors focus:outline-none">💳 Pembayaran</button>
+                    </div>
+
+                    <div id="cart-pane-list" class="flex-1 flex flex-col min-h-0 bg-dark-7 relative transition-colors duration-300">
+                        <div id="cart-list" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar"></div>
+                        
+                        <div class="p-4 bg-dark-6 border-t border-dark-4 shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.2)] transition-colors duration-300">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-bold text-dark-2 uppercase">Total Sementara</span>
+                                <span id="pane1-grand-total" class="text-xl font-black text-gray-100">Rp 0</span>
+                            </div>
+                            <button onclick="window.switchCartTab('pay')" class="w-full py-3 bg-mantine-blue hover:bg-mantine-hover text-white text-xs font-bold rounded-xl shadow-lg transition-all tracking-wide">LANJUT PEMBAYARAN ➔</button>
+                        </div>
+                    </div>
+
+                    <div id="cart-pane-pay" class="flex-1 flex-col min-h-0 hidden bg-dark-6 transition-colors duration-300">
+                        <div class="flex-1 overflow-y-auto no-scrollbar p-5 space-y-5">
+                            
+                            <div id="section-kasir-member">
+                                <label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase tracking-wider">Data Pelanggan (Member)</label>
+                                <div id="member-select-zone" class="flex gap-2">
+                                    <input type="text" inputmode="numeric" id="member-search-input" placeholder="No HP..." class="flex-1 bg-dark-8 border border-dark-4 text-xs text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:border-mantine-blue transition-colors">
+                                    <button id="btn-check-member" class="px-4 py-2 bg-dark-5 hover:bg-dark-4 text-gray-100 text-xs font-bold rounded-lg transition-colors">Cari</button>
+                                </div>
+                                <div id="member-active-zone" class="hidden flex justify-between items-center bg-mantine-blue/10 border border-mantine-blue/20 rounded-lg p-2.5">
+                                    <div>
+                                        <p id="member-active-name" class="text-xs font-bold text-mantine-blue">⭐ MEMBER</p>
+                                        <p id="member-active-points" class="text-[10px] text-dark-1 mt-0.5">Poin: 0</p>
+                                    </div>
+                                    <button id="btn-remove-member" class="text-[10px] text-red-500 hover:text-white font-bold px-3 py-1.5 bg-red-400/10 hover:bg-red-500/20 rounded-lg transition-colors">Batal</button>
+                                </div>
+                            </div>
+
+                            <div id="section-kasir-voucher" class="pt-4 border-t border-dark-5 transition-colors duration-300">
+                                <label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase tracking-wider">Potongan Harga / Voucher</label>
+                                <div class="flex shadow-sm rounded-lg overflow-hidden border border-dark-4 transition-colors">
+                                    <input type="text" id="voucher-code" placeholder="Kode Voucher (Cth: PROMO20)" class="flex-1 px-3 py-2 bg-dark-8 text-gray-100 outline-none uppercase text-xs placeholder-dark-3 transition-colors">
+                                    <button id="btn-apply-voucher" class="px-4 py-2 bg-dark-5 hover:bg-dark-4 text-gray-100 text-xs font-bold transition-colors border-l border-dark-4">Klaim</button>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-dark-5 transition-colors duration-300">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-xs text-dark-1">Subtotal Item</span>
+                                    <span id="cart-subtotal" class="text-xs text-gray-300 font-bold">Rp 0</span>
+                                </div>
+                                <div id="cart-tax-zone" class="flex justify-between items-center mt-1 hidden">
+                                    <span class="text-xs text-dark-1">Pajak (<span id="cart-tax-rate-display">0</span>%)</span>
+                                    <span id="cart-tax-amount" class="text-xs text-red-400 font-bold">+Rp 0</span>
+                                </div>
+                                <div id="cart-service-zone" class="flex justify-between items-center mt-1 hidden">
+                                    <span class="text-xs text-dark-1">Service Charge (<span id="cart-service-rate-display">0</span>%)</span>
+                                    <span id="cart-service-amount" class="text-xs text-red-400 font-bold">+Rp 0</span>
+                                </div>
+                                <div class="flex justify-between items-end mt-4">
+                                    <span class="text-xs font-bold text-dark-2 uppercase tracking-widest">Total Tagihan</span>
+                                    <span id="cart-grand-total" class="text-3xl font-extrabold text-mantine-blue tracking-tight drop-shadow-md">Rp 0</span>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-dark-5 transition-colors duration-300">
+                                <label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase tracking-wider">Pilih Metode Pembayaran</label>
+                                <div class="grid grid-cols-3 gap-2 bg-dark-8 p-1.5 rounded-lg border border-dark-4 mb-2.5 transition-colors">
+                                    <button type="button" id="pay-method-cash" class="py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow">Tunai</button>
+                                    <button type="button" id="pay-method-noncash" class="py-2.5 text-[11px] font-bold text-dark-1 hover:text-gray-100 rounded-md transition-all">Non-Tunai</button>
+                                    <button type="button" id="pay-method-kasbon" class="py-2.5 text-[11px] font-bold text-amber-500 hover:text-amber-400 rounded-md transition-all">Kasbon</button>
+                                </div>
+                                <button type="button" id="pay-method-split" class="w-full py-2.5 mb-4 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all">🔀 Split Payment</button>
+
+                                <div id="quick-cash-zone" class="mb-3">
+                                    <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Pilih Nominal Uang Tunai</label>
+                                    <div class="grid grid-cols-3 gap-2 mb-2">
+                                        <button type="button" onclick="window.setQuickCash(10000)" class="py-2 text-[11px] font-bold bg-dark-7 border border-dark-4 hover:bg-dark-5 text-gray-200 rounded-md transition-colors shadow-sm">10.000</button>
+                                        <button type="button" onclick="window.setQuickCash(20000)" class="py-2 text-[11px] font-bold bg-dark-7 border border-dark-4 hover:bg-dark-5 text-gray-200 rounded-md transition-colors shadow-sm">20.000</button>
+                                        <button type="button" onclick="window.setQuickCash(50000)" class="py-2 text-[11px] font-bold bg-dark-7 border border-dark-4 hover:bg-dark-5 text-gray-200 rounded-md transition-colors shadow-sm">50.000</button>
+                                        <button type="button" onclick="window.setQuickCash(100000)" class="py-2 text-[11px] font-bold bg-dark-7 border border-dark-4 hover:bg-dark-5 text-gray-200 rounded-md transition-colors shadow-sm">100.000</button>
+                                        <button type="button" onclick="window.setQuickCash('pas')" class="py-2 text-[11px] font-bold bg-green-900/30 border border-green-800 text-green-400 hover:bg-green-800/50 rounded-md transition-colors">Uang Pas</button>
+                                        <button type="button" onclick="window.setQuickCash('clear')" class="py-2 text-[11px] font-bold bg-red-900/30 border border-red-800 text-red-400 hover:bg-red-800/50 rounded-md transition-colors">C (Hapus)</button>
+                                    </div>
+                                </div>
+
+                                <input type="text" inputmode="numeric" id="cash-paid" placeholder="Masukkan Uang Tunai (Rp)" class="w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none text-sm font-bold focus:border-mantine-blue transition-colors input-ribuan">
+                                
+                                <div id="kembalian-info" class="hidden mt-2 mb-4 p-3 bg-dark-8 border border-dark-4 rounded-lg flex justify-between items-center transition-colors shadow-sm">
+                                    <span class="text-xs font-bold text-dark-2 uppercase tracking-widest">Status Tunai</span>
+                                    <span id="kembalian-nilai" class="text-lg font-black text-dark-2">Rp 0</span>
+                                </div>
+
+                                <input type="text" id="noncash-ref" placeholder="Ref QRIS/Debit (Opsional)" class="hidden w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none text-sm font-medium mb-4 focus:border-mantine-blue transition-colors">
+                                
+                                <div id="container-hold-bill" class="flex gap-2 mb-3 mt-3">
+                                    <button id="btn-hold-bill" class="flex-1 bg-dark-8 hover:bg-dark-5 text-gray-300 rounded-lg py-3 flex items-center justify-center transition-colors border border-dark-4" title="Tunda Pesanan">
+                                        <span class="text-[11px] font-bold uppercase tracking-wider">⏸️ Hold</span>
+                                    </button>
+                                    <button id="btn-recall-bill" class="flex-1 bg-dark-8 hover:bg-dark-5 text-gray-300 rounded-lg py-3 flex items-center justify-center relative transition-colors border border-dark-4" title="Buka Pesanan Tertunda">
+                                        <span class="text-[11px] font-bold uppercase tracking-wider">📂 Buka</span>
+                                        <span id="hold-count-badge" class="absolute -top-2 -right-2 bg-mantine-blue text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow hidden">0</span>
+                                    </button>
+                                </div>
+                                
+                                <button id="btn-checkout" disabled class="w-full py-4 bg-dark-5 text-dark-3 font-black rounded-xl cursor-not-allowed transition-all uppercase tracking-widest text-sm shadow-lg mt-2">SELESAIKAN BAYAR</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-gudang" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+                
+                <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar shadow-lg transition-colors duration-300">
+                    <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide mb-6" id="form-title">Master Barang</h2>
+                    <form id="item-form" class="space-y-4">
+                        <input type="hidden" id="item-id">
+                        <div>
+                            <label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Barcode / SKU</label>
+                            <input type="text" id="item-barcode" placeholder="Opsional" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Nama Barang</label>
+                            <input type="text" id="item-name" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Kategori</label>
+                            <input type="text" id="item-category" placeholder="Cth: Minuman, Snack, Sembako" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Pemasok / Agen</label>
+                            <select id="item-supplier" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                                <option value="">-- Tanpa Pemasok --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Catatan / Deskripsi</label>
+                            <input type="text" id="item-notes" placeholder="Opsional (Cth: Exp 2027, Rak A...)" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                        </div>
+
+                        <div class="bg-dark-8/50 p-4 rounded-xl border border-dark-4 space-y-4 mt-2 transition-colors duration-300">
+                            <div>
+                                <label class="block text-[10px] font-black text-amber-500 mb-1.5 uppercase tracking-widest">Harga Modal / HPP</label>
+                                <input type="text" inputmode="numeric" id="item-cost" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors input-ribuan">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-green-500 mb-1.5 uppercase tracking-widest">Harga Jual</label>
+                                <input type="text" inputmode="numeric" id="item-price" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-green-500 transition-colors input-ribuan">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Stok Gudang</label>
+                            <input type="text" inputmode="numeric" id="item-stock" required class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors input-ribuan">
+                        </div>
+                        <div class="flex gap-2 mt-5">
+                            <button type="button" id="btn-cancel" class="hidden flex-1 py-3 text-sm font-bold text-gray-100 bg-dark-5 hover:bg-dark-4 rounded-xl transition-all">Batal</button>
+                            <button type="submit" id="btn-submit" class="flex-1 py-3 text-sm font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl shadow-lg shadow-mantine-blue/20 transition-all">Simpan Data</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="lg:col-span-2 flex flex-col h-[calc(100vh-6rem)]">
+                    <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 shrink-0 shadow-sm space-y-3 z-10 mb-4 transition-colors duration-300">
+                        <div class="flex gap-2 mb-1" id="gudang-export-container">
+                            <button id="btn-export-gudang" class="flex-1 py-2 bg-green-700 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow">📥 Export Excel</button>
+                            <button id="btn-import-gudang" onclick="document.getElementById('file-import-gudang').click()" class="flex-1 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow">📤 Import Excel</button>
+                            <input type="file" id="file-import-gudang" accept=".xlsx, .xls" class="hidden">
+                        </div>
+                        <div class="flex items-center gap-3 bg-dark-7 p-2 rounded-lg border border-dark-5 transition-colors duration-300">
+                            <span class="text-lg ml-2">🔍</span>
+                            <input type="text" id="gudang-search" placeholder="Cari nama barang, catatan, atau kategori..." class="w-full bg-transparent border-none text-gray-100 text-sm outline-none placeholder-dark-3">
+                            <button onclick="window.startVoiceSearchGudang()" id="btn-voice-search" class="w-9 h-9 flex items-center justify-center bg-dark-5 hover:bg-dark-4 rounded-md text-gray-100 transition-colors border border-dark-4 shrink-0" title="Cari dengan Suara">🎤</button>
+                        </div>
+                        <div class="flex justify-between items-center px-1">
+                            <span class="text-xs font-bold text-dark-2 uppercase tracking-wider">Total: <span id="gudang-total-item" class="text-mantine-blue font-black text-sm">0</span> Barang</span>
+                            <button onclick="window.toggleSortGudang()" id="btn-sort-gudang" class="text-xs font-bold bg-dark-5 px-3 py-1.5 rounded-lg text-gray-200 hover:text-white transition-colors flex items-center gap-1.5 border border-dark-4 shadow-sm">Urutkan: A-Z ⬇️</button>
+                        </div>
+                    </div>
+                    <div id="gudang-list" class="flex-1 overflow-y-auto space-y-3 no-scrollbar pb-10"></div>
+                </div>
+            </div>
+
+            <div id="tab-pemasok" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div>
+                    <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 sticky top-24 transition-colors duration-300">
+                        <h2 class="text-sm font-bold text-gray-100 uppercase tracking-wide mb-6">Kelola Pemasok / Sales</h2>
+                        <form id="pemasok-form" class="space-y-4">
+                            <input type="hidden" id="pemasok-id">
+                            <div>
+                                <label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Nama Pemasok / Sales</label>
+                                <input type="text" id="pemasok-nama" required placeholder="Cth: Agen Sembako Makmur" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">No. Telepon / WA</label>
+                                <input type="text" id="pemasok-kontak" placeholder="Cth: 08123456789" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-dark-2 mb-1.5 uppercase tracking-wider">Jadwal / Keterangan</label>
+                                <input type="text" id="pemasok-info" placeholder="Cth: Datang tiap hari Selasa" class="w-full px-4 py-2 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                            </div>
+                            <div class="flex gap-2 mt-5">
+                                <button type="button" id="btn-cancel-pemasok" class="hidden flex-1 py-3 text-sm font-bold text-gray-100 bg-dark-5 hover:bg-dark-4 rounded-xl transition-all">Batal</button>
+                                <button type="submit" id="btn-submit-pemasok" class="flex-1 py-3 text-sm font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl shadow-lg shadow-mantine-blue/20 transition-all">Simpan Pemasok</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="lg:col-span-2">
+                    <div id="pemasok-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+
+            <div id="tab-piutang" class="tab-content hidden space-y-6">
+                <div class="flex justify-between items-center bg-dark-6 p-6 rounded-xl border border-dark-4 transition-colors duration-300">
+                    <div>
+                        <h2 class="text-lg font-black text-amber-500">Buku Kasbon / Piutang</h2>
+                        <p class="text-xs text-dark-2 mt-1">Daftar pelanggan yang memiliki tagihan belum lunas.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="piutang-list"></div>
+            </div>
+
+            <div id="tab-riwayat" class="tab-content hidden space-y-6">
+                <div class="flex justify-between items-center bg-dark-6 p-6 rounded-xl border border-dark-4 transition-colors duration-300">
+                    <h2 class="text-sm font-bold text-gray-100 uppercase tracking-widest">Riwayat Transaksi</h2>
+                    <button id="btn-export-excel" class="px-4 py-2 bg-green-700 hover:bg-green-600 text-white text-xs font-bold rounded-lg shadow transition-colors">📥 Export Excel</button>
+                </div>
+                <div class="bg-dark-6 rounded-xl border border-dark-4 overflow-hidden transition-colors duration-300">
+                    <table class="min-w-full divide-y divide-dark-4 text-sm">
+                        <tbody id="riwayat-list" class="bg-dark-6 divide-y divide-dark-4 transition-colors"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-pengaturan" class="tab-content hidden space-y-6">
+                <div class="bg-dark-6 p-6 rounded-xl border border-dark-4 transition-colors duration-300">
+                    <div class="mb-6 border-b border-dark-5 pb-4">
+                        <h2 class="text-lg font-black text-gray-100">⚙️ Pengaturan Global & Keamanan</h2>
+                        <p class="text-xs text-dark-2 mt-1">Kustomisasi sistem (Perubahan berlaku untuk semua kasir yang terhubung).</p>
+                    </div>
+
+                    <form id="settings-form" class="space-y-6">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b border-dark-5 pb-6 mb-6">
+                            
+                            <div class="bg-dark-8 p-5 rounded-xl border border-dark-4 shadow-sm space-y-4">
+                                <h4 class="text-sm font-bold text-mantine-blue uppercase tracking-wider flex items-center gap-2">
+                                    🏪 Profil Toko & Aturan Biaya
+                                </h4>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Nama Toko (Struk)</label>
+                                        <input type="text" id="set-nama-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Alamat Toko</label>
+                                        <input type="text" id="set-alamat-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Footer Pesan Nota</label>
+                                        <input type="text" id="set-footer-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">PPN (%)</label>
+                                            <input type="number" id="set-pajak" min="0" max="100" placeholder="0" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Service Charge (%)</label>
+                                            <input type="number" id="set-service" min="0" max="100" placeholder="0" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-dark-8 p-5 rounded-xl border border-dark-4 shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <h4 class="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2 mb-2">
+                                        💾 Ekspor & Impor Database (JSON)
+                                    </h4>
+                                    <p class="text-[11px] text-dark-2 leading-relaxed mb-4">
+                                        Amankan data produk dan pengaturan Anda ke file lokal secara mandiri.
+                                    </p>
+                                </div>
+                                <div class="space-y-4">
+                                    <button type="button" id="btn-backup-data" class="w-full py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md">
+                                        📦 Unduh Backup Data Barang (.json)
+                                    </button>
+                                    <div class="border-t border-dark-4 pt-3">
+                                        <label class="block text-[11px] font-bold text-red-400 mb-2 uppercase">⚠️ Pulihkan / Restore Data Lama</label>
+                                        <div class="flex flex-col gap-2">
+                                            <input type="file" id="input-restore-file" accept=".json" class="block w-full text-xs text-dark-1 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-semibold file:bg-dark-5 file:text-gray-200 hover:file:bg-dark-4 cursor-pointer border border-dark-4">
+                                            <button type="button" id="btn-restore-data" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg transition-colors">
+                                                🔄 Eksekusi Unggah & Pulihkan
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <div class="space-y-4 bg-dark-8 p-5 rounded-xl border border-dark-4 transition-colors duration-300 shadow-sm md:col-span-2">
+                                <h3 class="text-sm font-bold text-pink-500 uppercase tracking-widest mb-4">🎟️ Manajemen Voucher Diskon</h3>
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <input type="text" id="new-voucher-code" placeholder="KODE (Cth: MERDEKA)" class="flex-1 px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-pink-500 uppercase transition-colors">
+                                    <select id="new-voucher-type" class="w-full sm:w-1/3 px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-pink-500 transition-colors">
+                                        <option value="percent">Persen (%)</option>
+                                        <option value="nominal">Nominal (Rp)</option>
+                                    </select>
+                                    <input type="text" inputmode="numeric" id="new-voucher-value" placeholder="Nilai (Cth: 15.000)" class="w-full sm:w-1/3 px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-pink-500 transition-colors input-ribuan">
+                                    <button type="button" onclick="window.tambahVoucherAdmin()" class="px-6 py-2 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-lg shadow transition-colors">Tambah</button>
+                                </div>
+                                <div class="mt-4 overflow-x-auto rounded-lg border border-dark-5">
+                                    <table class="min-w-full text-left text-xs whitespace-nowrap">
+                                        <thead class="bg-dark-7 text-dark-2 border-b border-dark-5">
+                                            <tr>
+                                                <th class="py-3 px-4">Kode Voucher</th>
+                                                <th class="py-3 px-4">Tipe</th>
+                                                <th class="py-3 px-4">Nilai Potongan</th>
+                                                <th class="py-3 px-4 text-right">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="admin-voucher-list" class="divide-y divide-dark-5 bg-dark-8"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 bg-dark-8 p-5 rounded-xl border border-dark-4 transition-colors duration-300 shadow-sm md:col-span-2">
+                                <h3 class="text-sm font-bold text-gray-100 uppercase tracking-widest mb-4">⚡ Pengaturan Sistem Dasar</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">PIN Otorisasi Admin</label>
+                                        <input type="text" inputmode="numeric" id="set-pin" class="w-full px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors font-bold tracking-widest">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Batas Peringatan Stok Menipis</label>
+                                        <input type="number" id="set-stok" min="0" class="w-full px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Kelipatan Konversi Poin (Rp = 1 Poin)</label>
+                                        <input type="number" id="set-poin" min="1000" step="1000" class="w-full px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-amber-500 transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Ukuran Kertas Printer Thermal</label>
+                                        <select id="set-printer" class="w-full px-4 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 outline-none focus:border-mantine-blue transition-colors">
+                                            <option value="32">58mm (Kertas Kecil)</option>
+                                            <option value="48">80mm (Kertas Besar)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-dark-8 p-5 rounded-xl border border-dark-4 md:col-span-2 transition-colors duration-300 shadow-sm">
+                                <h3 class="text-sm font-bold text-green-500 uppercase tracking-widest mb-4">🎛️ Visibilitas Modul Kasir & Gudang</h3>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
+                                        <input type="checkbox" id="set-export" class="w-5 h-5 accent-mantine-blue rounded cursor-pointer"> Tombol Export/Import
+                                    </label>
+                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
+                                        <input type="checkbox" id="set-noncash" class="w-5 h-5 accent-mantine-blue rounded cursor-pointer"> Metode Bayar Non-Tunai
+                                    </label>
+                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
+                                        <input type="checkbox" id="set-kasbon" class="w-5 h-5 accent-mantine-blue rounded cursor-pointer"> Metode Bayar Kasbon
+                                    </label>
+                                    
+                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
+                                        <input type="checkbox" id="switch-fitur-member" class="w-5 h-5 accent-amber-500 rounded cursor-pointer"> Fitur Pelanggan (Member)
+                                    </label>
+                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
+                                        <input type="checkbox" id="switch-fitur-voucher" class="w-5 h-5 accent-amber-500 rounded cursor-pointer"> Fitur Voucher Diskon
+                                    </label>
+                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
+                                        <input type="checkbox" id="switch-fitur-hold" class="w-5 h-5 accent-amber-500 rounded cursor-pointer"> Fitur Hold & Buka Bill
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4">
+                            <button type="submit" id="btn-save-settings" class="w-full py-4 text-sm tracking-widest font-black text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl shadow-lg transition-all uppercase">
+                                Simpan Pembaruan Sistem
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-8 pt-6 border-t border-dark-5 flex flex-col items-center justify-center transition-colors duration-300">
+                        <p class="text-[10px] font-bold text-dark-2 uppercase tracking-widest mb-4">
+                            Dibuat oleh <span class="text-mantine-blue font-black">Sulfikar S.Kom</span>
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="print-area" class="hidden text-black bg-white"></div>
+    <script type="module" src="./app.js"></script>
+</body>
+</html>
