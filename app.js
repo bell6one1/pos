@@ -80,12 +80,12 @@ document.addEventListener('input', (e) => {
 });
 
 // ==========================================
-// 3. RENDER UI & PENGATURAN LAYAR
+// 3. ENGINE ANTARMUKA (RENDER UI)
 // ==========================================
 function updateFiturVisibility() {
-    const showMember = document.getElementById('switch-fitur-member')?.checked ?? true; 
-    const showVoucher = document.getElementById('switch-fitur-voucher')?.checked ?? true; 
-    const showHold = document.getElementById('switch-fitur-hold')?.checked ?? true;
+    const showMember = globalSettings.showMember !== false; 
+    const showVoucher = globalSettings.showVoucher !== false; 
+    const showHold = globalSettings.showHoldBill !== false;
     
     document.getElementById('section-kasir-member')?.classList.toggle('hidden', !showMember); 
     document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !showVoucher); 
@@ -102,6 +102,7 @@ function terapkanPengaturanLayar() {
     document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !globalSettings.payNonCash); 
     document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !globalSettings.payKasbon);
     
+    // Sinkronisasi form pengaturan dengan database Firebase
     if(document.getElementById('set-nama-toko')) {
         document.getElementById('set-nama-toko').value = globalSettings.namaToko || ""; 
         document.getElementById('set-alamat-toko').value = globalSettings.alamatToko || "";
@@ -116,6 +117,11 @@ function terapkanPengaturanLayar() {
         document.getElementById('set-kasbon').checked = globalSettings.payKasbon !== false;
         document.getElementById('set-pajak').value = globalSettings.pajakPersen || 0; 
         document.getElementById('set-service').value = globalSettings.serviceChargePersen || 0;
+        
+        // SINKRONISASI BUG SWITCH KE FIREBASE GLOBAL
+        if(document.getElementById('switch-fitur-member')) document.getElementById('switch-fitur-member').checked = globalSettings.showMember !== false;
+        if(document.getElementById('switch-fitur-voucher')) document.getElementById('switch-fitur-voucher').checked = globalSettings.showVoucher !== false;
+        if(document.getElementById('switch-fitur-hold')) document.getElementById('switch-fitur-hold').checked = globalSettings.showHoldBill !== false;
     }
     
     renderAdminVouchers(); renderKatalogKasir(); renderGudangList(); updateFiturVisibility(); hitungUangKembalian(); 
@@ -439,7 +445,7 @@ function renderAdminVouchers() {
             <td class="py-3 px-4 text-dark-1 uppercase text-[10px] font-bold">${v.type}</td>
             <td class="py-3 px-4 font-black text-gray-100">${label}</td>
             <td class="py-3 px-4 text-right">
-                <button type="button" onclick="window.hapusVoucherAdmin('${k}')" class="px-3 py-1.5 bg-red-900/30 text-red-400 font-bold rounded-lg hover:bg-red-900/50 text-xs transition-colors">Hapus</button>
+                <button type="button" onclick="window.hapusVoucherAdmin('${escapeJS(k)}')" class="px-3 py-1.5 bg-red-900/30 text-red-400 font-bold rounded-lg hover:bg-red-900/50 text-xs transition-colors">Hapus</button>
             </td>
         </tr>`; 
     }).join('');
@@ -561,7 +567,7 @@ window.addEventListener('online', syncOfflineTransactions);
 window.addEventListener('offline', () => { const indicator = document.getElementById('offline-indicator'); if (indicator) indicator.classList.remove('hidden'); applyFiltersAndStats(); });
 
 // ==========================================
-// 6. EVENT LISTENER, KASIR & FITUR GLOBAL
+// 6. EVENT LISTENER & TRANSAKSI UTAMA
 // ==========================================
 async function logActivity(actionType, actionDetails) {
     const userEmail = auth.currentUser ? auth.currentUser.email.split('@')[0] : "Sistem"; const logObj = { user: userEmail, action: actionType, detail: actionDetails };
@@ -582,7 +588,34 @@ document.addEventListener("keydown", async (e) => {
     } else { if (e.key.length === 1) { barcodeBuffer += e.key; clearTimeout(barcodeTimeout); barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 50); } }
 });
 
-// Pemasok Listeners
+// Listener Event Navigasi Kategori Kasir
+document.getElementById('kasir-search')?.addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase(); kasirItemLimit = 36; renderKatalogKasir(); });
+document.getElementById('gudang-search')?.addEventListener('input', (e) => { kataKunciGudang = e.target.value.toLowerCase(); gudangItemLimit = 30; renderGudangList(); });
+window.loadMoreKasir = () => { kasirItemLimit += 36; renderKatalogKasir(); };
+window.loadMoreGudang = () => { gudangItemLimit += 30; renderGudangList(); };
+window.setFilterKategori = (cat) => { filterKategoriAktif = cat; kasirItemLimit = 36; renderKatalogKasir(); };
+window.toggleSortGudang = () => { sortGudangOrder = sortGudangOrder === 'asc' ? 'desc' : 'asc'; const btn = document.getElementById('btn-sort-gudang'); if (btn) btn.innerHTML = sortGudangOrder === 'asc' ? 'Urutkan: A-Z ⬇️' : 'Urutkan: Z-A ⬆️'; gudangItemLimit = 30; renderGudangList(); };
+
+// Voice Search Fix
+window.startVoiceSearchKasir = () => {
+    const btn = document.getElementById('btn-voice-search-kasir'), SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SpeechRecognition) { alert("Browser Anda tidak mendukung Pencarian Suara."); return; }
+    const recognition = new SpeechRecognition(); recognition.lang = 'id-ID'; recognition.interimResults = false; recognition.maxAlternatives = 1;
+    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    recognition.onresult = function(event) { const speechResult = event.results[0][0].transcript; const searchInput = document.getElementById('kasir-search'); if(searchInput) { searchInput.value = speechResult; kataKunciPencarian = speechResult.toLowerCase(); kasirItemLimit = 36; renderKatalogKasir(); } };
+    recognition.onerror = function(event) { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } }; recognition.start();
+};
+
+window.startVoiceSearchGudang = () => {
+    const btn = document.getElementById('btn-voice-search'), SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SpeechRecognition) { alert("Browser Anda tidak mendukung Pencarian Suara."); return; }
+    const recognition = new SpeechRecognition(); recognition.lang = 'id-ID'; recognition.interimResults = false; recognition.maxAlternatives = 1;
+    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    recognition.onresult = function(event) { const speechResult = event.results[0][0].transcript; const searchInput = document.getElementById('gudang-search'); if(searchInput) { searchInput.value = speechResult; kataKunciGudang = speechResult.toLowerCase(); gudangItemLimit = 30; renderGudangList(); } };
+    recognition.onerror = function(event) { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } }; recognition.start();
+};
+
+// Manajemen Pemasok
 const pemasokForm = document.getElementById('pemasok-form');
 pemasokForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet.");
@@ -601,53 +634,7 @@ window.editPemasok = (id) => {
 window.hapusPemasok = async (id) => { if (!navigator.onLine) return alert("Butuh internet."); const p = databasePemasok.find(x => x.id === id); if(!p) return; if(confirm(`Hapus pemasok ${p.nama}?`)) { await deleteDoc(doc(db, "pemasok", id)); } };
 document.getElementById('btn-cancel-pemasok')?.addEventListener('click', () => { pemasokForm?.reset(); document.getElementById('pemasok-id').value = ""; document.getElementById('btn-cancel-pemasok').classList.add('hidden'); });
 
-// Kategori & Search UI 
-document.getElementById('kasir-search')?.addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase(); kasirItemLimit = 36; renderKatalogKasir(); });
-document.getElementById('gudang-search')?.addEventListener('input', (e) => { kataKunciGudang = e.target.value.toLowerCase(); gudangItemLimit = 30; renderGudangList(); });
-window.loadMoreKasir = () => { kasirItemLimit += 36; renderKatalogKasir(); };
-window.loadMoreGudang = () => { gudangItemLimit += 30; renderGudangList(); };
-window.setFilterKategori = (cat) => { filterKategoriAktif = cat; kasirItemLimit = 36; renderKatalogKasir(); };
-window.toggleSortGudang = () => { sortGudangOrder = sortGudangOrder === 'asc' ? 'desc' : 'asc'; const btn = document.getElementById('btn-sort-gudang'); if (btn) btn.innerHTML = sortGudangOrder === 'asc' ? 'Urutkan: A-Z ⬇️' : 'Urutkan: Z-A ⬆️'; gudangItemLimit = 30; renderGudangList(); };
 
-// Voice Search
-window.startVoiceSearchKasir = () => {
-    const btn = document.getElementById('btn-voice-search-kasir'), SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SpeechRecognition) { alert("Browser Anda tidak mendukung Pencarian Suara."); return; }
-    const recognition = new SpeechRecognition(); recognition.lang = 'id-ID'; recognition.interimResults = false; recognition.maxAlternatives = 1;
-    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
-    recognition.onresult = function(event) { const speechResult = event.results[0][0].transcript; const searchInput = document.getElementById('kasir-search'); if(searchInput) { searchInput.value = speechResult; kataKunciPencarian = speechResult.toLowerCase(); kasirItemLimit = 36; renderKatalogKasir(); } };
-    recognition.onerror = function(event) { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
-    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } }; recognition.start();
-};
-window.startVoiceSearchGudang = () => {
-    const btn = document.getElementById('btn-voice-search'), SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SpeechRecognition) { alert("Browser Anda tidak mendukung Pencarian Suara."); return; }
-    const recognition = new SpeechRecognition(); recognition.lang = 'id-ID'; recognition.interimResults = false; recognition.maxAlternatives = 1;
-    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
-    recognition.onresult = function(event) { const speechResult = event.results[0][0].transcript; const searchInput = document.getElementById('gudang-search'); if(searchInput) { searchInput.value = speechResult; kataKunciGudang = speechResult.toLowerCase(); gudangItemLimit = 30; renderGudangList(); } };
-    recognition.onerror = function(event) { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
-    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } }; recognition.start();
-};
-
-// Member
-document.getElementById('btn-check-member')?.addEventListener('click', async () => {
-    const phone = document.getElementById('member-search-input')?.value.trim(); if (!phone) return; const btnCheck = document.getElementById('btn-check-member'); if(btnCheck) { btnCheck.disabled = true; btnCheck.textContent = "..."; }
-    try {
-        const docSnap = await getDoc(doc(db, "members", phone));
-        if (docSnap.exists()) { activeMember = { id: phone, ...docSnap.data() }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); } 
-        else { if (confirm(`Member ${phone} belum terdaftar. Daftarkan?`)) { document.getElementById('member-reg-phone').value = phone; document.getElementById('member-reg-name').value = ""; document.getElementById('member-modal').classList.remove('hidden'); } }
-    } catch(e) {} finally { if(btnCheck) { btnCheck.disabled = false; btnCheck.textContent = "Cari"; } }
-});
-document.getElementById('member-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault(); if (!navigator.onLine) return alert("Butuh internet.");
-    const btnSubmit = e.target.querySelector('button[type="submit"]'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Memproses..."; }
-    try {
-        const phone = document.getElementById('member-reg-phone')?.value.trim() || ''; const name = document.getElementById('member-reg-name')?.value.trim() || '';
-        const checkSnap = await getDoc(doc(db, "members", phone)); if(checkSnap.exists()) return alert("Nomor terdaftar!");
-        await setDoc(doc(db, "members", phone), { nama: name, poin: 0 }); activeMember = { id: phone, nama: name, poin: 0 }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); document.getElementById('member-modal')?.classList.add('hidden');
-    } catch(e) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
-});
-document.getElementById('btn-remove-member')?.addEventListener('click', () => { activeMember = null; localStorage.removeItem("pos_recovery_member"); document.getElementById('member-select-zone')?.classList.remove('hidden'); document.getElementById('member-active-zone')?.classList.add('hidden'); document.getElementById('btn-remove-member')?.classList.add('hidden'); document.getElementById('member-search-input').value = ""; renderKeranjang(); document.getElementById('pay-method-cash')?.click(); });
-
-// Bluetooth Printer
 document.getElementById('btn-connect-printer')?.addEventListener('click', async () => {
     try {
         const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2'] });
@@ -774,13 +761,25 @@ window.triggerTutupShift = () => {
 window.tambahVoucherAdmin = async () => {
     const code = document.getElementById('new-voucher-code')?.value.trim().toUpperCase(); const type = document.getElementById('new-voucher-type')?.value; const val = parseInputRibuan(document.getElementById('new-voucher-value')?.value);
     if(!code || isNaN(val) || val <= 0) return alert("Data voucher tidak valid!");
-    let currentVouchers = globalSettings.vouchers || {}; currentVouchers[code] = { type: type, value: val };
-    try { await setDoc(doc(db, "pengaturan", "global"), { vouchers: currentVouchers }, { merge: true }); if(document.getElementById('new-voucher-code')) document.getElementById('new-voucher-code').value = ""; if(document.getElementById('new-voucher-value')) document.getElementById('new-voucher-value').value = ""; alert("Voucher berhasil ditambahkan!"); } catch(e) { alert("Gagal menyimpan voucher."); }
+    
+    // Bug Fix Optimsitic UI
+    let currentVouchers = { ...(globalSettings.vouchers || {}) }; currentVouchers[code] = { type: type, value: val };
+    try { 
+        globalSettings.vouchers = currentVouchers; renderAdminVouchers(); // Update instan UI
+        await setDoc(doc(db, "pengaturan", "global"), { vouchers: currentVouchers }, { merge: true }); 
+        if(document.getElementById('new-voucher-code')) document.getElementById('new-voucher-code').value = ""; 
+        if(document.getElementById('new-voucher-value')) document.getElementById('new-voucher-value').value = ""; 
+        alert("Voucher berhasil ditambahkan!"); 
+    } catch(e) { alert("Gagal menyimpan voucher."); }
 };
 
 window.hapusVoucherAdmin = async (code) => {
-    if(!confirm(`Hapus voucher ${code}?`)) return; let currentVouchers = globalSettings.vouchers || {}; delete currentVouchers[code];
-    try { await setDoc(doc(db, "pengaturan", "global"), { vouchers: currentVouchers }, { merge: true }); } catch(e) { alert("Gagal menghapus voucher."); }
+    if(!confirm(`Hapus voucher ${code}?`)) return; 
+    let currentVouchers = { ...(globalSettings.vouchers || {}) }; delete currentVouchers[code];
+    try { 
+        globalSettings.vouchers = currentVouchers; renderAdminVouchers();
+        await setDoc(doc(db, "pengaturan", "global"), { vouchers: currentVouchers }, { merge: true }); 
+    } catch(e) { alert("Gagal menghapus voucher."); }
 };
 
 window.setQuickCash = (amount) => {
@@ -946,6 +945,27 @@ document.getElementById('btn-verify-pin')?.addEventListener('click', () => {
     } else { alert("PIN SALAH!"); if(document.getElementById('auth-pin-input')) document.getElementById('auth-pin-input').value = ""; }
 });
 
+// Listener Event Navigasi Kategori Kasir
+document.getElementById('btn-check-member')?.addEventListener('click', async () => {
+    const phone = document.getElementById('member-search-input')?.value.trim(); if (!phone) return; const btnCheck = document.getElementById('btn-check-member'); if(btnCheck) { btnCheck.disabled = true; btnCheck.textContent = "..."; }
+    try {
+        const docSnap = await getDoc(doc(db, "members", phone));
+        if (docSnap.exists()) { activeMember = { id: phone, ...docSnap.data() }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); } 
+        else { if (confirm(`Member ${phone} belum terdaftar. Daftarkan?`)) { document.getElementById('member-reg-phone').value = phone; document.getElementById('member-reg-name').value = ""; document.getElementById('member-modal').classList.remove('hidden'); } }
+    } catch(e) {} finally { if(btnCheck) { btnCheck.disabled = false; btnCheck.textContent = "Cari"; } }
+});
+
+document.getElementById('member-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault(); if (!navigator.onLine) return alert("Butuh internet.");
+    const btnSubmit = e.target.querySelector('button[type="submit"]'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Memproses..."; }
+    try {
+        const phone = document.getElementById('member-reg-phone')?.value.trim() || ''; const name = document.getElementById('member-reg-name')?.value.trim() || '';
+        const checkSnap = await getDoc(doc(db, "members", phone)); if(checkSnap.exists()) return alert("Nomor terdaftar!");
+        await setDoc(doc(db, "members", phone), { nama: name, poin: 0 }); activeMember = { id: phone, nama: name, poin: 0 }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); document.getElementById('member-modal')?.classList.add('hidden');
+    } catch(e) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
+});
+document.getElementById('btn-remove-member')?.addEventListener('click', () => { activeMember = null; localStorage.removeItem("pos_recovery_member"); document.getElementById('member-select-zone')?.classList.remove('hidden'); document.getElementById('member-active-zone')?.classList.add('hidden'); document.getElementById('btn-remove-member')?.classList.add('hidden'); if(document.getElementById('member-search-input')) document.getElementById('member-search-input').value = ""; renderKeranjang(); document.getElementById('pay-method-cash')?.click(); });
+
 document.getElementById('btn-apply-voucher')?.addEventListener('click', () => {
     const code = document.getElementById('voucher-code')?.value.trim().toUpperCase(); if (!code) return;
     const activeVouchers = globalSettings.vouchers || {};
@@ -1093,6 +1113,8 @@ function stopRealtimeListeners() {
 document.getElementById('settings-form')?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet untuk menyimpan pengaturan global.");
     const btn = document.getElementById('btn-save-settings'); const origText = btn.textContent; btn.textContent = "Menyimpan..."; btn.disabled = true;
+    
+    // Bug Fix Sinkronisasi Switch ke Firebase
     const newData = {
         namaToko: document.getElementById('set-nama-toko')?.value.trim() || "TOKO POS", alamatToko: document.getElementById('set-alamat-toko')?.value.trim() || "Alamat Toko",
         footerStruk: document.getElementById('set-footer-toko')?.value.trim() || "Terima Kasih", pinAdmin: document.getElementById('set-pin')?.value.trim() || "123456",
@@ -1102,7 +1124,10 @@ document.getElementById('settings-form')?.addEventListener('submit', async (e) =
         serviceChargePersen: Math.max(0, parseFloat(document.getElementById('set-service')?.value) || 0), 
         tema: document.getElementById('set-tema')?.value || "dark",
         showExport: document.getElementById('set-export')?.checked ?? true, payNonCash: document.getElementById('set-noncash')?.checked ?? true,
-        payKasbon: document.getElementById('set-kasbon')?.checked ?? true
+        payKasbon: document.getElementById('set-kasbon')?.checked ?? true,
+        showMember: document.getElementById('switch-fitur-member')?.checked ?? true,
+        showVoucher: document.getElementById('switch-fitur-voucher')?.checked ?? true,
+        showHoldBill: document.getElementById('switch-fitur-hold')?.checked ?? true
     };
     try { await setDoc(doc(db, "pengaturan", "global"), newData, { merge: true }); alert("Pembaruan Sistem Berhasil Diterapkan!"); } 
     catch (err) { alert("Gagal menyimpan pengaturan: " + err.message); } 
