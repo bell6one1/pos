@@ -20,6 +20,8 @@ let globalSettings = {
     showMember: true,
     showVoucher: true,
     showHoldBill: true,
+	pajakPersen: 0,
+    serviceChargePersen: 0,
     vouchers: {
         "PROMO20": { type: "percent", value: 20 },
         "POTONG10K": { type: "nominal", value: 10000 }
@@ -234,15 +236,22 @@ function hitungUangKembalian() {
 
     const rawDiskonManual = 0; 
     globalDiskon = Math.min(globalSubtotal, rawDiskonManual + diskonOtomatisMember + diskonVoucher);
-    globalGrandTotal = Math.round(Math.max(0, globalSubtotal - globalDiskon));
     
-    document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal); 
+    // --- KALKULASI UTAMA FITUR BARU (PAJAK & SERVICE CHARGE) ---
+    let totalSebelumPajak = Math.max(0, globalSubtotal - globalDiskon);
+    let nominalPajak = Math.round(totalSebelumPajak * ((globalSettings.pajakPersen || 0) / 100));
+    let nominalService = Math.round(totalSebelumPajak * ((globalSettings.serviceChargePersen || 0) / 100));
+    
+    // Total akhir akumulasi dari semua biaya tambahan
+    globalGrandTotal = Math.round(totalSebelumPajak + nominalPajak + nominalService);
+    
+    // Sinkronisasi teks nominal ke UI Keranjang Kasir
+    document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal);
     document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
     document.getElementById('pane1-grand-total').textContent = toRupiah(globalGrandTotal);
     
     const btnCheckout = document.getElementById('btn-checkout');
-    btnCheckout.textContent = "Selesaikan Bayar";
-    
+    btnCheckout.textContent = "Selesaikan Bayar"; 
     if (selectedPaymentMethod === 'Tunai') {
         const cashInput = Math.max(0, parseInputRibuan(document.getElementById('cash-paid').value));
         btnCheckout.disabled = (cashInput < globalGrandTotal || keranjang.length === 0);
@@ -936,6 +945,105 @@ document.getElementById('file-import-gudang')?.addEventListener('change', async 
     };
     reader.readAsArrayBuffer(file);
 });
+
+// =======================================================================
+// LOGIKA OPERASIONAL PENGATURAN PROFIL, PAJAK, & DATA BACKUP LOKAL
+// =======================================================================
+
+// Fungsi untuk mengisi otomatis nilai setting ke input form saat aplikasi dimuat
+function sinkronisasiSettingKeForm() {
+    if (document.getElementById('set-nama-toko')) {
+        document.getElementById('set-nama-toko').value = globalSettings.namaToko || '';
+        document.getElementById('set-alamat-toko').value = globalSettings.alamatToko || '';
+        document.getElementById('set-footer-toko').value = globalSettings.footerStruk || '';
+        document.getElementById('set-pajak').value = globalSettings.pajakPersen || 0;
+        document.getElementById('set-service').value = globalSettings.serviceChargePersen || 0;
+    }
+}
+
+// Interseptor form simpan pengaturan bawaan agar menangkap nilai identitas & pajak baru
+document.getElementById('btn-save-settings')?.addEventListener('click', async () => {
+    if (document.getElementById('set-nama-toko')) {
+        globalSettings.namaToko = document.getElementById('set-nama-toko').value;
+        globalSettings.alamatToko = document.getElementById('set-alamat-toko').value;
+        globalSettings.footerStruk = document.getElementById('set-footer-toko').value;
+        globalSettings.pajakPersen = parseFloat(document.getElementById('set-pajak').value) || 0;
+        globalSettings.serviceChargePersen = parseFloat(document.getElementById('set-service').value) || 0;
+    }
+});
+
+// Pemicu backup data barang ke format JSON lokal
+document.getElementById('btn-backup-data')?.addEventListener('click', () => {
+    try {
+        if (!databaseBarang || databaseBarang.length === 0) {
+            return alert("Gagal mengekspor: Database barang Anda kosong saat ini.");
+        }
+
+        const bundlingData = {
+            identitasSistem: "POS_ENTERPRISE_BACKUP",
+            waktuEkspor: new Date().toISOString(),
+            pengaturan: globalSettings,
+            daftarBarang: databaseBarang
+        };
+
+        const formatDataString = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bundlingData, null, 2));
+        const triggerDownload = document.createElement('a');
+        const tanggalSkarang = new Date().toISOString().split('T')[0];
+        
+        triggerDownload.setAttribute("href", formatDataString);
+        triggerDownload.setAttribute("download", `CADANGAN_DATABASE_POS_${tanggalSkarang}.json`);
+        document.body.appendChild(triggerDownload);
+        triggerDownload.click();
+        triggerDownload.remove();
+        
+        alert("🎉 Berhasil! File cadangan JSON telah diunduh ke perangkat Anda.");
+    } catch (err) {
+        alert("Terjadi kesalahan backup: " + err.message);
+    }
+});
+
+// Pemicu Pemulihan/Restore Data dari berkas JSON ke Firebase Firestore
+document.getElementById('btn-restore-data')?.addEventListener('click', () => {
+    const selectorFile = document.getElementById('input-restore-file');
+    if (!selectorFile.files || selectorFile.files.length === 0) {
+        return alert("Harap pilih file .json cadangan Anda terlebih dahulu.");
+    }
+
+    const fileTerpilih = selectorFile.files[0];
+    const pembacaBerkas = new FileReader();
+
+    pembacaBerkas.onload = async (event) => {
+        try {
+            const dataJSON = JSON.parse(event.target.result);
+            
+            if (!dataJSON.daftarBarang || !Array.isArray(dataJSON.daftarBarang)) {
+                throw new Error("Format file JSON salah atau bukan dokumen backup resmi.");
+            }
+
+            const konfirmasiUser = confirm("⚠️ PERINGATAN: Aksi ini akan memasukkan data dari file JSON langsung ke dalam Firebase Firestore Anda. Lanjutkan proses?");
+            if (!konfirmasiUser) return;
+
+            alert("Memulai sinkronisasi data ke Firebase... Mohon jangan tutup halaman ini.");
+
+            // Inject data barang ke database Firebase secara sekuensial memakai referensi itemsRef asli
+            for (const item dari dataJSON.daftarBarang) {
+                const idDokumen = item.id || Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                // Impor dokumen ke Firebase Firestore memakai setDoc
+                await setDoc(doc(db, "barang", idDokumen), item);
+            }
+
+            alert("🔄 Restorasi basis data sukses! Sistem POS akan memuat ulang halaman.");
+            window.location.reload();
+
+        } catch (error) {
+            alert("Gagal memproses file restorasi: " + error.message);
+        }
+    };
+    pembacaBerkas.readAsText(fileTerpilih);
+});
+
+// Jalankan sinkronisasi form ketika variabel global selesai ditarik atau window terbuka
+setTimeout(sinkronisasiSettingKeForm, 2000);
 
 // ✨ FUNGSI EXPORT RIWAYAT EXCEL DENGAN PENANGANAN ERROR ✨
 document.getElementById('btn-export-excel')?.addEventListener('click', () => {
