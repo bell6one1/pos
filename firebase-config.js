@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Konfigurasi Database Anda
 const firebaseConfig = {
@@ -14,14 +14,8 @@ const firebaseConfig = {
 
 // Inisialisasi Firebase Core
 export const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
 export const auth = getAuth(app);
-
-// Inisialisasi Firestore dengan Cache Offline Modern (Pencegah Error Offline)
-export const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-    })
-});
 
 // Inisialisasi Koleksi Tabel
 export const itemsRef = collection(db, "barang");
