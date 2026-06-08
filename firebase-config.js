@@ -1,6 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-// ✨ UPDATE: Menggunakan metode Cache Firestore Modern ✨
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Konfigurasi Database Anda
@@ -17,7 +16,7 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// ✨ UPDATE: Inisialisasi Firestore dengan Cache Offline Modern ✨
+// Inisialisasi Firestore dengan Cache Offline Modern (Pencegah Error Offline)
 export const db = initializeFirestore(app, {
     localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager()
