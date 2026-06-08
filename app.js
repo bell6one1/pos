@@ -241,8 +241,8 @@ function hitungUangKembalian() {
     globalDiskon = Math.min(globalSubtotal, diskonOtomatisMember + diskonVoucher);
     let totalSebelumPajak = Math.max(0, globalSubtotal - globalDiskon);
     
-    const taxRate = parseFloat(globalSettings.pajakPersen) || 0; 
-    const serviceRate = parseFloat(globalSettings.serviceChargePersen) || 0;
+    const taxRate = Math.max(0, parseFloat(globalSettings.pajakPersen) || 0); 
+    const serviceRate = Math.max(0, parseFloat(globalSettings.serviceChargePersen) || 0);
     
     globalTaxAmount = Math.round(totalSebelumPajak * (taxRate / 100)); 
     globalServiceAmount = Math.round(totalSebelumPajak * (serviceRate / 100));
@@ -953,7 +953,11 @@ document.getElementById('btn-export-excel')?.addEventListener('click', () => {
         const dataExcel = dataPenjualanTerfilter.map(trx => { 
             const itemsStr = Array.isArray(trx.items) ? trx.items.map(i => `${i.nama||'Item'} (${i.qty}x)`).join(', ') : '';
             const waktuStr = trx.waktu && trx.waktu.seconds ? new Date(trx.waktu.seconds * 1000).toLocaleString('id-ID') : (trx.waktuLokal ? new Date(trx.waktuLokal).toLocaleString('id-ID') : '-');
-            return { 'Waktu Transaksi': waktuStr, 'Kasir': trx.namaKasir || '-', 'Daftar Barang': itemsStr, 'Metode Pembayaran': trx.metodePembayaran || 'Tunai', 'Subtotal (Rp)': trx.subtotal || 0, 'Diskon (Rp)': trx.diskon || 0, 'Pajak/PPN (Rp)': trx.pajak || 0, 'Grand Total/Omset (Rp)': trx.totalAkhir || 0, 'Laba Bersih/Profit (Rp)': trx.profit || 0, 'Uang Diterima (Rp)': trx.uangBayar || 0, 'Kembalian (Rp)': trx.kembalian || 0 }; 
+            return { 
+                'Waktu Transaksi': waktuStr, 'Kasir': trx.namaKasir || '-', 'Daftar Barang': itemsStr, 'Metode Pembayaran': trx.metodePembayaran || 'Tunai', 
+                'Subtotal (Rp)': trx.subtotal || 0, 'Diskon (Rp)': trx.diskon || 0, 'Pajak/PPN (Rp)': trx.pajak || 0, 'Service Charge (Rp)': trx.serviceCharge || 0,
+                'Grand Total/Omset (Rp)': trx.totalAkhir || 0, 'Laba Bersih/Profit (Rp)': trx.profit || 0, 'Uang Diterima (Rp)': trx.uangBayar || 0, 'Kembalian (Rp)': trx.kembalian || 0 
+            }; 
         });
         if (typeof XLSX !== 'undefined') { const worksheet = XLSX.utils.json_to_sheet(dataExcel); const maxCols = Object.keys(dataExcel[0] || {}).length; worksheet['!cols'] = Array(maxCols).fill({ wch: 20 }); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Penjualan"); XLSX.writeFile(workbook, `Laporan_Penjualan_${fileNameDate}.xlsx`); } else { alert("Pustaka Excel belum termuat."); }
     } catch (error) { alert("Terjadi kesalahan saat membuat file Excel."); }
@@ -1026,8 +1030,10 @@ document.getElementById('settings-form')?.addEventListener('submit', async (e) =
         namaToko: document.getElementById('set-nama-toko')?.value.trim() || "TOKO POS", alamatToko: document.getElementById('set-alamat-toko')?.value.trim() || "Alamat Toko",
         footerStruk: document.getElementById('set-footer-toko')?.value.trim() || "Terima Kasih", pinAdmin: document.getElementById('set-pin')?.value.trim() || "123456",
         printerSize: parseInt(document.getElementById('set-printer')?.value) || 32, batasStok: parseInt(document.getElementById('set-stok')?.value) || 5,
-        kelipatanPoin: parseInt(document.getElementById('set-poin')?.value) || 10000, pajakPersen: parseFloat(document.getElementById('set-pajak')?.value) || 0,
-        serviceChargePersen: parseFloat(document.getElementById('set-service')?.value) || 0, tema: document.getElementById('set-tema')?.value || "dark",
+        kelipatanPoin: parseInt(document.getElementById('set-poin')?.value) || 10000, 
+        pajakPersen: Math.max(0, parseFloat(document.getElementById('set-pajak')?.value) || 0),
+        serviceChargePersen: Math.max(0, parseFloat(document.getElementById('set-service')?.value) || 0), 
+        tema: document.getElementById('set-tema')?.value || "dark",
         showExport: document.getElementById('set-export')?.checked ?? true, payNonCash: document.getElementById('set-noncash')?.checked ?? true,
         payKasbon: document.getElementById('set-kasbon')?.checked ?? true
     };
