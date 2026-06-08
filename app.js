@@ -80,7 +80,7 @@ document.addEventListener('input', (e) => {
 });
 
 // ==========================================
-// 3. ENGINE ANTARMUKA (RENDER UI)
+// 3. RENDER UI & PENGATURAN LAYAR
 // ==========================================
 function updateFiturVisibility() {
     const showMember = document.getElementById('switch-fitur-member')?.checked ?? true; 
@@ -189,8 +189,7 @@ function renderGudangList() {
 
 function renderKeranjang() {
     const listEl = document.getElementById('cart-list'); 
-    const badge = document.getElementById('cart-total-qty-badge');
-    if(badge) badge.textContent = `${keranjang.reduce((a, b) => a + (b.qty || 0), 0)} Item`;
+    if(document.getElementById('cart-total-qty-badge')) document.getElementById('cart-total-qty-badge').textContent = `${keranjang.reduce((a, b) => a + (b.qty || 0), 0)} Item`;
     
     if(keranjang.length === 0) {
         if(listEl) listEl.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-dark-3 absolute inset-0"><p class="text-sm font-medium italic">Keranjang belanja kosong</p></div>`;
@@ -292,7 +291,7 @@ function resetPaymentUI() {
 }
 
 // ==========================================
-// 4. STATISTIK, LOG & DAFTAR
+// 4. DAFTAR STATISTIK & MODUL TABEL
 // ==========================================
 function renderPiutangList() {
     const listContainer = document.getElementById('piutang-list'); if(!listContainer) return;
@@ -562,7 +561,7 @@ window.addEventListener('online', syncOfflineTransactions);
 window.addEventListener('offline', () => { const indicator = document.getElementById('offline-indicator'); if (indicator) indicator.classList.remove('hidden'); applyFiltersAndStats(); });
 
 // ==========================================
-// 6. EVENT LISTENER & TRANSAKSI
+// 6. EVENT LISTENER, KASIR & FITUR GLOBAL
 // ==========================================
 async function logActivity(actionType, actionDetails) {
     const userEmail = auth.currentUser ? auth.currentUser.email.split('@')[0] : "Sistem"; const logObj = { user: userEmail, action: actionType, detail: actionDetails };
@@ -583,6 +582,72 @@ document.addEventListener("keydown", async (e) => {
     } else { if (e.key.length === 1) { barcodeBuffer += e.key; clearTimeout(barcodeTimeout); barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 50); } }
 });
 
+// Pemasok Listeners
+const pemasokForm = document.getElementById('pemasok-form');
+pemasokForm?.addEventListener('submit', async (e) => {
+    e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet.");
+    const id = document.getElementById('pemasok-id').value;
+    const data = { nama: document.getElementById('pemasok-nama').value.trim(), kontak: document.getElementById('pemasok-kontak').value.trim(), info: document.getElementById('pemasok-info').value.trim() };
+    const btnSubmit = document.getElementById('btn-submit-pemasok'); let origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan...";
+    try {
+        if(id) { await updateDoc(doc(db, "pemasok", id), data); } else { await addDoc(collection(db, "pemasok"), data); }
+        pemasokForm.reset(); document.getElementById('pemasok-id').value = ""; document.getElementById('btn-cancel-pemasok').classList.add('hidden');
+    } catch(err) { alert("Gagal menyimpan Pemasok."); } finally { btnSubmit.disabled = false; btnSubmit.textContent = origText; }
+});
+window.editPemasok = (id) => {
+    const p = databasePemasok.find(x => x.id === id); if(!p) return;
+    document.getElementById('pemasok-id').value = p.id; document.getElementById('pemasok-nama').value = p.nama; document.getElementById('pemasok-kontak').value = p.kontak || ""; document.getElementById('pemasok-info').value = p.info || ""; document.getElementById('btn-cancel-pemasok').classList.remove('hidden');
+};
+window.hapusPemasok = async (id) => { if (!navigator.onLine) return alert("Butuh internet."); const p = databasePemasok.find(x => x.id === id); if(!p) return; if(confirm(`Hapus pemasok ${p.nama}?`)) { await deleteDoc(doc(db, "pemasok", id)); } };
+document.getElementById('btn-cancel-pemasok')?.addEventListener('click', () => { pemasokForm?.reset(); document.getElementById('pemasok-id').value = ""; document.getElementById('btn-cancel-pemasok').classList.add('hidden'); });
+
+// Kategori & Search UI 
+document.getElementById('kasir-search')?.addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase(); kasirItemLimit = 36; renderKatalogKasir(); });
+document.getElementById('gudang-search')?.addEventListener('input', (e) => { kataKunciGudang = e.target.value.toLowerCase(); gudangItemLimit = 30; renderGudangList(); });
+window.loadMoreKasir = () => { kasirItemLimit += 36; renderKatalogKasir(); };
+window.loadMoreGudang = () => { gudangItemLimit += 30; renderGudangList(); };
+window.setFilterKategori = (cat) => { filterKategoriAktif = cat; kasirItemLimit = 36; renderKatalogKasir(); };
+window.toggleSortGudang = () => { sortGudangOrder = sortGudangOrder === 'asc' ? 'desc' : 'asc'; const btn = document.getElementById('btn-sort-gudang'); if (btn) btn.innerHTML = sortGudangOrder === 'asc' ? 'Urutkan: A-Z ⬇️' : 'Urutkan: Z-A ⬆️'; gudangItemLimit = 30; renderGudangList(); };
+
+// Voice Search
+window.startVoiceSearchKasir = () => {
+    const btn = document.getElementById('btn-voice-search-kasir'), SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SpeechRecognition) { alert("Browser Anda tidak mendukung Pencarian Suara."); return; }
+    const recognition = new SpeechRecognition(); recognition.lang = 'id-ID'; recognition.interimResults = false; recognition.maxAlternatives = 1;
+    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    recognition.onresult = function(event) { const speechResult = event.results[0][0].transcript; const searchInput = document.getElementById('kasir-search'); if(searchInput) { searchInput.value = speechResult; kataKunciPencarian = speechResult.toLowerCase(); kasirItemLimit = 36; renderKatalogKasir(); } };
+    recognition.onerror = function(event) { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } }; recognition.start();
+};
+window.startVoiceSearchGudang = () => {
+    const btn = document.getElementById('btn-voice-search'), SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SpeechRecognition) { alert("Browser Anda tidak mendukung Pencarian Suara."); return; }
+    const recognition = new SpeechRecognition(); recognition.lang = 'id-ID'; recognition.interimResults = false; recognition.maxAlternatives = 1;
+    recognition.onstart = function() { if(btn) { btn.classList.add('bg-red-500', 'animate-pulse'); btn.textContent = "🎙️"; } };
+    recognition.onresult = function(event) { const speechResult = event.results[0][0].transcript; const searchInput = document.getElementById('gudang-search'); if(searchInput) { searchInput.value = speechResult; kataKunciGudang = speechResult.toLowerCase(); gudangItemLimit = 30; renderGudangList(); } };
+    recognition.onerror = function(event) { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } };
+    recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } }; recognition.start();
+};
+
+// Member
+document.getElementById('btn-check-member')?.addEventListener('click', async () => {
+    const phone = document.getElementById('member-search-input')?.value.trim(); if (!phone) return; const btnCheck = document.getElementById('btn-check-member'); if(btnCheck) { btnCheck.disabled = true; btnCheck.textContent = "..."; }
+    try {
+        const docSnap = await getDoc(doc(db, "members", phone));
+        if (docSnap.exists()) { activeMember = { id: phone, ...docSnap.data() }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); } 
+        else { if (confirm(`Member ${phone} belum terdaftar. Daftarkan?`)) { document.getElementById('member-reg-phone').value = phone; document.getElementById('member-reg-name').value = ""; document.getElementById('member-modal').classList.remove('hidden'); } }
+    } catch(e) {} finally { if(btnCheck) { btnCheck.disabled = false; btnCheck.textContent = "Cari"; } }
+});
+document.getElementById('member-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault(); if (!navigator.onLine) return alert("Butuh internet.");
+    const btnSubmit = e.target.querySelector('button[type="submit"]'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Memproses..."; }
+    try {
+        const phone = document.getElementById('member-reg-phone')?.value.trim() || ''; const name = document.getElementById('member-reg-name')?.value.trim() || '';
+        const checkSnap = await getDoc(doc(db, "members", phone)); if(checkSnap.exists()) return alert("Nomor terdaftar!");
+        await setDoc(doc(db, "members", phone), { nama: name, poin: 0 }); activeMember = { id: phone, nama: name, poin: 0 }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); document.getElementById('member-modal')?.classList.add('hidden');
+    } catch(e) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
+});
+document.getElementById('btn-remove-member')?.addEventListener('click', () => { activeMember = null; localStorage.removeItem("pos_recovery_member"); document.getElementById('member-select-zone')?.classList.remove('hidden'); document.getElementById('member-active-zone')?.classList.add('hidden'); document.getElementById('btn-remove-member')?.classList.add('hidden'); document.getElementById('member-search-input').value = ""; renderKeranjang(); document.getElementById('pay-method-cash')?.click(); });
+
+// Bluetooth Printer
 document.getElementById('btn-connect-printer')?.addEventListener('click', async () => {
     try {
         const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2'] });
