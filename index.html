@@ -429,60 +429,62 @@
                         </div>
 						
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-dark-4 pt-6 mt-6">
-						<div class="bg-dark-6 p-5 rounded-xl border border-dark-4 space-y-4">
-							<h4 class="text-sm font-bold text-mantine-blue uppercase tracking-wider flex items-center gap-2">
-								🏪 Profil Toko & Aturan Pajak
-							</h4>
-							<div class="space-y-3">
-								<div>
-									<label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Nama Toko</label>
-									<input type="text" id="set-nama-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
-								</div>
-								<div>
-									<label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Alamat Toko</label>
-									<input type="text" id="set-alamat-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
-								</div>
-								<div>
-									<label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Footer Cetak Struk</label>
-									<input type="text" id="set-footer-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
-								</div>
-								<div class="grid grid-cols-2 gap-3">
-									<div>
-										<label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">PPN (%)</label>
-										<input type="number" id="set-pajak" min="0" max="100" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
-									</div>
-									<div>
-										<label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Service Charge (%)</label>
-										<input type="number" id="set-service" min="0" max="100" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
-									</div>
-								</div>
-							</div>
-						</div>
+    <div class="bg-dark-6 p-5 rounded-xl border border-dark-4 space-y-4">
+        <h4 class="text-sm font-bold text-mantine-blue uppercase tracking-wider flex items-center gap-2">
+            🏪 Profil Toko & Aturan Pajak
+        </h4>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Nama Toko</label>
+                <input type="text" id="set-nama-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Alamat Toko</label>
+                <input type="text" id="set-alamat-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Footer Cetak Struk</label>
+                <input type="text" id="set-footer-toko" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">PPN (%)</label>
+                    <input type="number" id="set-pajak" min="0" max="100" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-dark-2 mb-1 uppercase">Service Charge (%)</label>
+                    <input type="number" id="set-service" min="0" max="100" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors">
+                </div>
+            </div>
+        </div>
+    </div>
 
-						<div class="bg-dark-6 p-5 rounded-xl border border-dark-4 flex flex-col justify-between">
-							<div>
-								<h4 class="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2 mb-2">
-									💾 Backup & Restore Database (JSON)
-								</h4>
-								<p class="text-[11px] text-dark-2 leading-relaxed mb-4">
-									Gunakan fitur ini untuk mengamankan data barang Anda ke dalam file offline komputer secara mandiri.
-								</p>
-							</div>
-							<div class="space-y-4">
-								<button type="button" id="btn-backup-data" class="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md">
-									📦 Unduh Berkas Backup (.json)
-								</button>
-								<div class="border-t border-dark-4 pt-3">
-									<label class="block text-[11px] font-bold text-red-400 mb-2 uppercase">⚠️ Pulihkan / Restore Data Lama</label>
-									<div class="flex flex-col gap-2">
-										<input type="file" id="input-restore-file" accept=".json" class="block w-full text-xs text-dark-1 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-dark-5 file:text-gray-200 hover:file:bg-dark-4 cursor-pointer">
-										<button type="button" id="btn-restore-data" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg transition-colors">
-											🔄 Jalankan Restorasi File
-										</button>
-									</div>
-								</div>
-							</div>
-						</div>                        
+    <div class="bg-dark-6 p-5 rounded-xl border border-dark-4 flex flex-col justify-between">
+        <div>
+            <h4 class="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2 mb-2">
+                💾 Backup & Restore Database (JSON)
+            </h4>
+            <p class="text-[11px] text-dark-2 leading-relaxed mb-4">
+                Gunakan fitur ini untuk mengamankan data barang Anda ke dalam file offline komputer secara mandiri.
+            </p>
+        </div>
+        <div class="space-y-4">
+            <button type="button" id="btn-backup-data" class="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md">
+                📦 Unduh Berkas Backup (.json)
+            </button>
+            <div class="border-t border-dark-4 pt-3">
+                <label class="block text-[11px] font-bold text-red-400 mb-2 uppercase">⚠️ Pulihkan / Restore Data Lama</label>
+                <div class="flex flex-col gap-2">
+                    <input type="file" id="input-restore-file" accept=".json" class="block w-full text-xs text-dark-1 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-dark-5 file:text-gray-200 hover:file:bg-dark-4 cursor-pointer">
+                    <button type="button" id="btn-restore-data" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg transition-colors">
+                        🔄 Jalankan Restorasi File
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+                        
                         <div class="pt-4">
                             <button type="submit" id="btn-save-settings" class="w-full py-4 text-sm tracking-widest font-black text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl shadow-lg transition-all uppercase">Simpan Pembaruan Sistem</button>
                         </div>
