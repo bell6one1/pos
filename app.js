@@ -189,7 +189,8 @@ function renderGudangList() {
 
 function renderKeranjang() {
     const listEl = document.getElementById('cart-list'); 
-    if(document.getElementById('cart-total-qty-badge')) document.getElementById('cart-total-qty-badge').textContent = `${keranjang.reduce((a, b) => a + b.qty, 0)} Item`;
+    const badge = document.getElementById('cart-total-qty-badge');
+    if(badge) badge.textContent = `${keranjang.reduce((a, b) => a + (b.qty || 0), 0)} Item`;
     
     if(keranjang.length === 0) {
         if(listEl) listEl.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-dark-3 absolute inset-0"><p class="text-sm font-medium italic">Keranjang belanja kosong</p></div>`;
@@ -982,6 +983,7 @@ document.getElementById('btn-restore-data')?.addEventListener('click', () => {
             if (!confirm("⚠️ PERINGATAN: Aksi ini akan menulis ulang data ke Firebase. Lanjutkan?")) return;
             alert("Memulai sinkronisasi data ke Firebase. Mohon jangan tutup halaman...");
             for (const item of hasilParse.daftarBarang) { const docId = item.id || "GEN_" + Date.now().toString() + Math.random().toString(36).substr(2, 5); await setDoc(doc(db, "barang", docId), item); }
+            if (hasilParse.pengaturan) { await setDoc(doc(db, "pengaturan", "global"), hasilParse.pengaturan, { merge: true }); }
             alert("🔄 Restorasi sukses! Sistem akan memuat ulang halaman."); window.location.reload();
         } catch (err) { alert("Gagal proses file restorasi: " + err.message); }
     }; readerBerkas.readAsText(berkas);
