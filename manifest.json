@@ -1,5 +1,5 @@
 {
-  "name": "Kasir v18.5",
+  "name": "Kasir v18.8",
   "short_name": "POS",
   "description": "Aplikasi Kasir Point of Sale Modern",
   "start_url": "./index.html",
@@ -8,7 +8,7 @@
   "theme_color": "#1971c2",
   "icons": [
     {
-      "src": "https://github.com/bell6one1/pos/pospro.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/10017/10017680.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
