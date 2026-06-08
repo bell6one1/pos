@@ -743,7 +743,7 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
     } else if (selectedPaymentMethod === 'Kasbon') {
         trxData.metodePembayaran = "Kasbon"; trxData.uangBayar = 0; trxData.kembalian = 0;
     } else if (selectedPaymentMethod === 'Tunai') {
-        trxData.metodePembayaran = "Tunai"; trxData.uangBayar = Math.max(0, parseInputRibuan(document.getElementById('cash-paid')?.value)); trxData.kembalian = trxData.uangBayar - globalGrandTotal; tunaiMasukLaci = globalGrandTotal;
+        trxData.metodePembayaran = "Tunai"; trxData.uangBayar = Math.max(0, parseInputRibuan(document.getElementById('cash-paid')?.value || "0")); trxData.kembalian = trxData.uangBayar - globalGrandTotal; tunaiMasukLaci = globalGrandTotal;
     } else {
         trxData.metodePembayaran = selectedPaymentMethod; trxData.uangBayar = globalGrandTotal; trxData.kembalian = 0;
     }
@@ -797,6 +797,14 @@ function cetakStrukThermal(data) {
     printArea.innerHTML = `<div style="font-family:monospace; color:black; max-width:300px; margin:0 auto; padding:10px;"><div style="text-align:center; margin-bottom:10px;"><h3 style="margin:0; font-size:16px; font-weight:bold;">${escapeHTML(globalSettings.namaToko)}</h3><p style="margin:2px 0; font-size:10px;">${escapeHTML(globalSettings.alamatToko)}</p></div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><span>Trx ID:</span> <span>${data.id || 'OFFLINE'}</span></div><div style="display:flex; justify-content:space-between;"><span>Waktu:</span> <span>${tglStruk.toLocaleString('id-ID')}</span></div><div style="display:flex; justify-content:space-between;"><span>Kasir:</span> <span>${escapeHTML(data.namaKasir ? data.namaKasir.toUpperCase() : 'SISTEM')}</span></div></div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="margin-bottom:8px;">${(data.items||[]).map(i => `<div style="margin-bottom:4px;"><div style="font-size:10px; font-weight:bold;">${escapeHTML(i.nama||'Item')}</div><div style="display:flex; justify-content:space-between; font-size:10px;"><span>${i.qty} x ${toRupiah(i.harga)}</span><span>${toRupiah((i.harga||0) * i.qty)}</span></div></div>`).join('')}</div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px;"><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Subtotal:</span><span>${toRupiah(data.subtotal)}</span></div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Diskon:</span><span>-${toRupiah(data.diskon)}</span></div>${(data.pajak || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Pajak:</span><span>+${toRupiah(data.pajak)}</span></div>` : ''}${(data.serviceCharge || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Service:</span><span>+${toRupiah(data.serviceCharge)}</span></div>` : ''}<div style="display:flex; justify-content:space-between; font-weight:bold; font-size:12px; margin-top:4px; margin-bottom:4px;"><span>Total:</span><span>${toRupiah(data.totalAkhir)}</span></div><div style="border-top:1px dashed black; margin:6px 0;"></div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Bayar (${escapeHTML(data.metodePembayaran||'Tunai')}):</span><span>${toRupiah(data.uangBayar)}</span></div><div style="display:flex; justify-content:space-between;"><span>Kembali:</span><span>${toRupiah(data.kembalian)}</span></div></div>${data.memberName ? `<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; text-align:center;"><p style="margin:2px 0;">Member: <strong>${escapeHTML(data.memberName.toUpperCase())}</strong></p></div>` : ''}<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="text-align:center; font-size:10px; margin-top:10px;"><p style="margin:0; font-weight:bold;">${escapeHTML(globalSettings.footerStruk)}</p></div></div>`;
     printArea.classList.remove('hidden'); window.print(); printArea.classList.add('hidden');
 }
+
+window.reprintTrx = async (id) => { 
+    const offlineTrx = dataPenjualanTerfilter.find(t => t.localId == id || t.id == id);
+    if (offlineTrx) { cetakStrukThermal(offlineTrx); } else { 
+        if (!navigator.onLine) return alert("Peringatan: Butuh internet.");
+        try { const docSnap = await getDoc(doc(db, "penjualan", id)); if(docSnap.exists()) { cetakStrukThermal(docSnap.data()); } } catch(e) { alert("Data tidak ditemukan."); }
+    }
+};
 
 const itemForm = document.getElementById('item-form');
 itemForm?.addEventListener('submit', async (e) => {
@@ -876,7 +884,7 @@ document.getElementById('btn-apply-voucher')?.addEventListener('click', () => {
     const code = document.getElementById('voucher-code')?.value.trim().toUpperCase(); if (!code) return;
     const activeVouchers = globalSettings.vouchers || {};
     if (activeVouchers[code]) { appliedVoucher = activeVouchers[code]; alert(`✅ Voucher ${code} berhasil diklaim!`); hitungUangKembalian(); } 
-    else { alert("❌ Kode Voucher tidak valid atau kadaluarsa."); appliedVoucher = null; document.getElementById('voucher-code').value = ""; hitungUangKembalian(); }
+    else { alert("❌ Kode Voucher tidak valid atau kadaluarsa."); appliedVoucher = null; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = ""; hitungUangKembalian(); }
 });
 
 document.getElementById('btn-submit-piutang')?.addEventListener('click', async () => {
@@ -902,6 +910,13 @@ document.getElementById('btn-submit-piutang')?.addEventListener('click', async (
     } catch(e) { alert("Gagal memproses pelunasan."); }
     if(btnSubmit) btnSubmit.textContent = "Lunasi";
 });
+
+window.bukaModalBayarPiutang = (memberId) => {
+    piutangAktifDipilih = memberDataAll.find(m => m.id === memberId); if(!piutangAktifDipilih) return;
+    document.getElementById('piutang-member-name').textContent = piutangAktifDipilih.nama.toUpperCase(); 
+    document.getElementById('piutang-sisa-hutang').textContent = toRupiah(piutangAktifDipilih.hutang); 
+    document.getElementById('piutang-bayar-input').value = ""; document.getElementById('bayar-piutang-modal').classList.remove('hidden');
+};
 
 document.getElementById('btn-export-gudang')?.addEventListener('click', () => {
     if (databaseBarang.length === 0) return alert("Gudang kosong.");
