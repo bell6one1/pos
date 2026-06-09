@@ -79,12 +79,10 @@ document.addEventListener('input', (e) => {
     }
 });
 
-// ==========================================
-// 3. ENGINE ANTARMUKA (RENDER UI)
-// ==========================================
-
-// FIX: Update UI Visibilitas & Paksa Sinkronisasi Switch Button
-function updateFiturVisibility() {
+// =========================================================================
+// FIX: ENGINE VISIBILITAS FITUR PENGATURAN & KASIR (ANTI-ERROR)
+// =========================================================================
+window.updateFiturVisibility = function() {
     const sExport = globalSettings.showExport !== false;
     const sNonCash = globalSettings.payNonCash !== false;
     const sKasbon = globalSettings.payKasbon !== false;
@@ -92,7 +90,7 @@ function updateFiturVisibility() {
     const sVoucher = globalSettings.showVoucher !== false;
     const sHold = globalSettings.showHoldBill !== false;
 
-    // Toggle tampilan Kasir & Gudang secara Real-time
+    // 1. Sinkronisasi Tampilan Area Kasir & Gudang secara Real-time
     document.getElementById('gudang-export-container')?.classList.toggle('hidden', !sExport);
     document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !sNonCash);
     document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !sKasbon);
@@ -100,34 +98,33 @@ function updateFiturVisibility() {
     document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !sVoucher);
     document.getElementById('container-hold-bill')?.classList.toggle('hidden', !sHold);
 
-    // Paksa centangan Switch Button HTML agar selalu akurat dengan State
+    // 2. Memastikan status tombol switch HTML selalu sinkron dengan database
     const elExport = document.getElementById('set-export'); if(elExport) elExport.checked = sExport;
     const elNonCash = document.getElementById('set-noncash'); if(elNonCash) elNonCash.checked = sNonCash;
     const elKasbon = document.getElementById('set-kasbon'); if(elKasbon) elKasbon.checked = sKasbon;
     const elMember = document.getElementById('switch-fitur-member'); if(elMember) elMember.checked = sMember;
     const elVoucher = document.getElementById('switch-fitur-voucher'); if(elVoucher) elVoucher.checked = sVoucher;
     const elHold = document.getElementById('switch-fitur-hold'); if(elHold) elHold.checked = sHold;
-}
+};
 
-// FIX: Event Listener Real-Time untuk semua Switch Button
-setTimeout(() => {
-    ['set-export', 'set-noncash', 'set-kasbon', 'switch-fitur-member', 'switch-fitur-voucher', 'switch-fitur-hold'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('change', (e) => {
-                if (id === 'set-export') globalSettings.showExport = e.target.checked;
-                if (id === 'set-noncash') globalSettings.payNonCash = e.target.checked;
-                if (id === 'set-kasbon') globalSettings.payKasbon = e.target.checked;
-                if (id === 'switch-fitur-member') globalSettings.showMember = e.target.checked;
-                if (id === 'switch-fitur-voucher') globalSettings.showVoucher = e.target.checked;
-                if (id === 'switch-fitur-hold') globalSettings.showHoldBill = e.target.checked;
-                
-                // Panggil render UI instan
-                updateFiturVisibility();
-            });
-        }
-    });
-}, 1000); // Set timeout ringan untuk menjamin DOM sudah siap
+// Pengikat Event Listener Otomatis (Menggunakan Event Delegation agar anti-mati)
+document.addEventListener('change', (e) => {
+    if (!e.target) return;
+    const id = e.target.id;
+    const targetSwitches = ['set-export', 'set-noncash', 'set-kasbon', 'switch-fitur-member', 'switch-fitur-voucher', 'switch-fitur-hold'];
+    
+    if (targetSwitches.includes(id)) {
+        if (id === 'set-export') globalSettings.showExport = e.target.checked;
+        if (id === 'set-noncash') globalSettings.payNonCash = e.target.checked;
+        if (id === 'set-kasbon') globalSettings.payKasbon = e.target.checked;
+        if (id === 'switch-fitur-member') globalSettings.showMember = e.target.checked;
+        if (id === 'switch-fitur-voucher') globalSettings.showVoucher = e.target.checked;
+        if (id === 'switch-fitur-hold') globalSettings.showHoldBill = e.target.checked;
+        
+        // Picu pembaruan visual instan di layar kasir
+        window.updateFiturVisibility();
+    }
+});
 
 function terapkanPengaturanLayar() {
     const themeStyle = document.getElementById('dynamic-theme');

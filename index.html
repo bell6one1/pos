@@ -560,9 +560,11 @@
                                     </p>
                                 </div>
                                 <div class="space-y-4">
-                                    <button type="button" id="btn-backup-data" class="w-full py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md">
-                                        📦 Unduh Backup Data Barang (.json)
-                                    </button>
+									<div id="gudang-export-container">
+										<button type="button" id="btn-backup-data" class="w-full py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md">
+											📦 Unduh Backup Data Barang (.json)
+										</button>
+									</div>
                                     <div class="border-t border-dark-4 pt-3">
                                         <label class="block text-[11px] font-bold text-red-400 mb-2 uppercase">⚠️ Pulihkan / Restore Data Lama</label>
                                         <div class="flex flex-col gap-2">
@@ -630,30 +632,59 @@
                                 </div>
                             </div>
                             
-                            <div class="bg-dark-8 p-5 rounded-xl border border-dark-4 md:col-span-2 transition-colors duration-300 shadow-sm">
-                                <h3 class="text-sm font-bold text-green-500 uppercase tracking-widest mb-4">🎛️ Modul Aktif Kasir & Gudang</h3>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
-                                        <input type="checkbox" id="set-export" class="w-5 h-5 accent-mantine-blue rounded cursor-pointer"> Tombol Export/Import
-                                    </label>
-                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
-                                        <input type="checkbox" id="set-noncash" class="w-5 h-5 accent-mantine-blue rounded cursor-pointer"> Metode Bayar Non-Tunai
-                                    </label>
-                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
-                                        <input type="checkbox" id="set-kasbon" class="w-5 h-5 accent-mantine-blue rounded cursor-pointer"> Metode Bayar Kasbon
-                                    </label>
-                                    
-                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
-                                        <input type="checkbox" id="switch-fitur-member" class="w-5 h-5 accent-amber-500 rounded cursor-pointer"> Fitur Pelanggan (Member)
-                                    </label>
-                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
-                                        <input type="checkbox" id="switch-fitur-voucher" class="w-5 h-5 accent-amber-500 rounded cursor-pointer"> Fitur Voucher Diskon
-                                    </label>
-                                    <label class="flex items-center gap-3 text-sm text-gray-200 cursor-pointer">
-                                        <input type="checkbox" id="switch-fitur-hold" class="w-5 h-5 accent-amber-500 rounded cursor-pointer"> Fitur Hold & Buka Bill
-                                    </label>
-                                </div>
-                            </div>
+                            <div class="bg-dark-8 p-5 rounded-xl border border-dark-4 space-y-4 mt-4">
+								<h3 class="text-xs font-bold text-mantine-blue uppercase tracking-wider mb-2">⚙️ Aktivasi Modul & Fitur Aplikasi</h3>
+								
+								<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<label class="flex items-center justify-between p-3 bg-dark-6 rounded-lg border border-dark-4 cursor-pointer hover:border-dark-3 transition-colors">
+										<span class="text-xs font-medium text-gray-200">📦 Aktifkan Fitur Export/Import Data Gudang</span>
+										<div class="relative inline-flex items-center">
+											<input type="checkbox" id="set-export" class="sr-only peer">
+											<div class="w-11 h-6 bg-dark-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-mantine-blue"></div>
+										</div>
+									</label>
+
+									<label class="flex items-center justify-between p-3 bg-dark-6 rounded-lg border border-dark-4 cursor-pointer hover:border-dark-3 transition-colors">
+										<span class="text-xs font-medium text-gray-200">💳 Terima Metode Pembayaran Non-Tunai</span>
+										<div class="relative inline-flex items-center">
+											<input type="checkbox" id="set-noncash" class="sr-only peer">
+											<div class="w-11 h-6 bg-dark-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-mantine-blue"></div>
+										</div>
+									</label>
+
+									<label class="flex items-center justify-between p-3 bg-dark-6 rounded-lg border border-dark-4 cursor-pointer hover:border-dark-3 transition-colors">
+										<span class="text-xs font-medium text-gray-200">⚠️ Terima Metode Pembayaran Kasbon/Piutang</span>
+										<div class="relative inline-flex items-center">
+											<input type="checkbox" id="set-kasbon" class="sr-only peer">
+											<div class="w-11 h-6 bg-dark-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-mantine-blue"></div>
+										</div>
+									</label>
+
+									<label class="flex items-center justify-between p-3 bg-dark-6 rounded-lg border border-dark-4 cursor-pointer hover:border-dark-3 transition-colors">
+										<span class="text-xs font-medium text-gray-200">⭐ Aktifkan Fitur Pelanggan (Member POS)</span>
+										<div class="relative inline-flex items-center">
+											<input type="checkbox" id="switch-fitur-member" class="sr-only peer">
+											<div class="w-11 h-6 bg-dark-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-mantine-blue"></div>
+										</div>
+									</label>
+
+									<label class="flex items-center justify-between p-3 bg-dark-6 rounded-lg border border-dark-4 cursor-pointer hover:border-dark-3 transition-colors">
+										<span class="text-xs font-medium text-gray-200">🎟️ Aktifkan Fitur Voucher Promo Diskon</span>
+										<div class="relative inline-flex items-center">
+											<input type="checkbox" id="switch-fitur-voucher" class="sr-only peer">
+											<div class="w-11 h-6 bg-dark-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-mantine-blue"></div>
+										</div>
+									</label>
+
+									<label class="flex items-center justify-between p-3 bg-dark-6 rounded-lg border border-dark-4 cursor-pointer hover:border-dark-3 transition-colors">
+										<span class="text-xs font-medium text-gray-200">📌 Aktifkan Fitur Tunda & Buka Bill (Hold Bill)</span>
+										<div class="relative inline-flex items-center">
+											<input type="checkbox" id="switch-fitur-hold" class="sr-only peer">
+											<div class="w-11 h-6 bg-dark-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-mantine-blue"></div>
+										</div>
+									</label>
+								</div>
+							</div>
                         </div>
                         
                         <div class="pt-4">
