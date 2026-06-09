@@ -102,7 +102,6 @@ function terapkanPengaturanLayar() {
     document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !globalSettings.payNonCash); 
     document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !globalSettings.payKasbon);
     
-    // Sinkronisasi form pengaturan dengan database Firebase
     if(document.getElementById('set-nama-toko')) {
         document.getElementById('set-nama-toko').value = globalSettings.namaToko || ""; 
         document.getElementById('set-alamat-toko').value = globalSettings.alamatToko || "";
@@ -118,7 +117,6 @@ function terapkanPengaturanLayar() {
         document.getElementById('set-pajak').value = globalSettings.pajakPersen || 0; 
         document.getElementById('set-service').value = globalSettings.serviceChargePersen || 0;
         
-        // SINKRONISASI BUG SWITCH KE FIREBASE GLOBAL
         if(document.getElementById('switch-fitur-member')) document.getElementById('switch-fitur-member').checked = globalSettings.showMember !== false;
         if(document.getElementById('switch-fitur-voucher')) document.getElementById('switch-fitur-voucher').checked = globalSettings.showVoucher !== false;
         if(document.getElementById('switch-fitur-hold')) document.getElementById('switch-fitur-hold').checked = globalSettings.showHoldBill !== false;
@@ -136,7 +134,7 @@ function renderKatalogKasir() {
         Array.from(categoriesSet).map(cat => `<button onclick="window.setFilterKategori('${escapeJS(cat)}')" class="px-4 py-2 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition-colors ${filterKategoriAktif===cat?'bg-mantine-blue text-white':'bg-dark-6 border border-dark-4 text-dark-1'}">${escapeHTML(cat)}</button>`).join(''); 
     }
     
-    const filtered = databaseBarang.filter(i => (filterKategoriAktif === 'Semua' || (i.kategori||'Umum') === filterKategoriAktif) && ((i.nama||'').toLowerCase().includes(kataKunciPencarian) || (i.barcode && i.barcode.toLowerCase().includes(kataKunciPencarian))));
+    const filtered = databaseBarang.filter(i => (filterKategoriAktif === 'Semua' || (i.kategori||'Umum') === filterKategoriAktif) && (((i.nama||'').toLowerCase().includes(kataKunciPencarian)) || ((i.barcode||'').toLowerCase().includes(kataKunciPencarian))));
     const katContainer = document.getElementById('kasir-katalog'); if(!katContainer) return;
     
     if (filtered.length === 0) { katContainer.innerHTML = `<p class="text-xs text-dark-2 italic col-span-full text-center py-8">Produk tidak ditemukan.</p>`; return; }
@@ -144,7 +142,7 @@ function renderKatalogKasir() {
     katContainer.innerHTML = filtered.slice(0, kasirItemLimit).map(i => {
         const isLowStock = (i.stok||0) <= (globalSettings.batasStok || 5); const stockClass = isLowStock ? 'bg-red-900/30 text-red-400' : 'bg-dark-5 text-dark-2';
         return `
-        <div onclick="window.tambahKeKeranjang('${i.id}')" class="bg-dark-6 p-4 rounded-xl border border-dark-4 hover:border-mantine-blue cursor-pointer select-none flex flex-col justify-between active:scale-[0.98] transition-all group shadow-sm">
+        <div onclick="window.tambahKeKeranjang('${escapeJS(i.id)}')" class="bg-dark-6 p-4 rounded-xl border border-dark-4 hover:border-mantine-blue cursor-pointer select-none flex flex-col justify-between active:scale-[0.98] transition-all group shadow-sm">
             <div>
                 <div class="flex justify-between items-start gap-2 mb-2">
                     <span class="text-[10px] font-bold text-mantine-blue uppercase truncate bg-mantine-blue/10 px-2 py-1 rounded-md">${escapeHTML(i.kategori||'Umum')}</span>
@@ -163,7 +161,7 @@ function renderKatalogKasir() {
 
 function renderGudangList() {
     const container = document.getElementById('gudang-list'), totalEl = document.getElementById('gudang-total-item'); if(!container) return;
-    let filtered = databaseBarang.filter(i => { const keyword = kataKunciGudang.toLowerCase(); return (i.nama || '').toLowerCase().includes(keyword) || (i.barcode || '').toLowerCase().includes(keyword) || (i.kategori || '').toLowerCase().includes(keyword) || (i.catatan || '').toLowerCase().includes(keyword); });
+    let filtered = databaseBarang.filter(i => { const keyword = kataKunciGudang.toLowerCase(); return ((i.nama || '').toLowerCase().includes(keyword)) || ((i.barcode || '').toLowerCase().includes(keyword)) || ((i.kategori || '').toLowerCase().includes(keyword)) || ((i.catatan || '').toLowerCase().includes(keyword)); });
     filtered.sort((a, b) => { const nameA = (a.nama || '').toLowerCase(), nameB = (b.nama || '').toLowerCase(); return sortGudangOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA); });
     
     if (totalEl) totalEl.textContent = formatInputRibuan(filtered.length);
@@ -181,9 +179,9 @@ function renderGudangList() {
                 <div class="flex items-center gap-2 mt-1.5"><span class="text-xs font-black text-green-400">${toRupiah(i.harga)}</span> <span class="text-[10px] text-dark-2">| Modal: ${toRupiah(i.cost||0)}</span> <span class="text-[9px] font-bold ml-1 px-1.5 py-0.5 bg-dark-5 text-dark-0 rounded border border-dark-4 ${stockClass}">Stok: ${formatInputRibuan(i.stok||0)}</span></div>
             </div>
             <div class="flex gap-2">
-                <button onclick="window.duplikatBarang('${i.id}')" class="px-3 py-2 bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-400 border border-indigo-900/50 text-xs font-bold rounded-lg transition-colors">Copy</button>
-                <button onclick="window.editBarang('${i.id}')" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-lg transition-colors">Ubah</button>
-                <button onclick="window.hapusBarang('${i.id}')" class="px-3 py-2 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/50 text-xs font-bold rounded-lg transition-colors">Hapus</button>
+                <button onclick="window.duplikatBarang('${escapeJS(i.id)}')" class="px-3 py-2 bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-400 border border-indigo-900/50 text-xs font-bold rounded-lg transition-colors">Copy</button>
+                <button onclick="window.editBarang('${escapeJS(i.id)}')" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-xs font-bold rounded-lg transition-colors">Ubah</button>
+                <button onclick="window.hapusBarang('${escapeJS(i.id)}')" class="px-3 py-2 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-900/50 text-xs font-bold rounded-lg transition-colors">Hapus</button>
             </div>
         </div>`;
     }).join('');
@@ -195,7 +193,8 @@ function renderGudangList() {
 
 function renderKeranjang() {
     const listEl = document.getElementById('cart-list'); 
-    if(document.getElementById('cart-total-qty-badge')) document.getElementById('cart-total-qty-badge').textContent = `${keranjang.reduce((a, b) => a + (b.qty || 0), 0)} Item`;
+    const badgeEl = document.getElementById('cart-total-qty-badge');
+    if(badgeEl) badgeEl.textContent = `${keranjang.reduce((a, b) => a + (b.qty || 0), 0)} Item`;
     
     if(keranjang.length === 0) {
         if(listEl) listEl.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-dark-3 absolute inset-0"><p class="text-sm font-medium italic">Keranjang belanja kosong</p></div>`;
@@ -219,9 +218,9 @@ function renderKeranjang() {
                 <p class="text-xs text-dark-2 mt-1.5">${toRupiah(k.harga)} x <span class="font-bold text-gray-300">${k.qty}</span></p>
             </div>
             <div class="flex items-center gap-3 bg-dark-8 p-1.5 rounded-lg border border-dark-4 shrink-0 max-w-min">
-                <button onclick="window.ubahQtyCart('${k.id}', -1)" class="w-8 h-8 bg-dark-5 hover:bg-dark-4 text-gray-100 rounded-md text-lg font-black flex items-center justify-center transition-colors">-</button>
+                <button onclick="window.ubahQtyCart('${escapeJS(k.id)}', -1)" class="w-8 h-8 bg-dark-5 hover:bg-dark-4 text-gray-100 rounded-md text-lg font-black flex items-center justify-center transition-colors">-</button>
                 <span class="text-sm font-bold px-2 text-gray-200 min-w-[1.5rem] text-center">${k.qty}</span>
-                <button onclick="window.ubahQtyCart('${k.id}', 1)" class="w-8 h-8 bg-dark-5 hover:bg-dark-4 text-gray-100 rounded-md text-lg font-black flex items-center justify-center transition-colors">+</button>
+                <button onclick="window.ubahQtyCart('${escapeJS(k.id)}', 1)" class="w-8 h-8 bg-dark-5 hover:bg-dark-4 text-gray-100 rounded-md text-lg font-black flex items-center justify-center transition-colors">+</button>
             </div>
         </div>`).join('');
     }
@@ -278,7 +277,7 @@ function hitungUangKembalian() {
         
         if (kembalianInfo) kembalianInfo.classList.remove('hidden');
         if (kembalianNilai) {
-            if (document.getElementById('cash-paid')?.value === "") { kembalianNilai.textContent = "Rp 0"; kembalianNilai.className = "text-lg font-black text-dark-2"; } 
+            if ((document.getElementById('cash-paid')?.value || "") === "") { kembalianNilai.textContent = "Rp 0"; kembalianNilai.className = "text-lg font-black text-dark-2"; } 
             else if (kembalian < 0) { kembalianNilai.textContent = "Kurang: " + toRupiah(Math.abs(kembalian)); kembalianNilai.className = "text-lg font-black text-red-400"; } 
             else { kembalianNilai.textContent = "Kembali: " + toRupiah(kembalian); kembalianNilai.className = "text-lg font-black text-green-400"; }
         }
@@ -308,7 +307,7 @@ function renderPiutangList() {
             <div class="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
             <div><p class="text-sm font-black text-gray-100">${escapeHTML(m.nama)}</p><p class="text-[10px] text-dark-2">HP: ${escapeHTML(m.id)}</p></div>
             <div class="bg-dark-7 p-3 rounded-lg border border-dark-4"><p class="text-[10px] font-bold text-dark-2 uppercase tracking-wider">Total Hutang</p><p class="text-lg font-black text-red-400">${toRupiah(m.hutang)}</p></div>
-            <button onclick="window.bukaModalBayarPiutang('${m.id}')" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition-colors shadow">Lunasi Cicilan</button>
+            <button onclick="window.bukaModalBayarPiutang('${escapeJS(m.id)}')" class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg transition-colors shadow">Lunasi Cicilan</button>
         </div>`).join('');
 }
 
@@ -350,7 +349,7 @@ function renderRiwayatTable() {
             <td class="px-6 py-4 text-xs text-gray-200 max-w-[200px] truncate">${trx.tipe === 'pelunasan_piutang' ? '<i>Pembayaran Kasbon</i>' : itemsStr}</td>
             <td class="px-6 py-4 text-xs font-bold"><span class="px-2.5 py-1 bg-dark-5 rounded border border-dark-4">${escapeHTML(trx.metodePembayaran)}</span></td>
             <td class="px-6 py-4 text-sm text-green-400 font-black">${toRupiah(trx.totalAkhir)}</td>
-            <td class="px-6 py-4 text-right"><button onclick="window.reprintTrx('${trx.id || trx.localId}')" class="px-3 py-1.5 bg-dark-5 hover:bg-dark-4 text-white text-xs rounded-lg font-bold shadow">🖨️ Struk</button></td>
+            <td class="px-6 py-4 text-right"><button onclick="window.reprintTrx('${escapeJS(trx.id || trx.localId)}')" class="px-3 py-1.5 bg-dark-5 hover:bg-dark-4 text-white text-xs rounded-lg font-bold shadow">🖨️ Struk</button></td>
         </tr>`;
     }).join('');
 }
@@ -403,8 +402,8 @@ function renderHoldModalList() {
                 <p class="text-[10px] text-dark-1 truncate">${bill.items.map(i => `${escapeHTML(i.nama)} (${i.qty}x)`).join(', ')}</p>
             </div>
             <div class="flex gap-2 shrink-0">
-                <button onclick="window.loadHeldBill('${bill.id}')" class="px-3 py-1.5 bg-mantine-blue text-white rounded-lg text-xs font-bold transition-all">Buka</button>
-                <button onclick="window.deleteHeldBill('${bill.id}')" class="px-3 py-1.5 bg-red-950/40 text-red-400 border border-red-900 rounded-lg text-xs font-bold transition-all">🗑️</button>
+                <button onclick="window.loadHeldBill('${escapeJS(bill.id)}')" class="px-3 py-1.5 bg-mantine-blue text-white rounded-lg text-xs font-bold transition-all">Buka</button>
+                <button onclick="window.deleteHeldBill('${escapeJS(bill.id)}')" class="px-3 py-1.5 bg-red-950/40 text-red-400 border border-red-900 rounded-lg text-xs font-bold transition-all">🗑️</button>
             </div>
         </div>`).join('');
 }
@@ -420,8 +419,8 @@ function renderPemasokList() {
                 ${p.info ? `<p class="text-[10px] text-dark-3 mt-1 italic">ℹ️ ${escapeHTML(p.info)}</p>` : ''}
             </div>
             <div class="flex gap-2 mt-4 pt-3 border-t border-dark-5">
-                <button onclick="window.editPemasok('${p.id}')" class="flex-1 py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded-lg transition-colors">Ubah</button>
-                <button onclick="window.hapusPemasok('${p.id}')" class="flex-1 py-1.5 bg-red-950/20 text-red-400 border border-red-900/50 hover:bg-red-900/40 text-[10px] font-bold rounded-lg transition-colors">Hapus</button>
+                <button onclick="window.editPemasok('${escapeJS(p.id)}')" class="flex-1 py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded-lg transition-colors">Ubah</button>
+                <button onclick="window.hapusPemasok('${escapeJS(p.id)}')" class="flex-1 py-1.5 bg-red-950/20 text-red-400 border border-red-900/50 hover:bg-red-900/40 text-[10px] font-bold rounded-lg transition-colors">Hapus</button>
             </div>
         </div>`).join('');
 }
@@ -429,7 +428,7 @@ function renderPemasokList() {
 function renderPemasokDropdown() { 
     const select = document.getElementById('item-supplier'); if(!select) return; 
     const currentVal = select.value; 
-    select.innerHTML = `<option value="">-- Tanpa Pemasok --</option>` + databasePemasok.map(p => `<option value="${p.id}">${escapeHTML(p.nama)}</option>`).join(''); 
+    select.innerHTML = `<option value="">-- Tanpa Pemasok --</option>` + databasePemasok.map(p => `<option value="${escapeHTML(p.id)}">${escapeHTML(p.nama)}</option>`).join(''); 
     if(currentVal) select.value = currentVal; 
 }
 
@@ -455,7 +454,7 @@ function showActiveMemberUI() {
     document.getElementById('member-select-zone')?.classList.add('hidden'); 
     document.getElementById('member-active-zone')?.classList.remove('hidden'); 
     document.getElementById('btn-remove-member')?.classList.remove('hidden'); 
-    if(document.getElementById('member-active-name')) document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama).toUpperCase()}`; 
+    if(document.getElementById('member-active-name')) document.getElementById('member-active-name').textContent = `⭐ ${escapeHTML(activeMember.nama || 'Pelanggan').toUpperCase()}`; 
     if(document.getElementById('member-active-points')) document.getElementById('member-active-points').textContent = `Poin: ${activeMember.poin || 0} | Hutang: ${toRupiah(activeMember.hutang||0)}`; 
     renderKeranjang(); 
 }
@@ -570,7 +569,7 @@ window.addEventListener('offline', () => { const indicator = document.getElement
 // 6. EVENT LISTENER & TRANSAKSI UTAMA
 // ==========================================
 async function logActivity(actionType, actionDetails) {
-    const userEmail = auth.currentUser ? auth.currentUser.email.split('@')[0] : "Sistem"; const logObj = { user: userEmail, action: actionType, detail: actionDetails };
+    const userEmail = auth.currentUser ? (auth.currentUser?.email || 'Kasir').split('@')[0] : "Sistem"; const logObj = { user: userEmail, action: actionType, detail: actionDetails };
     if (!navigator.onLine) { logObj.timestamp = new Date().toISOString(); const offlineLogs = JSON.parse(localStorage.getItem('pos_offline_logs') || '[]'); offlineLogs.push(logObj); localStorage.setItem('pos_offline_logs', JSON.stringify(offlineLogs)); return; }
     try { logObj.timestamp = serverTimestamp(); await addDoc(auditLogsRef, logObj); } catch (e) {}
 }
@@ -619,21 +618,24 @@ window.startVoiceSearchGudang = () => {
 const pemasokForm = document.getElementById('pemasok-form');
 pemasokForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet.");
-    const id = document.getElementById('pemasok-id').value;
-    const data = { nama: document.getElementById('pemasok-nama').value.trim(), kontak: document.getElementById('pemasok-kontak').value.trim(), info: document.getElementById('pemasok-info').value.trim() };
-    const btnSubmit = document.getElementById('btn-submit-pemasok'); let origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan...";
+    const id = document.getElementById('pemasok-id')?.value || '';
+    const data = { nama: (document.getElementById('pemasok-nama')?.value || '').trim(), kontak: (document.getElementById('pemasok-kontak')?.value || '').trim(), info: (document.getElementById('pemasok-info')?.value || '').trim() };
+    const btnSubmit = document.getElementById('btn-submit-pemasok'); let origText = "Simpan"; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan..."; }
     try {
         if(id) { await updateDoc(doc(db, "pemasok", id), data); } else { await addDoc(collection(db, "pemasok"), data); }
-        pemasokForm.reset(); document.getElementById('pemasok-id').value = ""; document.getElementById('btn-cancel-pemasok').classList.add('hidden');
-    } catch(err) { alert("Gagal menyimpan Pemasok."); } finally { btnSubmit.disabled = false; btnSubmit.textContent = origText; }
+        pemasokForm.reset(); if(document.getElementById('pemasok-id')) document.getElementById('pemasok-id').value = ""; document.getElementById('btn-cancel-pemasok')?.classList.add('hidden');
+    } catch(err) { alert("Gagal menyimpan Pemasok."); } finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
 });
 window.editPemasok = (id) => {
     const p = databasePemasok.find(x => x.id === id); if(!p) return;
-    document.getElementById('pemasok-id').value = p.id; document.getElementById('pemasok-nama').value = p.nama; document.getElementById('pemasok-kontak').value = p.kontak || ""; document.getElementById('pemasok-info').value = p.info || ""; document.getElementById('btn-cancel-pemasok').classList.remove('hidden');
+    if(document.getElementById('pemasok-id')) document.getElementById('pemasok-id').value = p.id; 
+    if(document.getElementById('pemasok-nama')) document.getElementById('pemasok-nama').value = p.nama; 
+    if(document.getElementById('pemasok-kontak')) document.getElementById('pemasok-kontak').value = p.kontak || ""; 
+    if(document.getElementById('pemasok-info')) document.getElementById('pemasok-info').value = p.info || ""; 
+    document.getElementById('btn-cancel-pemasok')?.classList.remove('hidden');
 };
 window.hapusPemasok = async (id) => { if (!navigator.onLine) return alert("Butuh internet."); const p = databasePemasok.find(x => x.id === id); if(!p) return; if(confirm(`Hapus pemasok ${p.nama}?`)) { await deleteDoc(doc(db, "pemasok", id)); } };
-document.getElementById('btn-cancel-pemasok')?.addEventListener('click', () => { pemasokForm?.reset(); document.getElementById('pemasok-id').value = ""; document.getElementById('btn-cancel-pemasok').classList.add('hidden'); });
-
+document.getElementById('btn-cancel-pemasok')?.addEventListener('click', () => { pemasokForm?.reset(); if(document.getElementById('pemasok-id')) document.getElementById('pemasok-id').value = ""; document.getElementById('btn-cancel-pemasok')?.classList.add('hidden'); });
 
 document.getElementById('btn-connect-printer')?.addEventListener('click', async () => {
     try {
@@ -668,7 +670,7 @@ onAuthStateChanged(auth, async (user) => {
 
 document.getElementById('login-form')?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Koneksi internet dibutuhkan untuk masuk!");
-    try { await signInWithEmailAndPassword(auth, document.getElementById('login-email').value.trim(), document.getElementById('login-password').value); e.target.reset(); } catch (e) { alert("Login Gagal!"); }
+    try { await signInWithEmailAndPassword(auth, (document.getElementById('login-email')?.value || '').trim(), document.getElementById('login-password')?.value || ''); e.target.reset(); } catch (e) { alert("Login Gagal!"); }
 });
 
 function matikanSemuaListener() {
@@ -680,7 +682,14 @@ function matikanSemuaListener() {
 
 document.getElementById('btn-logout')?.addEventListener('click', async () => { 
     if (activeShiftSession) return alert("Tutup shift kasir sebelum keluar!");
-    if(confirm("Keluar dari sistem?")) { matikanSemuaListener(); try { await signOut(auth); } catch (e) {} finally { sessionStorage.removeItem('pos_admin_authorized'); localStorage.clear(); location.reload(); } } 
+    if(confirm("Keluar dari sistem?")) { 
+        matikanSemuaListener(); 
+        try { await signOut(auth); } catch (e) {} 
+        finally { 
+            sessionStorage.removeItem('pos_admin_authorized'); localStorage.removeItem('pos_recovery_cart'); 
+            localStorage.removeItem('pos_recovery_member'); localStorage.clear(); location.reload(); 
+        } 
+    } 
 });
 
 ['tab-dashboard-btn', 'tab-kasir-btn', 'tab-gudang-btn', 'tab-pemasok-btn', 'tab-piutang-btn', 'tab-riwayat-btn', 'tab-pengaturan-btn'].forEach(btnId => {
@@ -711,7 +720,7 @@ function updateShiftUI(isActive) {
     const w = document.getElementById('shift-status-widget'); if (!w) return;
     if (isActive) {
         w.className = "bg-green-900/20 border border-green-800/50 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4";
-        w.innerHTML = `<div class="text-sm text-green-400"><p class="font-bold flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Sesi Aktif: ${escapeHTML(auth.currentUser?.email.split('@')[0].toUpperCase())}</p><p class="text-green-500/80 mt-1 text-xs font-medium">Laci: ${toRupiah((activeShiftSession.modalAwal||0) + (activeShiftSession.totalTunai||0))} | Omset Total: ${toRupiah(activeShiftSession.totalPenjualan || 0)}</p></div><button onclick="window.triggerTutupShift()" class="px-5 py-2.5 text-xs font-bold text-gray-100 bg-dark-5 hover:bg-red-500 hover:text-white transition-all rounded-xl border border-dark-4 hover:border-red-600 shadow">Tutup Sesi 🔒</button>`;
+        w.innerHTML = `<div class="text-sm text-green-400"><p class="font-bold flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Sesi Aktif: ${escapeHTML((auth.currentUser?.email || 'Kasir').split('@')[0].toUpperCase())}</p><p class="text-green-500/80 mt-1 text-xs font-medium">Laci: ${toRupiah((activeShiftSession.modalAwal||0) + (activeShiftSession.totalTunai||0))} | Omset Total: ${toRupiah(activeShiftSession.totalPenjualan || 0)}</p></div><button onclick="window.triggerTutupShift()" class="px-5 py-2.5 text-xs font-bold text-gray-100 bg-dark-5 hover:bg-red-500 hover:text-white transition-all rounded-xl border border-dark-4 hover:border-red-600 shadow">Tutup Sesi 🔒</button>`;
         document.getElementById('kasir-core-content')?.classList.remove('opacity-40', 'pointer-events-none'); document.getElementById('kasir-cart-content')?.classList.remove('opacity-40', 'pointer-events-none');
     } else {
         w.className = "bg-dark-8 border border-dark-4 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4";
@@ -728,8 +737,8 @@ window.triggerBukaShift = () => {
         const btnSubmit = document.getElementById('btn-shift-submit'); if(btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan..."; }
         try {
             const val = Math.round(Math.max(0, parseInputRibuan(document.getElementById('shift-cash-input')?.value)));
-            const docRef = await addDoc(shiftsRef, { userId: currentUserId, namaKasir: auth.currentUser?.email.split('@')[0], waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, totalTunai: 0, status: "buka" });
-            activeShiftSession = { id: docRef.id, userId: currentUserId, namaKasir: auth.currentUser?.email.split('@')[0], modalAwal: val, totalPenjualan: 0, totalTunai: 0, status: "buka" };
+            const docRef = await addDoc(shiftsRef, { userId: currentUserId, namaKasir: (auth.currentUser?.email || 'Kasir').split('@')[0], waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, totalTunai: 0, status: "buka" });
+            activeShiftSession = { id: docRef.id, userId: currentUserId, namaKasir: (auth.currentUser?.email || 'Kasir').split('@')[0], modalAwal: val, totalPenjualan: 0, totalTunai: 0, status: "buka" };
             localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
             await logActivity("SHIFT_BUKA", `Modal ${toRupiah(val)}`);
             document.getElementById('shift-modal')?.classList.add('hidden'); updateShiftUI(true);
@@ -759,13 +768,14 @@ window.triggerTutupShift = () => {
 };
 
 window.tambahVoucherAdmin = async () => {
-    const code = document.getElementById('new-voucher-code')?.value.trim().toUpperCase(); const type = document.getElementById('new-voucher-type')?.value; const val = parseInputRibuan(document.getElementById('new-voucher-value')?.value);
+    const code = (document.getElementById('new-voucher-code')?.value || '').trim().toUpperCase(); 
+    const type = document.getElementById('new-voucher-type')?.value; 
+    const val = parseInputRibuan(document.getElementById('new-voucher-value')?.value);
     if(!code || isNaN(val) || val <= 0) return alert("Data voucher tidak valid!");
     
-    // Bug Fix Optimsitic UI
     let currentVouchers = { ...(globalSettings.vouchers || {}) }; currentVouchers[code] = { type: type, value: val };
     try { 
-        globalSettings.vouchers = currentVouchers; renderAdminVouchers(); // Update instan UI
+        globalSettings.vouchers = currentVouchers; renderAdminVouchers();
         await setDoc(doc(db, "pengaturan", "global"), { vouchers: currentVouchers }, { merge: true }); 
         if(document.getElementById('new-voucher-code')) document.getElementById('new-voucher-code').value = ""; 
         if(document.getElementById('new-voucher-value')) document.getElementById('new-voucher-value').value = ""; 
@@ -796,9 +806,16 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
     const totalProfit = (globalGrandTotal - globalTaxAmount - globalServiceAmount) - totalModalHPP; 
     let tunaiMasukLaci = 0;
 
+    // Bug Fix Trx ID Collision (Memastikan ID Transaksi 100% Unik)
+    const generateTrxId = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let randomStr = '';
+        for (let i = 0; i < 4; i++) randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
+        return "TRX-" + Date.now().toString().slice(-4) + "-" + randomStr;
+    };
+
     const trxData = { 
-        id: "TRX-" + Date.now().toString().slice(-6), items: [...keranjang], subtotal: globalSubtotal, diskon: globalDiskon, pajak: globalTaxAmount, serviceCharge: globalServiceAmount, totalAkhir: globalGrandTotal, totalModal: totalModalHPP, profit: totalProfit,
-        namaKasir: (auth.currentUser ? auth.currentUser.email.split('@')[0] : 'Sistem'), memberId: activeMember ? activeMember.id : null, memberName: activeMember ? activeMember.nama : null, voucherDigunakan: appliedVoucher ? document.getElementById('voucher-code')?.value.toUpperCase() : null, shiftId: activeShiftSession.id
+        id: generateTrxId(), items: [...keranjang], subtotal: globalSubtotal, diskon: globalDiskon, pajak: globalTaxAmount, serviceCharge: globalServiceAmount, totalAkhir: globalGrandTotal, totalModal: totalModalHPP, profit: totalProfit,
+        namaKasir: (auth.currentUser ? (auth.currentUser?.email || 'Kasir').split('@')[0] : 'Sistem'), memberId: activeMember ? activeMember.id : null, memberName: activeMember ? activeMember.nama : null, voucherDigunakan: appliedVoucher ? (document.getElementById('voucher-code')?.value || '').toUpperCase() : null, shiftId: activeShiftSession.id
     };
 
     if (isSplitPayment) {
@@ -880,7 +897,7 @@ itemForm?.addEventListener('submit', async (e) => {
     const btnSubmit = document.getElementById('btn-submit'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan..."; }
     try {
         const rawCost = Math.max(0, parseInputRibuan(document.getElementById('item-cost')?.value)); const rawHrg = Math.max(0, parseInputRibuan(document.getElementById('item-price')?.value)); const rawStk = Math.max(0, parseInputRibuan(document.getElementById('item-stock')?.value));
-        const nName = document.getElementById('item-name')?.value.trim() || 'Barang Baru'; const nCat = document.getElementById('item-category')?.value.trim() || 'Umum'; const supId = document.getElementById('item-supplier')?.value || ""; const nNotes = document.getElementById('item-notes')?.value.trim() || '';
+        const nName = (document.getElementById('item-name')?.value || '').trim() || 'Barang Baru'; const nCat = (document.getElementById('item-category')?.value || '').trim() || 'Umum'; const supId = document.getElementById('item-supplier')?.value || ""; const nNotes = (document.getElementById('item-notes')?.value || '').trim() || '';
         const data = { barcode: barcodeInput, nama: nName, kategori: nCat, catatan: nNotes, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
         if(id) { await updateDoc(doc(db, "barang", id), data); } else { await addDoc(itemsRef, data); }
         document.getElementById('item-form')?.reset(); if(document.getElementById('item-id')) document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden');
@@ -938,6 +955,8 @@ window.ubahQtyCart = (id, delta) => {
 
 document.getElementById('btn-verify-pin')?.addEventListener('click', () => {
     const inputPin = document.getElementById('auth-pin-input')?.value;
+    
+    // Bug Fix: Ambil PIN yang valid dari memori global
     if (inputPin === (globalSettings.pinAdmin || "123456")) {
         sessionStorage.setItem("pos_admin_authorized", "true");
         if (window.itemAkanDihapus) { const index = keranjang.findIndex(k => k.id === window.itemAkanDihapus); if (index > -1) { keranjang.splice(index, 1); localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); renderKeranjang(); } }
@@ -961,13 +980,25 @@ document.getElementById('member-form')?.addEventListener('submit', async (e) => 
     try {
         const phone = document.getElementById('member-reg-phone')?.value.trim() || ''; const name = document.getElementById('member-reg-name')?.value.trim() || '';
         const checkSnap = await getDoc(doc(db, "members", phone)); if(checkSnap.exists()) return alert("Nomor terdaftar!");
-        await setDoc(doc(db, "members", phone), { nama: name, poin: 0 }); activeMember = { id: phone, nama: name, poin: 0 }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); document.getElementById('member-modal')?.classList.add('hidden');
+        await setDoc(doc(db, "members", phone), { nama: name, poin: 0, hutang: 0 }); activeMember = { id: phone, nama: name, poin: 0, hutang: 0 }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); document.getElementById('member-modal')?.classList.add('hidden');
     } catch(e) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
 });
-document.getElementById('btn-remove-member')?.addEventListener('click', () => { activeMember = null; localStorage.removeItem("pos_recovery_member"); document.getElementById('member-select-zone')?.classList.remove('hidden'); document.getElementById('member-active-zone')?.classList.add('hidden'); document.getElementById('btn-remove-member')?.classList.add('hidden'); if(document.getElementById('member-search-input')) document.getElementById('member-search-input').value = ""; renderKeranjang(); document.getElementById('pay-method-cash')?.click(); });
+
+document.getElementById('btn-remove-member')?.addEventListener('click', () => { 
+    activeMember = null; localStorage.removeItem("pos_recovery_member"); 
+    document.getElementById('member-select-zone')?.classList.remove('hidden'); 
+    document.getElementById('member-active-zone')?.classList.add('hidden'); 
+    document.getElementById('btn-remove-member')?.classList.add('hidden'); 
+    if(document.getElementById('member-search-input')) document.getElementById('member-search-input').value = ""; 
+    renderKeranjang(); 
+    
+    // Bug Fix Reference Error "btnCash"
+    document.getElementById('pay-method-cash')?.click(); 
+});
 
 document.getElementById('btn-apply-voucher')?.addEventListener('click', () => {
-    const code = document.getElementById('voucher-code')?.value.trim().toUpperCase(); if (!code) return;
+    if (keranjang.length === 0) return alert("Keranjang kosong, tambahkan produk terlebih dahulu!");
+    const code = (document.getElementById('voucher-code')?.value || '').trim().toUpperCase(); if (!code) return;
     const activeVouchers = globalSettings.vouchers || {};
     if (activeVouchers[code]) { appliedVoucher = activeVouchers[code]; alert(`✅ Voucher ${code} berhasil diklaim!`); hitungUangKembalian(); } 
     else { alert("❌ Kode Voucher tidak valid atau kadaluarsa."); appliedVoucher = null; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = ""; hitungUangKembalian(); }
@@ -975,7 +1006,7 @@ document.getElementById('btn-apply-voucher')?.addEventListener('click', () => {
 
 document.getElementById('btn-submit-piutang')?.addEventListener('click', async () => {
     if(!piutangAktifDipilih || !activeShiftSession) return alert("Peringatan: Sesi Shift harus aktif untuk menerima pembayaran.");
-    const inputVal = Math.max(0, parseInputRibuan(document.getElementById('piutang-bayar-input')?.value));
+    const inputVal = Math.max(0, parseInputRibuan(document.getElementById('piutang-bayar-input')?.value || "0"));
     if(inputVal <= 0 || inputVal > piutangAktifDipilih.hutang) return alert("Nominal pelunasan tidak valid!");
     const btnSubmit = document.getElementById('btn-submit-piutang'); if(btnSubmit) btnSubmit.textContent = "...";
 
@@ -999,9 +1030,9 @@ document.getElementById('btn-submit-piutang')?.addEventListener('click', async (
 
 window.bukaModalBayarPiutang = (memberId) => {
     piutangAktifDipilih = memberDataAll.find(m => m.id === memberId); if(!piutangAktifDipilih) return;
-    document.getElementById('piutang-member-name').textContent = piutangAktifDipilih.nama.toUpperCase(); 
-    document.getElementById('piutang-sisa-hutang').textContent = toRupiah(piutangAktifDipilih.hutang); 
-    document.getElementById('piutang-bayar-input').value = ""; document.getElementById('bayar-piutang-modal').classList.remove('hidden');
+    if(document.getElementById('piutang-member-name')) document.getElementById('piutang-member-name').textContent = piutangAktifDipilih.nama.toUpperCase(); 
+    if(document.getElementById('piutang-sisa-hutang')) document.getElementById('piutang-sisa-hutang').textContent = toRupiah(piutangAktifDipilih.hutang); 
+    if(document.getElementById('piutang-bayar-input')) document.getElementById('piutang-bayar-input').value = ""; document.getElementById('bayar-piutang-modal')?.classList.remove('hidden');
 };
 
 document.getElementById('btn-export-gudang')?.addEventListener('click', () => {
@@ -1024,7 +1055,7 @@ document.getElementById('file-import-gudang')?.addEventListener('change', async 
                 const barcode = (row['Barcode'] || row['barcode'] || '').toString().trim(); const nama = row['Nama Barang'] || row['nama'] || row['Nama'] || ''; if (!nama) continue;
                 const hrgModal = parseExcelNum(row['Harga Modal'] || row['cost'] || row['Cost']); const hrgJual = parseExcelNum(row['Harga Jual'] || row['harga'] || row['Harga']); const stok = parseExcelNum(row['Stok'] || row['stok'] || row['Qty']); const kategori = row['Kategori'] || row['kategori'] || 'Umum'; const catatan = row['Catatan'] || row['catatan'] || '';
                 const dataObj = { barcode, nama, kategori, catatan, cost: hrgModal, harga: hrgJual, stok, supplierId: "" };
-                let existingItem = null; if (barcode) { existingItem = databaseBarang.find(x => x.barcode === barcode); } else { existingItem = databaseBarang.find(x => x.nama.toLowerCase() === nama.toLowerCase()); }
+                let existingItem = null; if (barcode) { existingItem = databaseBarang.find(x => x.barcode === barcode); } else { existingItem = databaseBarang.find(x => (x.nama || '').toLowerCase() === (nama || '').toLowerCase()); }
                 if (existingItem) { await updateDoc(doc(db, "barang", existingItem.id), dataObj); updateCount++; } else { await addDoc(itemsRef, dataObj); successCount++; }
             }
             alert(`Import Selesai!\n✅ ${successCount} Barang Baru ditambahkan.\n🔄 ${updateCount} Barang lama diperbarui.`);
@@ -1114,16 +1145,19 @@ document.getElementById('settings-form')?.addEventListener('submit', async (e) =
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet untuk menyimpan pengaturan global.");
     const btn = document.getElementById('btn-save-settings'); const origText = btn.textContent; btn.textContent = "Menyimpan..."; btn.disabled = true;
     
-    // Bug Fix Sinkronisasi Switch ke Firebase
     const newData = {
-        namaToko: document.getElementById('set-nama-toko')?.value.trim() || "TOKO POS", alamatToko: document.getElementById('set-alamat-toko')?.value.trim() || "Alamat Toko",
-        footerStruk: document.getElementById('set-footer-toko')?.value.trim() || "Terima Kasih", pinAdmin: document.getElementById('set-pin')?.value.trim() || "123456",
-        printerSize: parseInt(document.getElementById('set-printer')?.value) || 32, batasStok: parseInt(document.getElementById('set-stok')?.value) || 5,
+        namaToko: (document.getElementById('set-nama-toko')?.value || '').trim() || "TOKO POS", 
+        alamatToko: (document.getElementById('set-alamat-toko')?.value || '').trim() || "Alamat Toko",
+        footerStruk: (document.getElementById('set-footer-toko')?.value || '').trim() || "Terima Kasih", 
+        pinAdmin: (document.getElementById('set-pin')?.value || '').trim() || "123456",
+        printerSize: parseInt(document.getElementById('set-printer')?.value) || 32, 
+        batasStok: parseInt(document.getElementById('set-stok')?.value) || 5,
         kelipatanPoin: parseInt(document.getElementById('set-poin')?.value) || 10000, 
         pajakPersen: Math.max(0, parseFloat(document.getElementById('set-pajak')?.value) || 0),
         serviceChargePersen: Math.max(0, parseFloat(document.getElementById('set-service')?.value) || 0), 
         tema: document.getElementById('set-tema')?.value || "dark",
-        showExport: document.getElementById('set-export')?.checked ?? true, payNonCash: document.getElementById('set-noncash')?.checked ?? true,
+        showExport: document.getElementById('set-export')?.checked ?? true, 
+        payNonCash: document.getElementById('set-noncash')?.checked ?? true,
         payKasbon: document.getElementById('set-kasbon')?.checked ?? true,
         showMember: document.getElementById('switch-fitur-member')?.checked ?? true,
         showVoucher: document.getElementById('switch-fitur-voucher')?.checked ?? true,
