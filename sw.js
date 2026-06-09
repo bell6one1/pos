@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pos-cache-v21';
+const CACHE_NAME = 'pos-cache-v2';
 const urlsToCache = [
   './index.html',
   './manifest.json'

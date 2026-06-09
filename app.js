@@ -126,27 +126,43 @@ document.addEventListener('change', (e) => {
     }
 });
 
+// =========================================================================
+// FIX ENGINE: PENERAPAN PENGATURAN LAYAR SECARA DEFENSIVE (ANTI-CRASH)
+// =========================================================================
 function terapkanPengaturanLayar() {
     const themeStyle = document.getElementById('dynamic-theme');
-    if (globalSettings.tema === 'light-blue') {
-        themeStyle.innerHTML = `.bg-dark-7 { background-color: #f1f5f9 !important; } .bg-dark-8 { background-color: #ffffff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1); } .bg-dark-6 { background-color: #e2e8f0 !important; } .bg-dark-5 { background-color: #cbd5e1 !important; color: #0f172a !important; } .text-white, .text-gray-100, .text-gray-200, .text-gray-300 { color: #0f172a !important; } .text-dark-0, .text-dark-1, .text-dark-2, .text-dark-3 { color: #475569 !important; } .border-dark-4, .border-dark-5 { border-color: #cbd5e1 !important; } input, select { color: #0f172a !important; } ::placeholder { color: #94a3b8 !important; }`;
-    } else { themeStyle.innerHTML = ''; }
-    
-    if(document.getElementById('set-nama-toko')) {
-        document.getElementById('set-nama-toko').value = globalSettings.namaToko || ""; 
-        document.getElementById('set-alamat-toko').value = globalSettings.alamatToko || "";
-        document.getElementById('set-footer-toko').value = globalSettings.footerStruk || ""; 
-        document.getElementById('set-pin').value = globalSettings.pinAdmin || "123456";
-        document.getElementById('set-printer-size').value = globalSettings.printerSize || 32; 
-        document.getElementById('set-stok').value = globalSettings.batasStok || 5;
-        document.getElementById('set-poin').value = globalSettings.kelipatanPoin || 10000; 
-        document.getElementById('set-tema').value = globalSettings.tema || "dark";
-        document.getElementById('set-pajak').value = globalSettings.pajakPersen || 0; 
-        document.getElementById('set-service').value = globalSettings.serviceChargePersen || 0;
+    if (themeStyle) {
+        if (globalSettings.tema === 'light-blue') {
+            themeStyle.innerHTML = `.bg-dark-7 { background-color: #f1f5f9 !important; } .bg-dark-8 { background-color: #ffffff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1); } .bg-dark-6 { background-color: #e2e8f0 !important; } .bg-dark-5 { background-color: #cbd5e1 !important; color: #0f172a !important; } .text-white, .text-gray-100, .text-gray-200, .text-gray-300 { color: #0f172a !important; } .text-dark-0, .text-dark-1, .text-dark-2, .text-dark-3 { color: #475569 !important; } .border-dark-4, .border-dark-5 { border-color: #cbd5e1 !important; } input, select { color: #0f172a !important; } ::placeholder { color: #94a3b8 !important; }`;
+        } else { 
+            themeStyle.innerHTML = ''; 
+        }
     }
     
-    updateFiturVisibility(); // Panggil sinkronisasi Switch
-    renderAdminVouchers(); renderKatalogKasir(); renderGudangList(); hitungUangKembalian(); 
+    // Pengecekan satu per satu secara independen agar tidak memicu TypeError jika elemen absen
+    const setNama = document.getElementById('set-nama-toko'); if(setNama) setNama.value = globalSettings.namaToko || ""; 
+    const setAlamat = document.getElementById('set-alamat-toko'); if(setAlamat) setAlamat.value = globalSettings.alamatToko || "";
+    const setFooter = document.getElementById('set-footer-toko'); if(setFooter) setFooter.value = globalSettings.footerStruk || ""; 
+    const setPin = document.getElementById('set-pin'); if(setPin) setPin.value = globalSettings.pinAdmin || "123456";
+    
+    // FIX VALIDASI ID: Mendukung pencarian ID 'set-printer-size' maupun 'set-printer' agar toleran terhadap HTML
+    const setPrinter = document.getElementById('set-printer-size') || document.getElementById('set-printer'); 
+    if(setPrinter) setPrinter.value = globalSettings.printerSize || 32; 
+    
+    const setStok = document.getElementById('set-stok'); if(setStok) setStok.value = globalSettings.batasStok || 5;
+    const setPoin = document.getElementById('set-poin'); if(setPoin) setPoin.value = globalSettings.kelipatanPoin || 10000; 
+    const setTema = document.getElementById('set-tema'); if(setTema) setTema.value = globalSettings.tema || "dark";
+    const setPajak = document.getElementById('set-pajak'); if(setPajak) setPajak.value = globalSettings.pajakPersen || 0; 
+    const setService = document.getElementById('set-service'); if(setService) setService.value = globalSettings.serviceChargePersen || 0;
+    
+    // Panggil fungsi sinkronisasi visibilitas fitur kasir
+    if (typeof updateFiturVisibility === 'function') updateFiturVisibility(); 
+    
+    // Jalankan fungsi rendering bawaan aplikasi secara aman
+    if (typeof renderAdminVouchers === 'function') renderAdminVouchers(); 
+    if (typeof renderKatalogKasir === 'function') renderKatalogKasir(); 
+    if (typeof renderGudangList === 'function') renderGudangList(); 
+    if (typeof hitungUangKembalian === 'function') hitungUangKembalian(); 
 }
 
 function renderKatalogKasir() {
