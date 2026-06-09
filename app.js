@@ -2,9 +2,6 @@ import { db, auth, itemsRef, salesRef, shiftsRef, membersRef, auditLogsRef } fro
 import { addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment, serverTimestamp, where, limit, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// ==========================================
-// 1. VARIABEL GLOBAL & STATE APLIKASI
-// ==========================================
 let globalSettings = {
     namaToko: "TOKO MODERN POS", alamatToko: "Jl. Teknologi No.123", footerStruk: "TERIMA KASIH!",
     pinAdmin: "123456", batasStok: 5, kelipatanPoin: 10000, tema: "dark", 
@@ -32,9 +29,6 @@ try {
     const cachedShift = localStorage.getItem("pos_cached_shift"); if (cachedShift) activeShiftSession = JSON.parse(cachedShift);
 } catch(e) {}
 
-// ==========================================
-// 2. FUNGSI HELPER & FORMATTER
-// ==========================================
 const toRupiah = (angka) => "Rp " + new Intl.NumberFormat('id-ID').format(Math.round(angka) || 0);
 
 function formatTanggal(timestamp) { 
@@ -79,9 +73,6 @@ document.addEventListener('input', (e) => {
     }
 });
 
-// =========================================================================
-// FIX: ENGINE VISIBILITAS FITUR PENGATURAN & KASIR (ANTI-ERROR)
-// =========================================================================
 window.updateFiturVisibility = function() {
     const sExport = globalSettings.showExport !== false;
     const sNonCash = globalSettings.payNonCash !== false;
@@ -90,7 +81,6 @@ window.updateFiturVisibility = function() {
     const sVoucher = globalSettings.showVoucher !== false;
     const sHold = globalSettings.showHoldBill !== false;
 
-    // 1. Sinkronisasi Tampilan Area Kasir & Gudang secara Real-time
     document.getElementById('gudang-export-container')?.classList.toggle('hidden', !sExport);
     document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !sNonCash);
     document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !sKasbon);
@@ -98,7 +88,6 @@ window.updateFiturVisibility = function() {
     document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !sVoucher);
     document.getElementById('container-hold-bill')?.classList.toggle('hidden', !sHold);
 
-    // 2. Memastikan status tombol switch HTML selalu sinkron dengan database
     const elExport = document.getElementById('set-export'); if(elExport) elExport.checked = sExport;
     const elNonCash = document.getElementById('set-noncash'); if(elNonCash) elNonCash.checked = sNonCash;
     const elKasbon = document.getElementById('set-kasbon'); if(elKasbon) elKasbon.checked = sKasbon;
@@ -107,7 +96,6 @@ window.updateFiturVisibility = function() {
     const elHold = document.getElementById('switch-fitur-hold'); if(elHold) elHold.checked = sHold;
 };
 
-// Pengikat Event Listener Otomatis (Menggunakan Event Delegation agar anti-mati)
 document.addEventListener('change', (e) => {
     if (!e.target) return;
     const id = e.target.id;
@@ -121,14 +109,10 @@ document.addEventListener('change', (e) => {
         if (id === 'switch-fitur-voucher') globalSettings.showVoucher = e.target.checked;
         if (id === 'switch-fitur-hold') globalSettings.showHoldBill = e.target.checked;
         
-        // Picu pembaruan visual instan di layar kasir
-        window.updateFiturVisibility();
+        updateFiturVisibility(); 
     }
 });
 
-// =========================================================================
-// FIX ENGINE: PENERAPAN PENGATURAN LAYAR SECARA DEFENSIVE (ANTI-CRASH)
-// =========================================================================
 function terapkanPengaturanLayar() {
     const themeStyle = document.getElementById('dynamic-theme');
     if (themeStyle) {
@@ -139,14 +123,12 @@ function terapkanPengaturanLayar() {
         }
     }
     
-    // Pengecekan satu per satu secara independen agar tidak memicu TypeError jika elemen absen
     const setNama = document.getElementById('set-nama-toko'); if(setNama) setNama.value = globalSettings.namaToko || ""; 
     const setAlamat = document.getElementById('set-alamat-toko'); if(setAlamat) setAlamat.value = globalSettings.alamatToko || "";
     const setFooter = document.getElementById('set-footer-toko'); if(setFooter) setFooter.value = globalSettings.footerStruk || ""; 
     const setPin = document.getElementById('set-pin'); if(setPin) setPin.value = globalSettings.pinAdmin || "123456";
     
-    // FIX VALIDASI ID: Mendukung pencarian ID 'set-printer-size' maupun 'set-printer' agar toleran terhadap HTML
-    const setPrinter = document.getElementById('set-printer-size') || document.getElementById('set-printer'); 
+    const setPrinter = document.getElementById('set-printer') || document.getElementById('set-printer-size'); 
     if(setPrinter) setPrinter.value = globalSettings.printerSize || 32; 
     
     const setStok = document.getElementById('set-stok'); if(setStok) setStok.value = globalSettings.batasStok || 5;
@@ -155,15 +137,42 @@ function terapkanPengaturanLayar() {
     const setPajak = document.getElementById('set-pajak'); if(setPajak) setPajak.value = globalSettings.pajakPersen || 0; 
     const setService = document.getElementById('set-service'); if(setService) setService.value = globalSettings.serviceChargePersen || 0;
     
-    // Panggil fungsi sinkronisasi visibilitas fitur kasir
-    if (typeof updateFiturVisibility === 'function') updateFiturVisibility(); 
-    
-    // Jalankan fungsi rendering bawaan aplikasi secara aman
-    if (typeof renderAdminVouchers === 'function') renderAdminVouchers(); 
-    if (typeof renderKatalogKasir === 'function') renderKatalogKasir(); 
-    if (typeof renderGudangList === 'function') renderGudangList(); 
-    if (typeof hitungUangKembalian === 'function') hitungUangKembalian(); 
+    const elExport = document.getElementById('set-export'); if(elExport) elExport.checked = globalSettings.showExport !== false;
+    const elNonCash = document.getElementById('set-noncash'); if(elNonCash) elNonCash.checked = globalSettings.payNonCash !== false;
+    const elKasbon = document.getElementById('set-kasbon'); if(elKasbon) elKasbon.checked = globalSettings.payKasbon !== false;
+    const elMember = document.getElementById('switch-fitur-member'); if(elMember) elMember.checked = globalSettings.showMember !== false;
+    const elVoucher = document.getElementById('switch-fitur-voucher'); if(elVoucher) elVoucher.checked = globalSettings.showVoucher !== false;
+    const elHold = document.getElementById('switch-fitur-hold'); if(elHold) elHold.checked = globalSettings.showHoldBill !== false;
+
+    document.getElementById('gudang-export-container')?.classList.toggle('hidden', globalSettings.showExport === false);
+    document.getElementById('pay-method-noncash')?.classList.toggle('hidden', globalSettings.payNonCash === false);
+    document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', globalSettings.payKasbon === false);
+    document.getElementById('section-kasir-member')?.classList.toggle('hidden', globalSettings.showMember === false);
+    document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', globalSettings.showVoucher === false);
+    document.getElementById('container-hold-bill')?.classList.toggle('hidden', globalSettings.showHoldBill === false);
 }
+
+document.addEventListener('change', (e) => {
+    if (!e.target) return;
+    const id = e.target.id;
+    const targetSwitches = ['set-export', 'set-noncash', 'set-kasbon', 'switch-fitur-member', 'switch-fitur-voucher', 'switch-fitur-hold'];
+    
+    if (targetSwitches.includes(id)) {
+        if (id === 'set-export') globalSettings.showExport = e.target.checked;
+        if (id === 'set-noncash') globalSettings.payNonCash = e.target.checked;
+        if (id === 'set-kasbon') globalSettings.payKasbon = e.target.checked;
+        if (id === 'switch-fitur-member') globalSettings.showMember = e.target.checked;
+        if (id === 'switch-fitur-voucher') globalSettings.showVoucher = e.target.checked;
+        if (id === 'switch-fitur-hold') globalSettings.showHoldBill = e.target.checked;
+        
+        document.getElementById('gudang-export-container')?.classList.toggle('hidden', !globalSettings.showExport);
+        document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !globalSettings.payNonCash);
+        document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !globalSettings.payKasbon);
+        document.getElementById('section-kasir-member')?.classList.toggle('hidden', !globalSettings.showMember);
+        document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !globalSettings.showVoucher);
+        document.getElementById('container-hold-bill')?.classList.toggle('hidden', !globalSettings.showHoldBill);
+    }
+});
 
 function renderKatalogKasir() {
     const categoriesSet = new Set(databaseBarang.map(i => i.kategori || 'Umum')); 
@@ -335,9 +344,6 @@ function resetPaymentUI() {
     isSplitPayment = false;
 }
 
-// ==========================================
-// 4. DAFTAR STATISTIK & MODUL TABEL
-// ==========================================
 function renderPiutangList() {
     const listContainer = document.getElementById('piutang-list'); if(!listContainer) return;
     const memberBerhutang = memberDataAll.filter(m => (m.hutang || 0) > 0).sort((a,b) => b.hutang - a.hutang);
@@ -514,9 +520,6 @@ window.switchCartTab = (tabName) => {
     }
 };
 
-// ==========================================
-// 5. OFFLINE SYNC (INDEXED DB)
-// ==========================================
 const OFFLINE_DB_NAME = "POS_Offline_Database", OFFLINE_STORE_NAME = "pending_transactions";
 
 function initIndexedDB() { 
@@ -605,9 +608,6 @@ async function syncOfflineTransactions() {
 window.addEventListener('online', syncOfflineTransactions);
 window.addEventListener('offline', () => { const indicator = document.getElementById('offline-indicator'); if (indicator) indicator.classList.remove('hidden'); applyFiltersAndStats(); });
 
-// ==========================================
-// 6. EVENT LISTENER & TRANSAKSI UTAMA
-// ==========================================
 async function logActivity(actionType, actionDetails) {
     const userEmail = auth.currentUser ? (auth.currentUser?.email || 'Kasir').split('@')[0] : "Sistem"; const logObj = { user: userEmail, action: actionType, detail: actionDetails };
     if (!navigator.onLine) { logObj.timestamp = new Date().toISOString(); const offlineLogs = JSON.parse(localStorage.getItem('pos_offline_logs') || '[]'); offlineLogs.push(logObj); localStorage.setItem('pos_offline_logs', JSON.stringify(offlineLogs)); return; }
@@ -627,7 +627,6 @@ document.addEventListener("keydown", async (e) => {
     } else { if (e.key.length === 1) { barcodeBuffer += e.key; clearTimeout(barcodeTimeout); barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 50); } }
 });
 
-// Listener Event Navigasi Kategori Kasir
 document.getElementById('kasir-search')?.addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase(); kasirItemLimit = 36; renderKatalogKasir(); });
 document.getElementById('gudang-search')?.addEventListener('input', (e) => { kataKunciGudang = e.target.value.toLowerCase(); gudangItemLimit = 30; renderGudangList(); });
 window.loadMoreKasir = () => { kasirItemLimit += 36; renderKatalogKasir(); };
@@ -635,7 +634,6 @@ window.loadMoreGudang = () => { gudangItemLimit += 30; renderGudangList(); };
 window.setFilterKategori = (cat) => { filterKategoriAktif = cat; kasirItemLimit = 36; renderKatalogKasir(); };
 window.toggleSortGudang = () => { sortGudangOrder = sortGudangOrder === 'asc' ? 'desc' : 'asc'; const btn = document.getElementById('btn-sort-gudang'); if (btn) btn.innerHTML = sortGudangOrder === 'asc' ? 'Urutkan: A-Z ⬇️' : 'Urutkan: Z-A ⬆️'; gudangItemLimit = 30; renderGudangList(); };
 
-// Voice Search Fix
 window.startVoiceSearchKasir = () => {
     const btn = document.getElementById('btn-voice-search-kasir'), SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SpeechRecognition) { alert("Browser Anda tidak mendukung Pencarian Suara."); return; }
     const recognition = new SpeechRecognition(); recognition.lang = 'id-ID'; recognition.interimResults = false; recognition.maxAlternatives = 1;
@@ -654,7 +652,6 @@ window.startVoiceSearchGudang = () => {
     recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } }; recognition.start();
 };
 
-// Manajemen Pemasok
 const pemasokForm = document.getElementById('pemasok-form');
 pemasokForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet.");
@@ -1112,7 +1109,6 @@ document.getElementById('btn-restore-data')?.addEventListener('click', () => {
     }; readerBerkas.readAsText(berkas);
 });
 
-// Listener inisialisasi Realtime 
 function initRealtimeListeners() {
     stopRealtimeListeners();
     unsubscribeSettings = onSnapshot(doc(db, "pengaturan", "global"), (docSnap) => {
