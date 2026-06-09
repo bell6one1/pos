@@ -17,6 +17,7 @@ window.itemAkanDihapus = null;
 let databaseBarang = [], riwayatPenjualan = [], dataPenjualanTerfilter = [], dataShiftAll = [], auditLogsData = [], databasePemasok = [];
 let memberDataAllCached = JSON.parse(localStorage.getItem("pos_cached_members") || "[]");
 let memberDataAll = memberDataAllCached.length > 0 ? memberDataAllCached : [];
+let heldBills = JSON.parse(localStorage.getItem("pos_held_bills") || "[]");
 
 let chartInstance = null, unsubscribeItems = null, unsubscribeSales = null, unsubscribeMembers = null, unsubscribeActiveShift = null, unsubscribeShifts = null, unsubscribeAudit = null, unsubscribePemasok = null, unsubscribeSettings = null;
 let filterKategoriAktif = "Semua", kataKunciPencarian = "", globalSubtotal = 0, globalDiskon = 0, globalGrandTotal = 0, globalTaxAmount = 0, globalServiceAmount = 0;
@@ -26,7 +27,6 @@ let selectedPaymentMethod = "Tunai", isSplitPayment = false, splitDetails = { me
 
 let keranjang = JSON.parse(localStorage.getItem("pos_recovery_cart") || "[]");
 let activeMember = JSON.parse(localStorage.getItem("pos_recovery_member") || "null");
-let heldBills = JSON.parse(localStorage.getItem("pos_held_bills") || "[]");
 
 try {
     const cachedItems = localStorage.getItem("pos_cached_items"); if (cachedItems) databaseBarang = JSON.parse(cachedItems);
@@ -50,19 +50,23 @@ function formatTanggal(timestamp) {
 
 const escapeHTML = (str) => (str == null ? '' : String(str).replace(/[&<>'"]/g, match => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[match])));
 const escapeJS = (str) => String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-
 const formatInputRibuan = (val) => {
     if (val === null || val === undefined || val === '') return '';
     let str = val.toString().replace(/[^0-9,]/g, '');
-    let parts = str.split(',');
-    let intPart = parts[0].replace(/[^0-9]/g, '');
-    let decPart = parts.length > 1 ? ',' + parts.slice(1).join('').replace(/[^0-9]/g, '') : '';
+    let parts = str.split(','); let intPart = parts[0].replace(/[^0-9]/g, ''); let decPart = parts.length > 1 ? ',' + parts.slice(1).join('').replace(/[^0-9]/g, '') : '';
     if (intPart) intPart = new Intl.NumberFormat('id-ID').format(parseInt(intPart, 10));
     return intPart + decPart;
 };
 
 const parseInputRibuan = (val) => { 
     if (val === undefined || val === null || val === '') return 0; 
+    let cleanStr = val.toString().replace(/\./g, '').replace(/,/g, '.'); 
+    const parsed = parseFloat(cleanStr); return isNaN(parsed) ? 0 : parsed; 
+};
+
+const parseExcelNum = (val) => { 
+    if (val === undefined || val === null || val === '') return 0; 
+    if (typeof val === 'number') return val; 
     let cleanStr = val.toString().replace(/\./g, '').replace(/,/g, '.'); 
     const parsed = parseFloat(cleanStr); return isNaN(parsed) ? 0 : parsed; 
 };
@@ -84,7 +88,10 @@ window.updateFiturVisibility = function() {
     document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !sKasbon);
     document.getElementById('section-kasir-member')?.classList.toggle('hidden', !sMember);
     document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !sVoucher);
-    document.getElementById('container-hold-bill')?.classList.toggle('hidden', !sHold);
+    
+    // Perbaikan Target visibilitas Hold Bill
+    document.getElementById('btn-buka-hold')?.classList.toggle('hidden', !sHold);
+    document.getElementById('btn-hold-bill')?.classList.toggle('hidden', !sHold);
 
     const elExport = document.getElementById('set-export'); if(elExport) elExport.checked = sExport;
     const elNonCash = document.getElementById('set-noncash'); if(elNonCash) elNonCash.checked = sNonCash;
@@ -119,19 +126,16 @@ function terapkanPengaturanLayar() {
 }
 
 // ==========================================
-// 4. LOGIKA KASIR, KERANJANG, & SPLIT/HOLD
+// 4. LOGIKA KASIR, KERANJANG, & PEMBAYARAN
 // ==========================================
-function renderKeranjang() {
+window.renderKeranjang = function() {
     const listEl = document.getElementById('cart-list'); 
     const badgeEl = document.getElementById('cart-total-qty-badge');
     if(badgeEl) badgeEl.textContent = `${keranjang.reduce((a, b) => a + (b.qty || 0), 0)} Item`;
     
-    // FIX: Membersihkan subtotal secara tuntas ketika keranjang kosong
     if(keranjang.length === 0) {
         if(listEl) listEl.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-dark-3 absolute inset-0"><p class="text-sm font-medium italic">Keranjang belanja kosong</p></div>`;
         if(document.getElementById('btn-checkout')) document.getElementById('btn-checkout').disabled = true; 
-        
-        // Membersihkan nyangkut
         if(document.getElementById('cart-subtotal')) document.getElementById('cart-subtotal').textContent = "Rp 0";
         if(document.getElementById('cart-grand-total')) document.getElementById('cart-grand-total').textContent = "Rp 0";
         if(document.getElementById('pane1-grand-total')) document.getElementById('pane1-grand-total').textContent = "Rp 0";
@@ -141,6 +145,7 @@ function renderKeranjang() {
         document.getElementById('kembalian-info')?.classList.add('hidden');
         document.getElementById('cart-tax-zone')?.classList.add('hidden');
         document.getElementById('cart-service-zone')?.classList.add('hidden');
+        document.getElementById('cart-discount-zone')?.classList.add('hidden'); // Sembunyikan diskon
         return;
     }
     
@@ -159,7 +164,7 @@ function renderKeranjang() {
         </div>`).join('');
     }
     hitungUangKembalian();
-}
+};
 
 window.ubahQtyCart = (id, delta) => {
     const index = keranjang.findIndex(k => k.id === id); if(index === -1) return;
@@ -178,7 +183,7 @@ window.tambahKeKeranjang = (id) => {
     localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); renderKeranjang();
 };
 
-function hitungUangKembalian() {
+window.hitungUangKembalian = function() {
     if(isSplitPayment) { 
         resetPaymentUI(); selectedPaymentMethod = 'Tunai'; 
         const btnCash = document.getElementById('pay-method-cash'); if (btnCash) btnCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; 
@@ -203,6 +208,18 @@ function hitungUangKembalian() {
     if(document.getElementById('cart-grand-total')) document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
     if(document.getElementById('pane1-grand-total')) document.getElementById('pane1-grand-total').textContent = toRupiah(globalGrandTotal);
     
+    // UPDATE: Tampilkan Diskon di Layar
+    const discountZone = document.getElementById('cart-discount-zone');
+    if(discountZone) { 
+        if (globalDiskon > 0) { 
+            discountZone.classList.remove('hidden'); 
+            const disAmt = document.getElementById('cart-discount-amount');
+            if(disAmt) disAmt.textContent = "-" + toRupiah(globalDiskon); 
+        } else { 
+            discountZone.classList.add('hidden'); 
+        } 
+    }
+
     const taxZone = document.getElementById('cart-tax-zone');
     if(taxZone) { if (taxRate > 0) { taxZone.classList.remove('hidden'); document.getElementById('cart-tax-rate-display').textContent = taxRate; document.getElementById('cart-tax-amount').textContent = "+" + toRupiah(globalTaxAmount); } else { taxZone.classList.add('hidden'); } }
     const serviceZone = document.getElementById('cart-service-zone');
@@ -221,21 +238,25 @@ function hitungUangKembalian() {
             else if (kembalian < 0) { kembalianNilai.textContent = "Kurang: " + toRupiah(Math.abs(kembalian)); kembalianNilai.className = "text-lg font-black text-red-400"; } 
             else { kembalianNilai.textContent = "Kembali: " + toRupiah(kembalian); kembalianNilai.className = "text-lg font-black text-green-400"; }
         }
+        // Tombol hanya aktif jika uang tunai mencukupi dan keranjang ada isinya
         if(btnCheckout) btnCheckout.disabled = (cashInputVal < globalGrandTotal || keranjang.length === 0);
     } else {
         if(kembalianInfo) kembalianInfo.classList.add('hidden');
+        // Tombol langsung aktif jika non-tunai/kasbon
         if(btnCheckout) btnCheckout.disabled = (keranjang.length === 0);
     }
-}
+};
 
-function resetPaymentUI() {
+window.resetPaymentUI = function() {
     ['pay-method-cash', 'pay-method-noncash', 'pay-method-kasbon'].forEach(id => { const b = document.getElementById(id); if(b) b.className = "py-2.5 text-[11px] font-bold text-dark-1 hover:text-gray-100 bg-transparent border border-dark-4 rounded-md transition-all"; });
     const btnSplit = document.getElementById('pay-method-split'); if(btnSplit) btnSplit.className = "w-full py-2.5 mb-4 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all";
     document.getElementById('cash-paid')?.classList.add('hidden'); document.getElementById('noncash-ref')?.classList.add('hidden'); document.getElementById('quick-cash-zone')?.classList.add('hidden'); document.getElementById('kembalian-info')?.classList.add('hidden');
     isSplitPayment = false;
-}
+};
 
-// Split Pembayaran
+// ==========================================
+// 5. FITUR SPLIT PAYMENT & HOLD BILL
+// ==========================================
 window.bukaModalSplit = function() {
     if (keranjang.length === 0) return alert("⚠️ Keranjang belanja masih kosong!");
     const modal = document.getElementById('split-modal');
@@ -244,9 +265,7 @@ window.bukaModalSplit = function() {
         document.getElementById('split-amount-1').value = formatInputRibuan(Math.ceil(globalGrandTotal / 2)); document.getElementById('split-amount-2').value = formatInputRibuan(globalGrandTotal - Math.ceil(globalGrandTotal / 2));
     }
 };
-
-window.tutupModalSplit = function() { document.getElementById('split-modal')?.classList.add('hidden'); };
-
+window.batalSplitPayment = function() { document.getElementById('split-modal')?.classList.add('hidden'); };
 window.simpanSplitPayment = function() {
     const amt1 = parseInputRibuan(document.getElementById('split-amount-1')?.value || "0"); const amt2 = parseInputRibuan(document.getElementById('split-amount-2')?.value || "0");
     const method1 = document.getElementById('split-method-1')?.value || "Tunai"; const method2 = document.getElementById('split-method-2')?.value || "QRIS";
@@ -260,15 +279,13 @@ window.simpanSplitPayment = function() {
     if (kembalianInfo) kembalianInfo.classList.remove('hidden');
     if (kembalianNilai) { kembalianNilai.textContent = `Split: ${method1} (${toRupiah(amt1)}) + ${method2} (${toRupiah(amt2)})`; kembalianNilai.className = "text-xs font-black text-green-400"; }
     
-    if(document.getElementById('btn-checkout')) document.getElementById('btn-checkout').disabled = false; window.tutupModalSplit();
+    if(document.getElementById('btn-checkout')) document.getElementById('btn-checkout').disabled = false; window.batalSplitPayment();
 };
 
-// Hold Bill
 window.updateHoldBadge = function() {
     const badge = document.getElementById('hold-count-badge');
     if (badge) { badge.textContent = heldBills.length; badge.classList.toggle('hidden', heldBills.length === 0); }
 };
-
 window.holdBillAktif = function() {
     if (keranjang.length === 0) return alert("⚠️ Tidak ada produk di keranjang belanja untuk di-hold!");
     const catatan = prompt("Masukkan Penanda Bill (Contoh: Meja 05 / Nama Pelanggan):") || "Bill Tanpa Nama";
@@ -278,7 +295,6 @@ window.holdBillAktif = function() {
     const nameEl = document.getElementById('selected-member-name'); if (nameEl) nameEl.textContent = "Umum / Non-Member";
     document.getElementById('btn-remove-member')?.classList.add('hidden'); renderKeranjang(); window.updateHoldBadge(); alert("📌 Transaksi ditangguhkan (Hold)!");
 };
-
 window.bukaModalHold = function() {
     const modal = document.getElementById('hold-modal'), container = document.getElementById('hold-bills-list'); if (!modal || !container) return;
     modal.classList.remove('hidden');
@@ -288,9 +304,7 @@ window.bukaModalHold = function() {
         return `<div class="bg-dark-6 p-3 rounded-xl border border-dark-4 flex justify-between items-center gap-2 mb-2"><div><p class="text-xs font-bold text-gray-100">${escapeHTML(b.catatan)}</p><p class="text-[10px] text-dark-2">${new Date(b.waktu).toLocaleTimeString('id-ID')} - ${b.items.length} Item (${toRupiah(total)})</p>${b.member ? `<p class="text-[9px] text-mantine-blue font-semibold">👤 Pelanggan: ${escapeHTML(b.member.nama)}</p>` : ''}</div><div class="flex gap-1.5"><button onclick="window.pulihkanHoldBill(${idx})" class="px-2.5 py-1.5 bg-mantine-blue text-white text-[11px] font-bold rounded-lg hover:bg-blue-600 transition-all">Buka</button><button onclick="window.hapusHoldBill(${idx})" class="px-2.5 py-1.5 bg-red-950/40 text-red-400 text-[11px] font-bold rounded-lg hover:bg-red-900/40 transition-all">Hapus</button></div></div>`;
     }).join('');
 };
-
 window.tutupModalHold = function() { document.getElementById('hold-modal')?.classList.add('hidden'); };
-
 window.pulihkanHoldBill = function(idx) {
     if (keranjang.length > 0) { if (!confirm("⚠️ Keranjang tidak kosong. Timpa item saat ini dengan data Bill Hold?")) return; }
     const bill = heldBills[idx]; keranjang = [...bill.items]; activeMember = bill.member;
@@ -298,22 +312,21 @@ window.pulihkanHoldBill = function(idx) {
     if (activeMember) { localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); const nameEl = document.getElementById('selected-member-name'); if (nameEl) nameEl.textContent = activeMember.nama; document.getElementById('btn-remove-member')?.classList.remove('hidden'); }
     heldBills.splice(idx, 1); localStorage.setItem("pos_held_bills", JSON.stringify(heldBills)); window.tutupModalHold(); renderKeranjang(); window.updateHoldBadge();
 };
-
 window.hapusHoldBill = function(idx) {
     if (confirm("Hapus bill hold ini secara permanen?")) { heldBills.splice(idx, 1); localStorage.setItem("pos_held_bills", JSON.stringify(heldBills)); window.bukaModalHold(); window.updateHoldBadge(); }
 };
 
 // ==========================================
-// 5. EVENT DELEGATOR UTAMA (ANTI MATI)
+// 6. EVENT DELEGATOR SENTRAL (MANAJEMEN KLIK & INPUT)
 // ==========================================
 
-// Listener Input Manual Cash (Real-time Typing)
+// Listener Input Manual Cash & Format Ribuan
 document.addEventListener('input', (e) => {
     if (e.target && e.target.classList.contains('input-ribuan')) { e.target.value = formatInputRibuan(e.target.value); }
-    if (e.target && e.target.id === 'cash-paid') { setTimeout(() => { hitungUangKembalian(); }, 50); }
+    if (e.target && e.target.id === 'cash-paid') { hitungUangKembalian(); }
 });
 
-// Listener Switch Settings
+// Listener Event Switches (Pengaturan)
 document.addEventListener('change', (e) => {
     if (!e.target) return; const id = e.target.id;
     const targetSwitches = ['set-export', 'set-noncash', 'set-kasbon', 'switch-fitur-member', 'switch-fitur-voucher', 'switch-fitur-hold'];
@@ -328,9 +341,9 @@ document.addEventListener('change', (e) => {
     }
 });
 
-// Listener Sentral Semua Klik di Kasir
+// Listener Utama Navigasi Tombol
 document.addEventListener('click', async (e) => {
-    // 1. Tombol Metode Pembayaran
+    // 1. Metode Pembayaran
     const btnCash = e.target.closest('#pay-method-cash');
     if (btnCash) { selectedPaymentMethod = 'Tunai'; resetPaymentUI(); btnCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; document.getElementById('cash-paid')?.classList.remove('hidden'); document.getElementById('quick-cash-zone')?.classList.remove('hidden'); hitungUangKembalian(); return; }
 
@@ -343,13 +356,17 @@ document.addEventListener('click', async (e) => {
     const btnSplit = e.target.closest('#pay-method-split');
     if (btnSplit) { window.bukaModalSplit(); return; }
 
-    // 2. Tombol Hold Bill
-    const btnBukaHold = e.target.closest('#container-hold-bill');
-    if (btnBukaHold) { window.bukaModalHold(); return; }
-    const btnHoldAction = e.target.closest('#btn-hold-action') || e.target.closest('.btn-hold-action'); // menyesuaikan class/id
-    if (btnHoldAction) { window.holdBillAktif(); return; }
+    const btnSaveSplit = e.target.closest('#btn-save-split');
+    if (btnSaveSplit) { window.simpanSplitPayment(); return; }
 
-    // 3. Tombol Klaim Voucher
+    // 2. Tahan & Buka Bill
+    const btnHoldAction = e.target.closest('#btn-hold-bill'); 
+    if (btnHoldAction) { window.holdBillAktif(); return; }
+    
+    const btnBukaHold = e.target.closest('#btn-buka-hold');
+    if (btnBukaHold) { window.bukaModalHold(); return; }
+
+    // 3. Klaim Voucher
     const btnApplyVoucher = e.target.closest('#btn-apply-voucher');
     if (btnApplyVoucher) {
         if (keranjang.length === 0) return alert("Keranjang kosong!");
@@ -359,7 +376,7 @@ document.addEventListener('click', async (e) => {
         else { alert("❌ Voucher tidak valid."); appliedVoucher = null; const vCode = document.getElementById('voucher-code'); if (vCode) vCode.value = ""; hitungUangKembalian(); } return;
     }
 
-    // 4. Tombol Cek Member
+    // 4. Cari & Hapus Member
     const btnCheckMember = e.target.closest('#btn-check-member');
     if (btnCheckMember) {
         const phone = document.getElementById('member-search-input')?.value.trim(); if (!phone) return; 
@@ -370,14 +387,7 @@ document.addEventListener('click', async (e) => {
     const btnRemoveMember = e.target.closest('#btn-remove-member');
     if (btnRemoveMember) { activeMember = null; localStorage.removeItem("pos_recovery_member"); document.getElementById('member-select-zone')?.classList.remove('hidden'); document.getElementById('member-active-zone')?.classList.add('hidden'); btnRemoveMember.classList.add('hidden'); const searchInput = document.getElementById('member-search-input'); if(searchInput) searchInput.value = ""; renderKeranjang(); document.getElementById('pay-method-cash')?.click(); return; }
 
-    // 5. Verifikasi Hapus Item Keranjang
-    const btnVerifyPin = e.target.closest('#btn-verify-pin');
-    if (btnVerifyPin) {
-        const inputPin = document.getElementById('auth-pin-input')?.value;
-        if (inputPin === (globalSettings.pinAdmin || "123456")) { sessionStorage.setItem("pos_admin_authorized", "true"); if (window.itemAkanDihapus) { const index = keranjang.findIndex(k => k.id === window.itemAkanDihapus); if (index > -1) { keranjang.splice(index, 1); localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); renderKeranjang(); } } document.getElementById('pin-modal')?.classList.add('hidden'); window.itemAkanDihapus = null; } else { alert("PIN SALAH!"); const pinInput = document.getElementById('auth-pin-input'); if(pinInput) pinInput.value = ""; } return;
-    }
-
-    // 6. Checkout Pembayaran Akhir
+    // 5. Checkout Pembayaran
     const btnCheckout = e.target.closest('#btn-checkout');
     if (btnCheckout) {
         if(btnCheckout.disabled || keranjang.length === 0 || !activeShiftSession) return;
@@ -411,12 +421,11 @@ document.addEventListener('click', async (e) => {
 });
 
 // ==========================================
-// 6. RENDER DAFTAR, GRAFIK, & TABEL
+// 7. RENDER LIST & GRAFIK (GUDANG/RIWAYAT)
 // ==========================================
 function renderKatalogKasir() {
     const categoriesSet = new Set(databaseBarang.map(i => i.kategori || 'Umum')); const catContainer = document.getElementById('kasir-categories');
     if(catContainer) { catContainer.innerHTML = `<button onclick="window.setFilterKategori('Semua')" class="px-4 py-2 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition-colors ${filterKategoriAktif==='Semua'?'bg-mantine-blue text-white':'bg-dark-6 border border-dark-4 text-dark-1'}">Semua Kategori</button>` + Array.from(categoriesSet).map(cat => `<button onclick="window.setFilterKategori('${escapeJS(cat)}')" class="px-4 py-2 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition-colors ${filterKategoriAktif===cat?'bg-mantine-blue text-white':'bg-dark-6 border border-dark-4 text-dark-1'}">${escapeHTML(cat)}</button>`).join(''); }
-    
     const filtered = databaseBarang.filter(i => (filterKategoriAktif === 'Semua' || (i.kategori||'Umum') === filterKategoriAktif) && (((i.nama||'').toLowerCase().includes(kataKunciPencarian)) || ((i.barcode||'').toLowerCase().includes(kataKunciPencarian))));
     const katContainer = document.getElementById('kasir-katalog'); if(!katContainer) return;
     if (filtered.length === 0) { katContainer.innerHTML = `<p class="text-xs text-dark-2 italic col-span-full text-center py-8">Produk tidak ditemukan.</p>`; return; }
@@ -429,7 +438,6 @@ function renderGudangList() {
     const container = document.getElementById('gudang-list'), totalEl = document.getElementById('gudang-total-item'); if(!container) return;
     let filtered = databaseBarang.filter(i => { const keyword = kataKunciGudang.toLowerCase(); return ((i.nama || '').toLowerCase().includes(keyword)) || ((i.barcode || '').toLowerCase().includes(keyword)) || ((i.kategori || '').toLowerCase().includes(keyword)) || ((i.catatan || '').toLowerCase().includes(keyword)); });
     filtered.sort((a, b) => { const nameA = (a.nama || '').toLowerCase(), nameB = (b.nama || '').toLowerCase(); return sortGudangOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA); });
-    
     if (totalEl) totalEl.textContent = formatInputRibuan(filtered.length);
     if(filtered.length === 0) { container.innerHTML = `<p class="text-[11px] text-dark-2 italic text-center py-4">Barang tidak ditemukan.</p>`; return; }
     
@@ -445,8 +453,8 @@ function renderPiutangList() {
 }
 
 async function applyFiltersAndStats() {
-    let totalOmset = 0, totalProfit = 0, totalTrx = 0, totalItems = 0, produkCounts = {};
-    let allSales = [...riwayatPenjualan]; const offlineSales = await loadOfflineTransactions(); if (offlineSales && offlineSales.length > 0) { allSales = [...offlineSales.reverse(), ...allSales]; }
+    let totalOmset = 0; let totalProfit = 0; let totalTrx = 0; let totalItems = 0; let produkCounts = {}; let allSales = [...riwayatPenjualan]; 
+    const offlineSales = await loadOfflineTransactions(); if (offlineSales && offlineSales.length > 0) { allSales = [...offlineSales.reverse(), ...allSales]; }
     dataPenjualanTerfilter = allSales.filter(sale => sale.tipe !== "pelunasan_piutang"); 
     dataPenjualanTerfilter.forEach(sale => { totalOmset += Math.round(sale.totalAkhir || 0); totalProfit += Math.round(sale.profit || 0); totalTrx++; if (Array.isArray(sale.items)) { sale.items.forEach(i => { totalItems += i.qty || 0; produkCounts[i.nama||'Item'] = (produkCounts[i.nama||'Item'] || 0) + i.qty; }); } });
     if(document.getElementById('dash-omset')) document.getElementById('dash-omset').textContent = toRupiah(totalOmset); if(document.getElementById('dash-profit')) document.getElementById('dash-profit').textContent = toRupiah(totalProfit); if(document.getElementById('dash-transaksi')) document.getElementById('dash-transaksi').textContent = totalTrx; if(document.getElementById('dash-items')) document.getElementById('dash-items').innerHTML = `${totalItems}`;
@@ -496,7 +504,7 @@ window.switchCartTab = (tabName) => {
 };
 
 // ==========================================
-// 7. OFFLINE SYNC (INDEXED DB)
+// 8. OFFLINE SYNC (INDEXED DB)
 // ==========================================
 const OFFLINE_DB_NAME = "POS_Offline_Database", OFFLINE_STORE_NAME = "pending_transactions";
 function initIndexedDB() { return new Promise((resolve, reject) => { const request = indexedDB.open(OFFLINE_DB_NAME, 1); request.onupgradeneeded = (e) => { const idb = e.target.result; if (!idb.objectStoreNames.contains(OFFLINE_STORE_NAME)) { idb.createObjectStore(OFFLINE_STORE_NAME, { keyPath: "localId", autoIncrement: true }); } }; request.onsuccess = (e) => resolve(e.target.result); request.onerror = (e) => reject(e.target.error); }); }
@@ -524,7 +532,7 @@ async function syncOfflineTransactions() {
 window.addEventListener('online', syncOfflineTransactions); window.addEventListener('offline', () => { const indicator = document.getElementById('offline-indicator'); if (indicator) indicator.classList.remove('hidden'); applyFiltersAndStats(); });
 
 // ==========================================
-// 8. LAIN-LAIN (Printer, Rekaman Log, dll)
+// 9. LAIN-LAIN (Printer, Rekaman Log, dll)
 // ==========================================
 async function logActivity(actionType, actionDetails) {
     const userEmail = auth.currentUser ? (auth.currentUser?.email || 'Kasir').split('@')[0] : "Sistem"; const logObj = { user: userEmail, action: actionType, detail: actionDetails };
