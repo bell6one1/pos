@@ -152,28 +152,6 @@ function terapkanPengaturanLayar() {
     document.getElementById('container-hold-bill')?.classList.toggle('hidden', globalSettings.showHoldBill === false);
 }
 
-document.addEventListener('change', (e) => {
-    if (!e.target) return;
-    const id = e.target.id;
-    const targetSwitches = ['set-export', 'set-noncash', 'set-kasbon', 'switch-fitur-member', 'switch-fitur-voucher', 'switch-fitur-hold'];
-    
-    if (targetSwitches.includes(id)) {
-        if (id === 'set-export') globalSettings.showExport = e.target.checked;
-        if (id === 'set-noncash') globalSettings.payNonCash = e.target.checked;
-        if (id === 'set-kasbon') globalSettings.payKasbon = e.target.checked;
-        if (id === 'switch-fitur-member') globalSettings.showMember = e.target.checked;
-        if (id === 'switch-fitur-voucher') globalSettings.showVoucher = e.target.checked;
-        if (id === 'switch-fitur-hold') globalSettings.showHoldBill = e.target.checked;
-        
-        document.getElementById('gudang-export-container')?.classList.toggle('hidden', !globalSettings.showExport);
-        document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !globalSettings.payNonCash);
-        document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !globalSettings.payKasbon);
-        document.getElementById('section-kasir-member')?.classList.toggle('hidden', !globalSettings.showMember);
-        document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !globalSettings.showVoucher);
-        document.getElementById('container-hold-bill')?.classList.toggle('hidden', !globalSettings.showHoldBill);
-    }
-});
-
 function renderKatalogKasir() {
     const categoriesSet = new Set(databaseBarang.map(i => i.kategori || 'Umum')); 
     const catContainer = document.getElementById('kasir-categories');
