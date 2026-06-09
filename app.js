@@ -2,6 +2,9 @@ import { db, auth, itemsRef, salesRef, shiftsRef, membersRef, auditLogsRef } fro
 import { addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment, serverTimestamp, where, limit, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+// ==========================================
+// 1. VARIABEL GLOBAL & STATE APLIKASI
+// ==========================================
 let globalSettings = {
     namaToko: "TOKO MODERN POS", alamatToko: "Jl. Teknologi No.123", footerStruk: "TERIMA KASIH!",
     pinAdmin: "123456", batasStok: 5, kelipatanPoin: 10000, tema: "dark", 
@@ -29,6 +32,9 @@ try {
     const cachedShift = localStorage.getItem("pos_cached_shift"); if (cachedShift) activeShiftSession = JSON.parse(cachedShift);
 } catch(e) {}
 
+// ==========================================
+// 2. FUNGSI HELPER & FORMATTER
+// ==========================================
 const toRupiah = (angka) => "Rp " + new Intl.NumberFormat('id-ID').format(Math.round(angka) || 0);
 
 function formatTanggal(timestamp) { 
@@ -73,7 +79,11 @@ document.addEventListener('input', (e) => {
     }
 });
 
+// ==========================================
+// 3. ENGINE ANTARMUKA & PENGATURAN (ANTI-ERROR)
+// ==========================================
 window.updateFiturVisibility = function() {
+    if (!globalSettings) return;
     const sExport = globalSettings.showExport !== false;
     const sNonCash = globalSettings.payNonCash !== false;
     const sKasbon = globalSettings.payKasbon !== false;
@@ -81,6 +91,7 @@ window.updateFiturVisibility = function() {
     const sVoucher = globalSettings.showVoucher !== false;
     const sHold = globalSettings.showHoldBill !== false;
 
+    // Toggle aman tanpa innerHTML
     document.getElementById('gudang-export-container')?.classList.toggle('hidden', !sExport);
     document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !sNonCash);
     document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !sKasbon);
@@ -88,6 +99,7 @@ window.updateFiturVisibility = function() {
     document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !sVoucher);
     document.getElementById('container-hold-bill')?.classList.toggle('hidden', !sHold);
 
+    // Pastikan centang switch sinkron
     const elExport = document.getElementById('set-export'); if(elExport) elExport.checked = sExport;
     const elNonCash = document.getElementById('set-noncash'); if(elNonCash) elNonCash.checked = sNonCash;
     const elKasbon = document.getElementById('set-kasbon'); if(elKasbon) elKasbon.checked = sKasbon;
@@ -96,6 +108,7 @@ window.updateFiturVisibility = function() {
     const elHold = document.getElementById('switch-fitur-hold'); if(elHold) elHold.checked = sHold;
 };
 
+// DELEGASI EVENT TUNGGAL UNTUK SWITCHES PENGATURAN
 document.addEventListener('change', (e) => {
     if (!e.target) return;
     const id = e.target.id;
@@ -109,10 +122,11 @@ document.addEventListener('change', (e) => {
         if (id === 'switch-fitur-voucher') globalSettings.showVoucher = e.target.checked;
         if (id === 'switch-fitur-hold') globalSettings.showHoldBill = e.target.checked;
         
-        updateFiturVisibility(); 
+        window.updateFiturVisibility(); 
     }
 });
 
+// FUNGSI SUPER AMAN (DEFENSIVE) UNTUK SETTINGAN
 function terapkanPengaturanLayar() {
     const themeStyle = document.getElementById('dynamic-theme');
     if (themeStyle) {
@@ -137,19 +151,10 @@ function terapkanPengaturanLayar() {
     const setPajak = document.getElementById('set-pajak'); if(setPajak) setPajak.value = globalSettings.pajakPersen || 0; 
     const setService = document.getElementById('set-service'); if(setService) setService.value = globalSettings.serviceChargePersen || 0;
     
-    const elExport = document.getElementById('set-export'); if(elExport) elExport.checked = globalSettings.showExport !== false;
-    const elNonCash = document.getElementById('set-noncash'); if(elNonCash) elNonCash.checked = globalSettings.payNonCash !== false;
-    const elKasbon = document.getElementById('set-kasbon'); if(elKasbon) elKasbon.checked = globalSettings.payKasbon !== false;
-    const elMember = document.getElementById('switch-fitur-member'); if(elMember) elMember.checked = globalSettings.showMember !== false;
-    const elVoucher = document.getElementById('switch-fitur-voucher'); if(elVoucher) elVoucher.checked = globalSettings.showVoucher !== false;
-    const elHold = document.getElementById('switch-fitur-hold'); if(elHold) elHold.checked = globalSettings.showHoldBill !== false;
-
-    document.getElementById('gudang-export-container')?.classList.toggle('hidden', globalSettings.showExport === false);
-    document.getElementById('pay-method-noncash')?.classList.toggle('hidden', globalSettings.payNonCash === false);
-    document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', globalSettings.payKasbon === false);
-    document.getElementById('section-kasir-member')?.classList.toggle('hidden', globalSettings.showMember === false);
-    document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', globalSettings.showVoucher === false);
-    document.getElementById('container-hold-bill')?.classList.toggle('hidden', globalSettings.showHoldBill === false);
+    // Pastikan tidak re-render kasir secara brutal disini!
+    window.updateFiturVisibility();
+    if (typeof renderAdminVouchers === 'function') renderAdminVouchers(); 
+    if (typeof hitungUangKembalian === 'function') hitungUangKembalian(); 
 }
 
 function renderKatalogKasir() {
@@ -322,6 +327,9 @@ function resetPaymentUI() {
     isSplitPayment = false;
 }
 
+// ==========================================
+// 4. DAFTAR STATISTIK & MODUL TABEL
+// ==========================================
 function renderPiutangList() {
     const listContainer = document.getElementById('piutang-list'); if(!listContainer) return;
     const memberBerhutang = memberDataAll.filter(m => (m.hutang || 0) > 0).sort((a,b) => b.hutang - a.hutang);
@@ -498,6 +506,9 @@ window.switchCartTab = (tabName) => {
     }
 };
 
+// ==========================================
+// 5. OFFLINE SYNC (INDEXED DB)
+// ==========================================
 const OFFLINE_DB_NAME = "POS_Offline_Database", OFFLINE_STORE_NAME = "pending_transactions";
 
 function initIndexedDB() { 
@@ -586,6 +597,9 @@ async function syncOfflineTransactions() {
 window.addEventListener('online', syncOfflineTransactions);
 window.addEventListener('offline', () => { const indicator = document.getElementById('offline-indicator'); if (indicator) indicator.classList.remove('hidden'); applyFiltersAndStats(); });
 
+// ==========================================
+// 6. EVENT LISTENER & TRANSAKSI UTAMA
+// ==========================================
 async function logActivity(actionType, actionDetails) {
     const userEmail = auth.currentUser ? (auth.currentUser?.email || 'Kasir').split('@')[0] : "Sistem"; const logObj = { user: userEmail, action: actionType, detail: actionDetails };
     if (!navigator.onLine) { logObj.timestamp = new Date().toISOString(); const offlineLogs = JSON.parse(localStorage.getItem('pos_offline_logs') || '[]'); offlineLogs.push(logObj); localStorage.setItem('pos_offline_logs', JSON.stringify(offlineLogs)); return; }
@@ -605,6 +619,72 @@ document.addEventListener("keydown", async (e) => {
     } else { if (e.key.length === 1) { barcodeBuffer += e.key; clearTimeout(barcodeTimeout); barcodeTimeout = setTimeout(() => { barcodeBuffer = ""; }, 50); } }
 });
 
+// EVENT LISTENER DELEGASI (AMAN & TIDAK MATI KETIKA KLIK ICON/SVG)
+document.addEventListener('click', async (e) => {
+    // Tombol Checkout Utama
+    const btnCheckout = e.target.closest('#btn-checkout');
+    if (btnCheckout) {
+        if(btnCheckout.disabled || keranjang.length === 0 || !activeShiftSession) return;
+        btnCheckout.disabled = true; btnCheckout.textContent = "MEMPROSES...";
+
+        let totalModalHPP = 0; keranjang.forEach(item => { totalModalHPP += ((item.cost || 0) * item.qty); });
+        const totalProfit = (globalGrandTotal - globalTaxAmount - globalServiceAmount) - totalModalHPP; 
+        let tunaiMasukLaci = 0;
+
+        const generateTrxId = () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let randomStr = '';
+            for (let i = 0; i < 4; i++) randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
+            return "TRX-" + Date.now().toString().slice(-4) + "-" + randomStr;
+        };
+
+        const trxData = { 
+            id: generateTrxId(), items: [...keranjang], subtotal: globalSubtotal, diskon: globalDiskon, pajak: globalTaxAmount, serviceCharge: globalServiceAmount, totalAkhir: globalGrandTotal, totalModal: totalModalHPP, profit: totalProfit,
+            namaKasir: (auth.currentUser ? (auth.currentUser?.email || 'Kasir').split('@')[0] : 'Sistem'), memberId: activeMember ? activeMember.id : null, memberName: activeMember ? activeMember.nama : null, voucherDigunakan: appliedVoucher ? String(document.getElementById('voucher-code')?.value || '').toUpperCase() : null, shiftId: activeShiftSession.id
+        };
+
+        if (isSplitPayment) {
+            trxData.metodePembayaran = `Split (${splitDetails.method1} & ${splitDetails.method2})`; trxData.uangBayar = splitDetails.amount1 + splitDetails.amount2; trxData.kembalian = splitDetails.kembalian; trxData.splitDetails = splitDetails;
+            let masukLaciSplit = 0; if(splitDetails.method1 === 'Tunai') masukLaciSplit += splitDetails.amount1; if(splitDetails.method2 === 'Tunai') masukLaciSplit += splitDetails.amount2;
+            if (trxData.kembalian > 0 && masukLaciSplit > 0) masukLaciSplit -= trxData.kembalian; tunaiMasukLaci = Math.max(0, masukLaciSplit);
+        } else if (selectedPaymentMethod === 'Kasbon') {
+            trxData.metodePembayaran = "Kasbon"; trxData.uangBayar = 0; trxData.kembalian = 0;
+        } else if (selectedPaymentMethod === 'Tunai') {
+            trxData.metodePembayaran = "Tunai"; trxData.uangBayar = Math.max(0, parseInputRibuan(document.getElementById('cash-paid')?.value || "0")); trxData.kembalian = trxData.uangBayar - globalGrandTotal; tunaiMasukLaci = globalGrandTotal;
+        } else {
+            trxData.metodePembayaran = selectedPaymentMethod; trxData.uangBayar = globalGrandTotal; trxData.kembalian = 0;
+        }
+
+        let isOnlineSuccess = false;
+        try {
+            if (navigator.onLine) {
+                try {
+                    trxData.waktu = serverTimestamp(); trxData.waktuLokal = new Date().toISOString(); await addDoc(salesRef, trxData);
+                    for (const item of trxData.items) { try { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); } catch(err) {} }
+                    if (selectedPaymentMethod === 'Kasbon' && activeMember) { await updateDoc(doc(db, "members", activeMember.id), { hutang: increment(globalGrandTotal) }); } 
+                    else if (activeMember && selectedPaymentMethod !== 'Kasbon') { const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000)); if (addPoin > 0) await updateDoc(doc(db, "members", activeMember.id), { poin: increment(addPoin) }); }
+                    await updateDoc(doc(db, "shift", activeShiftSession.id), { totalPenjualan: increment(globalGrandTotal), totalTunai: increment(tunaiMasukLaci) }); isOnlineSuccess = true;
+                } catch(err) { console.error(err); }
+            }
+
+            if (!isOnlineSuccess) {
+                trxData.waktuLokal = new Date().toISOString(); trxData.isOfflinePending = true; trxData.tunaiMasukLaci = tunaiMasukLaci;
+                const isSaved = await saveTransactionOffline(trxData); if (!isSaved) throw new Error("Memori Penuh.");
+                for (const item of trxData.items) { const found = databaseBarang.find(x => x.id === item.id); if (found) found.stok = Math.max(0, (found.stok||0) - item.qty); } localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang));
+                if (selectedPaymentMethod === 'Kasbon' && activeMember) { const mIdx = memberDataAll.findIndex(m => m.id === activeMember.id); if(mIdx > -1) { memberDataAll[mIdx].hutang = (memberDataAll[mIdx].hutang||0) + globalGrandTotal; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); } } 
+                else if (activeMember && selectedPaymentMethod !== 'Kasbon') { const mIdx = memberDataAll.findIndex(m => m.id === activeMember.id); const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000)); if(mIdx > -1 && addPoin > 0) { memberDataAll[mIdx].poin = (memberDataAll[mIdx].poin||0) + addPoin; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); } }
+                activeShiftSession.totalPenjualan += globalGrandTotal; activeShiftSession.totalTunai += tunaiMasukLaci; localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession)); updateShiftUI(true); renderKatalogKasir();
+            }
+
+            const isBluetoothPrinted = await printDirectBluetooth(formatStrukBT(trxData)); if (!isBluetoothPrinted) { cetakStrukThermal(trxData); }
+            keranjang = []; localStorage.removeItem("pos_recovery_cart"); appliedVoucher = null; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = ""; if(document.getElementById('cash-paid')) document.getElementById('cash-paid').value = "";
+            document.getElementById('pay-method-cash')?.click(); document.getElementById('btn-remove-member')?.click(); renderKeranjang(); applyFiltersAndStats(); window.switchCartTab('list');
+            
+        } catch(err) { alert("GAGAL MEMPROSES TRANSAKSI: " + err.message); } finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; }
+        return;
+    }
+});
+
+// Listener Event Navigasi Kategori Kasir
 document.getElementById('kasir-search')?.addEventListener('input', (e) => { kataKunciPencarian = e.target.value.toLowerCase(); kasirItemLimit = 36; renderKatalogKasir(); });
 document.getElementById('gudang-search')?.addEventListener('input', (e) => { kataKunciGudang = e.target.value.toLowerCase(); gudangItemLimit = 30; renderGudangList(); });
 window.loadMoreKasir = () => { kasirItemLimit += 36; renderKatalogKasir(); };
@@ -612,6 +692,7 @@ window.loadMoreGudang = () => { gudangItemLimit += 30; renderGudangList(); };
 window.setFilterKategori = (cat) => { filterKategoriAktif = cat; kasirItemLimit = 36; renderKatalogKasir(); };
 window.toggleSortGudang = () => { sortGudangOrder = sortGudangOrder === 'asc' ? 'desc' : 'asc'; const btn = document.getElementById('btn-sort-gudang'); if (btn) btn.innerHTML = sortGudangOrder === 'asc' ? 'Urutkan: A-Z ⬇️' : 'Urutkan: Z-A ⬆️'; gudangItemLimit = 30; renderGudangList(); };
 
+// Voice Search Fix
 window.startVoiceSearchKasir = () => {
     const btn = document.getElementById('btn-voice-search-kasir'), SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SpeechRecognition) { alert("Browser Anda tidak mendukung Pencarian Suara."); return; }
     const recognition = new SpeechRecognition(); recognition.lang = 'id-ID'; recognition.interimResults = false; recognition.maxAlternatives = 1;
@@ -630,6 +711,7 @@ window.startVoiceSearchGudang = () => {
     recognition.onend = function() { if(btn) { btn.classList.remove('bg-red-500', 'animate-pulse'); btn.textContent = "🎤"; } }; recognition.start();
 };
 
+// Manajemen Pemasok
 const pemasokForm = document.getElementById('pemasok-form');
 pemasokForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet.");
@@ -813,65 +895,6 @@ window.setQuickCash = (amount) => {
     hitungUangKembalian();
 };
 
-document.getElementById('btn-checkout')?.addEventListener('click', async (e) => {
-    const btnCheckout = e.currentTarget; if(btnCheckout.disabled || keranjang.length === 0 || !activeShiftSession) return;
-    btnCheckout.disabled = true; btnCheckout.textContent = "MEMPROSES...";
-
-    let totalModalHPP = 0; keranjang.forEach(item => { totalModalHPP += ((item.cost || 0) * item.qty); });
-    const totalProfit = (globalGrandTotal - globalTaxAmount - globalServiceAmount) - totalModalHPP; 
-    let tunaiMasukLaci = 0;
-
-    const generateTrxId = () => {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let randomStr = '';
-        for (let i = 0; i < 4; i++) randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
-        return "TRX-" + Date.now().toString().slice(-4) + "-" + randomStr;
-    };
-
-    const trxData = { 
-        id: generateTrxId(), items: [...keranjang], subtotal: globalSubtotal, diskon: globalDiskon, pajak: globalTaxAmount, serviceCharge: globalServiceAmount, totalAkhir: globalGrandTotal, totalModal: totalModalHPP, profit: totalProfit,
-        namaKasir: (auth.currentUser ? (auth.currentUser?.email || 'Kasir').split('@')[0] : 'Sistem'), memberId: activeMember ? activeMember.id : null, memberName: activeMember ? activeMember.nama : null, voucherDigunakan: appliedVoucher ? String(document.getElementById('voucher-code')?.value || '').toUpperCase() : null, shiftId: activeShiftSession.id
-    };
-
-    if (isSplitPayment) {
-        trxData.metodePembayaran = `Split (${splitDetails.method1} & ${splitDetails.method2})`; trxData.uangBayar = splitDetails.amount1 + splitDetails.amount2; trxData.kembalian = splitDetails.kembalian; trxData.splitDetails = splitDetails;
-        let masukLaciSplit = 0; if(splitDetails.method1 === 'Tunai') masukLaciSplit += splitDetails.amount1; if(splitDetails.method2 === 'Tunai') masukLaciSplit += splitDetails.amount2;
-        if (trxData.kembalian > 0 && masukLaciSplit > 0) masukLaciSplit -= trxData.kembalian; tunaiMasukLaci = Math.max(0, masukLaciSplit);
-    } else if (selectedPaymentMethod === 'Kasbon') {
-        trxData.metodePembayaran = "Kasbon"; trxData.uangBayar = 0; trxData.kembalian = 0;
-    } else if (selectedPaymentMethod === 'Tunai') {
-        trxData.metodePembayaran = "Tunai"; trxData.uangBayar = Math.max(0, parseInputRibuan(document.getElementById('cash-paid')?.value || "0")); trxData.kembalian = trxData.uangBayar - globalGrandTotal; tunaiMasukLaci = globalGrandTotal;
-    } else {
-        trxData.metodePembayaran = selectedPaymentMethod; trxData.uangBayar = globalGrandTotal; trxData.kembalian = 0;
-    }
-
-    let isOnlineSuccess = false;
-    try {
-        if (navigator.onLine) {
-            try {
-                trxData.waktu = serverTimestamp(); trxData.waktuLokal = new Date().toISOString(); await addDoc(salesRef, trxData);
-                for (const item of trxData.items) { try { await updateDoc(doc(db, "barang", item.id), { stok: increment(-item.qty) }); } catch(e) {} }
-                if (selectedPaymentMethod === 'Kasbon' && activeMember) { await updateDoc(doc(db, "members", activeMember.id), { hutang: increment(globalGrandTotal) }); } 
-                else if (activeMember && selectedPaymentMethod !== 'Kasbon') { const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000)); if (addPoin > 0) await updateDoc(doc(db, "members", activeMember.id), { poin: increment(addPoin) }); }
-                await updateDoc(doc(db, "shift", activeShiftSession.id), { totalPenjualan: increment(globalGrandTotal), totalTunai: increment(tunaiMasukLaci) }); isOnlineSuccess = true;
-            } catch(e) { console.error(e); }
-        }
-
-        if (!isOnlineSuccess) {
-            trxData.waktuLokal = new Date().toISOString(); trxData.isOfflinePending = true; trxData.tunaiMasukLaci = tunaiMasukLaci;
-            const isSaved = await saveTransactionOffline(trxData); if (!isSaved) throw new Error("Memori Penuh.");
-            for (const item of trxData.items) { const found = databaseBarang.find(x => x.id === item.id); if (found) found.stok = Math.max(0, (found.stok||0) - item.qty); } localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang));
-            if (selectedPaymentMethod === 'Kasbon' && activeMember) { const mIdx = memberDataAll.findIndex(m => m.id === activeMember.id); if(mIdx > -1) { memberDataAll[mIdx].hutang = (memberDataAll[mIdx].hutang||0) + globalGrandTotal; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); } } 
-            else if (activeMember && selectedPaymentMethod !== 'Kasbon') { const mIdx = memberDataAll.findIndex(m => m.id === activeMember.id); const addPoin = Math.floor(globalGrandTotal / (globalSettings.kelipatanPoin || 10000)); if(mIdx > -1 && addPoin > 0) { memberDataAll[mIdx].poin = (memberDataAll[mIdx].poin||0) + addPoin; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); } }
-            activeShiftSession.totalPenjualan += globalGrandTotal; activeShiftSession.totalTunai += tunaiMasukLaci; localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession)); updateShiftUI(true); renderKatalogKasir();
-        }
-
-        const isBluetoothPrinted = await printDirectBluetooth(formatStrukBT(trxData)); if (!isBluetoothPrinted) { cetakStrukThermal(trxData); }
-        keranjang = []; localStorage.removeItem("pos_recovery_cart"); appliedVoucher = null; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = ""; if(document.getElementById('cash-paid')) document.getElementById('cash-paid').value = "";
-        document.getElementById('pay-method-cash')?.click(); document.getElementById('btn-remove-member')?.click(); renderKeranjang(); applyFiltersAndStats(); window.switchCartTab('list');
-        
-    } catch(e) { alert("GAGAL MEMPROSES TRANSAKSI: " + e.message); } finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; }
-});
-
 function padCenter(str, len) { str = String(str || ''); if(str.length >= len) return str; const left = Math.floor((len - str.length) / 2); const right = len - str.length - left; return " ".repeat(left) + str + " ".repeat(right); }
 
 function formatStrukBT(data) {
@@ -986,6 +1009,36 @@ document.getElementById('btn-apply-voucher')?.addEventListener('click', () => {
     else { alert("❌ Kode Voucher tidak valid atau kadaluarsa."); appliedVoucher = null; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = ""; hitungUangKembalian(); }
 });
 
+// Listener Event Navigasi
+document.getElementById('btn-check-member')?.addEventListener('click', async () => {
+    const phone = document.getElementById('member-search-input')?.value.trim(); if (!phone) return; const btnCheck = document.getElementById('btn-check-member'); if(btnCheck) { btnCheck.disabled = true; btnCheck.textContent = "..."; }
+    try {
+        const docSnap = await getDoc(doc(db, "members", phone));
+        if (docSnap.exists()) { activeMember = { id: phone, ...docSnap.data() }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); } 
+        else { if (confirm(`Member ${phone} belum terdaftar. Daftarkan?`)) { document.getElementById('member-reg-phone').value = phone; document.getElementById('member-reg-name').value = ""; document.getElementById('member-modal').classList.remove('hidden'); } }
+    } catch(e) {} finally { if(btnCheck) { btnCheck.disabled = false; btnCheck.textContent = "Cari"; } }
+});
+
+document.getElementById('member-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault(); if (!navigator.onLine) return alert("Butuh internet.");
+    const btnSubmit = e.target.querySelector('button[type="submit"]'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Memproses..."; }
+    try {
+        const phone = document.getElementById('member-reg-phone')?.value.trim() || ''; const name = document.getElementById('member-reg-name')?.value.trim() || '';
+        const checkSnap = await getDoc(doc(db, "members", phone)); if(checkSnap.exists()) return alert("Nomor terdaftar!");
+        await setDoc(doc(db, "members", phone), { nama: name, poin: 0, hutang: 0 }); activeMember = { id: phone, nama: name, poin: 0, hutang: 0 }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); document.getElementById('member-modal')?.classList.add('hidden');
+    } catch(e) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
+});
+
+document.getElementById('btn-remove-member')?.addEventListener('click', () => { 
+    activeMember = null; localStorage.removeItem("pos_recovery_member"); 
+    document.getElementById('member-select-zone')?.classList.remove('hidden'); 
+    document.getElementById('member-active-zone')?.classList.add('hidden'); 
+    document.getElementById('btn-remove-member')?.classList.add('hidden'); 
+    if(document.getElementById('member-search-input')) document.getElementById('member-search-input').value = ""; 
+    renderKeranjang(); 
+    document.getElementById('pay-method-cash')?.click(); 
+});
+
 document.getElementById('btn-submit-piutang')?.addEventListener('click', async () => {
     if(!piutangAktifDipilih || !activeShiftSession) return alert("Peringatan: Sesi Shift harus aktif untuk menerima pembayaran.");
     const inputVal = Math.max(0, parseInputRibuan(document.getElementById('piutang-bayar-input')?.value || "0"));
@@ -1009,13 +1062,6 @@ document.getElementById('btn-submit-piutang')?.addEventListener('click', async (
     } catch(e) { alert("Gagal memproses pelunasan."); }
     if(btnSubmit) btnSubmit.textContent = "Lunasi";
 });
-
-window.bukaModalBayarPiutang = (memberId) => {
-    piutangAktifDipilih = memberDataAll.find(m => m.id === memberId); if(!piutangAktifDipilih) return;
-    if(document.getElementById('piutang-member-name')) document.getElementById('piutang-member-name').textContent = piutangAktifDipilih.nama.toUpperCase(); 
-    if(document.getElementById('piutang-sisa-hutang')) document.getElementById('piutang-sisa-hutang').textContent = toRupiah(piutangAktifDipilih.hutang); 
-    if(document.getElementById('piutang-bayar-input')) document.getElementById('piutang-bayar-input').value = ""; document.getElementById('bayar-piutang-modal')?.classList.remove('hidden');
-};
 
 document.getElementById('btn-export-gudang')?.addEventListener('click', () => {
     if (databaseBarang.length === 0) return alert("Gudang kosong.");
