@@ -97,24 +97,25 @@
         </div>
     </div>
 
-    <div id="bayar-piutang-modal" class="hidden fixed inset-0 bg-dark-9/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-        <div class="bg-dark-6 p-6 rounded-2xl shadow-2xl border border-amber-500/50 w-full max-w-sm text-center transition-colors duration-300">
-            <h3 class="text-sm font-bold text-gray-100 uppercase tracking-widest mb-1">Pelunasan Kasbon</h3>
-            <p id="piutang-member-name" class="text-lg font-black text-amber-500 mb-4">Nama Pelanggan</p>
-            <div class="bg-dark-8 border border-dark-4 rounded-xl p-4 mb-4 transition-colors duration-300">
-                <p class="text-xs text-dark-2 mb-1">Total Hutang Tersisa:</p>
-                <p id="piutang-sisa-hutang" class="text-2xl font-black text-red-400">Rp 0</p>
-            </div>
-            <div class="text-left mb-5">
-                <label class="block text-[10px] font-bold text-dark-2 mb-1.5 uppercase">Nominal Dibayar (Rp)</label>
-                <input type="text" inputmode="numeric" id="piutang-bayar-input" placeholder="Masukkan jumlah pelunasan" class="w-full px-4 py-3 text-base font-bold bg-dark-8 border border-dark-4 rounded-xl text-gray-100 outline-none focus:border-amber-500 input-ribuan transition-colors">
-            </div>
-            <div class="flex gap-2">
-                <button type="button" onclick="document.getElementById('bayar-piutang-modal').classList.add('hidden')" class="flex-1 py-3 text-xs font-bold text-dark-0 bg-dark-5 hover:bg-dark-4 rounded-xl transition-colors">Batal</button>
-                <button type="button" id="btn-submit-piutang" class="flex-1 py-3 text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white rounded-xl shadow-lg">Lunasi</button>
-            </div>
-        </div>
-    </div>
+    <div id="bayar-piutang-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+		<div class="bg-dark-6 p-6 rounded-xl w-full max-w-sm border border-dark-4">
+			<h3 class="text-lg font-black text-gray-100 mb-2">Lunasi Cicilan</h3>
+			<p class="text-xs text-dark-2 mb-4">Pelanggan: <span id="piutang-member-name" class="font-bold text-mantine-blue"></span></p>
+			
+			<div class="bg-dark-8 p-3 rounded-lg border border-dark-4 mb-4">
+				<p class="text-[10px] text-dark-2 uppercase font-bold">Sisa Hutang</p>
+				<p id="piutang-member-hutang" class="text-lg font-black text-red-400">Rp 0</p>
+			</div>
+
+			<label class="block text-xs font-bold text-gray-200 mb-1">Nominal Pembayaran (Tunai):</label>
+			<input type="text" id="piutang-bayar-input" class="w-full bg-dark-8 text-gray-100 text-sm border border-dark-4 rounded-lg px-4 py-3 outline-none focus:border-mantine-blue mb-6 input-ribuan">
+			
+			<div class="flex gap-2">
+				<button id="btn-batal-piutang" class="flex-1 py-2.5 bg-dark-5 text-gray-300 font-bold text-xs rounded-lg hover:bg-dark-4">Batal</button>
+				<button id="btn-submit-piutang" class="flex-1 py-2.5 bg-mantine-blue text-white font-bold text-xs rounded-lg shadow-lg hover:bg-blue-600">Lunasi Cicilan</button>
+			</div>
+		</div>
+	</div>
 
     <div id="shift-modal" class="hidden fixed inset-0 bg-dark-9/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
         <div class="bg-dark-6 p-7 rounded-2xl shadow-2xl border border-dark-4 w-full max-w-sm transition-colors duration-300">

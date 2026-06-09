@@ -624,3 +624,107 @@ document.getElementById('settings-form')?.addEventListener('submit', async (e) =
     const newData = { namaToko: String(document.getElementById('set-nama-toko')?.value || '').trim() || "TOKO POS", alamatToko: String(document.getElementById('set-alamat-toko')?.value || '').trim() || "Alamat Toko", footerStruk: String(document.getElementById('set-footer-toko')?.value || '').trim() || "Terima Kasih", pinAdmin: String(document.getElementById('set-pin')?.value || '').trim() || "123456", printerSize: parseInt(document.getElementById('set-printer')?.value) || 32, batasStok: parseInt(document.getElementById('set-stok')?.value) || 5, kelipatanPoin: parseInt(document.getElementById('set-poin')?.value) || 10000, pajakPersen: Math.max(0, parseFloat(document.getElementById('set-pajak')?.value) || 0), serviceChargePersen: Math.max(0, parseFloat(document.getElementById('set-service')?.value) || 0), tema: document.getElementById('set-tema')?.value || "dark", showExport: document.getElementById('set-export')?.checked ?? true, payNonCash: document.getElementById('set-noncash')?.checked ?? true, payKasbon: document.getElementById('set-kasbon')?.checked ?? true, showMember: document.getElementById('switch-fitur-member')?.checked ?? true, showVoucher: document.getElementById('switch-fitur-voucher')?.checked ?? true, showHoldBill: document.getElementById('switch-fitur-hold')?.checked ?? true };
     try { await setDoc(doc(db, "pengaturan", "global"), newData, { merge: true }); alert("Pembaruan Sistem Berhasil Diterapkan!"); } catch (err) { alert("Gagal menyimpan pengaturan: " + err.message); } finally { btn.textContent = origText; btn.disabled = false; }
 });
+
+// =========================================================================
+// 10. SCRIPT PERBAIKAN: MODUL PELUNASAN KASBON / PIUTANG
+// =========================================================================
+
+window.bukaModalBayarPiutang = function(id) {
+    const member = memberDataAll.find(m => m.id === id);
+    if (!member) return;
+    
+    piutangAktifDipilih = member;
+    
+    const modal = document.getElementById('bayar-piutang-modal');
+    if (modal) modal.classList.remove('hidden');
+    
+    const namaEl = document.getElementById('piutang-member-name');
+    if (namaEl) namaEl.textContent = member.nama;
+    
+    const hutangEl = document.getElementById('piutang-member-hutang');
+    if (hutangEl) hutangEl.textContent = toRupiah(member.hutang);
+    
+    const inputEl = document.getElementById('piutang-bayar-input');
+    if (inputEl) inputEl.value = formatInputRibuan(member.hutang); 
+};
+
+window.tutupModalBayarPiutang = function() {
+    document.getElementById('bayar-piutang-modal')?.classList.add('hidden');
+    piutangAktifDipilih = null;
+};
+
+document.addEventListener('click', async (e) => {
+    
+    const btnBatalPiutang = e.target.closest('#btn-batal-piutang');
+    if (btnBatalPiutang) {
+        window.tutupModalBayarPiutang();
+        return;
+    }
+
+    const btnSubmitPiutang = e.target.closest('#btn-submit-piutang');
+    if (btnSubmitPiutang) {
+        if(!piutangAktifDipilih || !activeShiftSession) {
+            return alert("⚠️ Peringatan: Sesi Shift Kasir harus aktif untuk menerima pembayaran.");
+        }
+        
+        const inputVal = Math.max(0, parseInputRibuan(document.getElementById('piutang-bayar-input')?.value || "0"));
+        if(inputVal <= 0 || inputVal > piutangAktifDipilih.hutang) {
+            return alert("⚠️ Nominal pelunasan tidak valid (tidak boleh lebih dari total hutang)!");
+        }
+        
+        btnSubmitPiutang.disabled = true;
+        btnSubmitPiutang.textContent = "Memproses...";
+
+        if (!navigator.onLine) {
+            try {
+                const trxData = { 
+                    waktuLokal: new Date().toISOString(), tipe: "pelunasan_piutang", 
+                    totalAkhir: inputVal, profit: 0, metodePembayaran: "Pelunasan Hutang (Tunai)", 
+                    namaKasir: auth.currentUser?.email.split('@')[0], 
+                    memberId: piutangAktifDipilih.id, memberName: piutangAktifDipilih.nama, 
+                    tunaiMasukLaci: inputVal, shiftId: activeShiftSession.id, isOfflinePending: true 
+                };
+                const isSaved = await saveTransactionOffline(trxData); 
+                if (!isSaved) throw new Error("Memori Penuh.");
+                
+                const memberIndex = memberDataAll.findIndex(m => m.id === piutangAktifDipilih.id); 
+                if(memberIndex > -1) { 
+                    memberDataAll[memberIndex].hutang -= inputVal; 
+                    localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); 
+                }
+                activeShiftSession.totalTunai += inputVal; 
+                localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession));
+                
+                alert("✅ OFFLINE: Pelunasan dicatat lokal. Akan diunggah otomatis saat online!"); 
+                window.tutupModalBayarPiutang();
+                renderPiutangList(); 
+                updateShiftUI(true);
+            } catch(err) { 
+                alert("❌ Gagal memproses pelunasan offline."); 
+            }
+            btnSubmitPiutang.textContent = "Lunasi Cicilan"; 
+            btnSubmitPiutang.disabled = false;
+            return;
+        }
+
+        try {
+            await updateDoc(doc(db, "members", piutangAktifDipilih.id), { hutang: increment(-inputVal) }); 
+            await logActivity("PELUNASAN_KASBON", `Terima pelunasan Rp${inputVal} dari ${piutangAktifDipilih.nama}`); 
+            await addDoc(salesRef, { 
+                waktu: serverTimestamp(), tipe: "pelunasan_piutang", totalAkhir: inputVal, profit: 0, 
+                metodePembayaran: "Pelunasan Hutang (Tunai)", namaKasir: auth.currentUser?.email.split('@')[0], 
+                memberId: piutangAktifDipilih.id, memberName: piutangAktifDipilih.nama 
+            }); 
+            await updateDoc(doc(db, "shift", activeShiftSession.id), { totalTunai: increment(inputVal) });
+            
+            alert("✅ Pelunasan berhasil dicatat di Laci & Laporan Z-Report!"); 
+            window.tutupModalBayarPiutang();
+        } catch(err) { 
+            alert("❌ Gagal memproses pelunasan."); 
+        }
+        
+        btnSubmitPiutang.textContent = "Lunasi Cicilan";
+        btnSubmitPiutang.disabled = false;
+        return;
+    }
+});
