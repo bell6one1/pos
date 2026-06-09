@@ -619,7 +619,7 @@ const pemasokForm = document.getElementById('pemasok-form');
 pemasokForm?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet.");
     const id = document.getElementById('pemasok-id')?.value || '';
-    const data = { nama: (document.getElementById('pemasok-nama')?.value || '').trim(), kontak: (document.getElementById('pemasok-kontak')?.value || '').trim(), info: (document.getElementById('pemasok-info')?.value || '').trim() };
+    const data = { nama: String(document.getElementById('pemasok-nama')?.value || '').trim(), kontak: String(document.getElementById('pemasok-kontak')?.value || '').trim(), info: String(document.getElementById('pemasok-info')?.value || '').trim() };
     const btnSubmit = document.getElementById('btn-submit-pemasok'); let origText = "Simpan"; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan..."; }
     try {
         if(id) { await updateDoc(doc(db, "pemasok", id), data); } else { await addDoc(collection(db, "pemasok"), data); }
@@ -670,7 +670,7 @@ onAuthStateChanged(auth, async (user) => {
 
 document.getElementById('login-form')?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Koneksi internet dibutuhkan untuk masuk!");
-    try { await signInWithEmailAndPassword(auth, (document.getElementById('login-email')?.value || '').trim(), document.getElementById('login-password')?.value || ''); e.target.reset(); } catch (e) { alert("Login Gagal!"); }
+    try { await signInWithEmailAndPassword(auth, String(document.getElementById('login-email')?.value || '').trim(), String(document.getElementById('login-password')?.value || '')); e.target.reset(); } catch (e) { alert("Login Gagal!"); }
 });
 
 function matikanSemuaListener() {
@@ -713,7 +713,7 @@ function checkActiveShift(uid) {
     if (unsubscribeActiveShift) { unsubscribeActiveShift(); unsubscribeActiveShift = null; }
     unsubscribeActiveShift = onSnapshot(query(shiftsRef, where("userId", "==", uid), where("status", "==", "buka"), limit(1)), (snapshot) => {
         if (!snapshot.empty) { snapshot.forEach(doc => { activeShiftSession = { id: doc.id, ...doc.data() }; }); localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession)); updateShiftUI(true); } else if(navigator.onLine) { activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false); }
-    });
+    }, (error) => { console.warn("Shift Listener terputus (wajar jika logout)"); });
 }
 
 function updateShiftUI(isActive) {
@@ -768,7 +768,7 @@ window.triggerTutupShift = () => {
 };
 
 window.tambahVoucherAdmin = async () => {
-    const code = (document.getElementById('new-voucher-code')?.value || '').trim().toUpperCase(); 
+    const code = String(document.getElementById('new-voucher-code')?.value || '').trim().toUpperCase(); 
     const type = document.getElementById('new-voucher-type')?.value; 
     const val = parseInputRibuan(document.getElementById('new-voucher-value')?.value);
     if(!code || isNaN(val) || val <= 0) return alert("Data voucher tidak valid!");
@@ -806,7 +806,6 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
     const totalProfit = (globalGrandTotal - globalTaxAmount - globalServiceAmount) - totalModalHPP; 
     let tunaiMasukLaci = 0;
 
-    // Bug Fix Trx ID Collision (Memastikan ID Transaksi 100% Unik)
     const generateTrxId = () => {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; let randomStr = '';
         for (let i = 0; i < 4; i++) randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -815,7 +814,7 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
 
     const trxData = { 
         id: generateTrxId(), items: [...keranjang], subtotal: globalSubtotal, diskon: globalDiskon, pajak: globalTaxAmount, serviceCharge: globalServiceAmount, totalAkhir: globalGrandTotal, totalModal: totalModalHPP, profit: totalProfit,
-        namaKasir: (auth.currentUser ? (auth.currentUser?.email || 'Kasir').split('@')[0] : 'Sistem'), memberId: activeMember ? activeMember.id : null, memberName: activeMember ? activeMember.nama : null, voucherDigunakan: appliedVoucher ? (document.getElementById('voucher-code')?.value || '').toUpperCase() : null, shiftId: activeShiftSession.id
+        namaKasir: (auth.currentUser ? (auth.currentUser?.email || 'Kasir').split('@')[0] : 'Sistem'), memberId: activeMember ? activeMember.id : null, memberName: activeMember ? activeMember.nama : null, voucherDigunakan: appliedVoucher ? String(document.getElementById('voucher-code')?.value || '').toUpperCase() : null, shiftId: activeShiftSession.id
     };
 
     if (isSplitPayment) {
@@ -858,12 +857,13 @@ document.getElementById('btn-checkout')?.addEventListener('click', async (e) => 
     } catch(e) { alert("GAGAL MEMPROSES TRANSAKSI: " + e.message); } finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; }
 });
 
-function padCenter(str, len) { if(str.length >= len) return str; const left = Math.floor((len - str.length) / 2); const right = len - str.length - left; return " ".repeat(left) + str + " ".repeat(right); }
+function padCenter(str, len) { str = String(str || ''); if(str.length >= len) return str; const left = Math.floor((len - str.length) / 2); const right = len - str.length - left; return " ".repeat(left) + str + " ".repeat(right); }
 
 function formatStrukBT(data) {
     const lineLen = globalSettings.printerSize || 32; const lineChar = "-".repeat(lineLen); const eqChar = "=".repeat(lineLen);
     let struk = eqChar + "\n" + padCenter(globalSettings.namaToko, lineLen) + "\n" + padCenter(globalSettings.alamatToko, lineLen) + "\n" + lineChar + "\n";
-    struk += `ID   : ${data.id}\nWaktu: ${new Date().toLocaleString('id-ID')}\nKasir: ${data.namaKasir.toUpperCase()}\n` + lineChar + "\n";
+    let tglStruk = new Date(); if (data.waktu && data.waktu.seconds) tglStruk = new Date(data.waktu.seconds * 1000); else if (data.waktuLokal) tglStruk = new Date(data.waktuLokal); else if (data.waktu) tglStruk = new Date(data.waktu);
+    struk += `ID   : ${data.id}\nWaktu: ${tglStruk.toLocaleString('id-ID')}\nKasir: ${data.namaKasir.toUpperCase()}\n` + lineChar + "\n";
     data.items.forEach(i => { struk += `${i.nama}\n${i.qty} x ${toRupiah(i.harga)} = ${toRupiah(i.qty * i.harga)}\n`; });
     struk += lineChar + "\n" + `Subtotal : ${toRupiah(data.subtotal)}\nDiskon   : -${toRupiah(data.diskon)}\n`;
     if ((data.pajak || 0) > 0) struk += `Pajak    : +${toRupiah(data.pajak)}\n`;
@@ -875,7 +875,8 @@ function formatStrukBT(data) {
 }
 
 function cetakStrukThermal(data) {
-    const printArea = document.getElementById('print-area'); if(!printArea) return; const tglStruk = data.waktuLokal ? new Date(data.waktuLokal) : new Date();
+    const printArea = document.getElementById('print-area'); if(!printArea) return; 
+    let tglStruk = new Date(); if (data.waktu && data.waktu.seconds) tglStruk = new Date(data.waktu.seconds * 1000); else if (data.waktuLokal) tglStruk = new Date(data.waktuLokal); else if (data.waktu) tglStruk = new Date(data.waktu);
     printArea.innerHTML = `<div style="font-family:monospace; color:black; max-width:300px; margin:0 auto; padding:10px;"><div style="text-align:center; margin-bottom:10px;"><h3 style="margin:0; font-size:16px; font-weight:bold;">${escapeHTML(globalSettings.namaToko)}</h3><p style="margin:2px 0; font-size:10px;">${escapeHTML(globalSettings.alamatToko)}</p></div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><span>Trx ID:</span> <span>${data.id || 'OFFLINE'}</span></div><div style="display:flex; justify-content:space-between;"><span>Waktu:</span> <span>${tglStruk.toLocaleString('id-ID')}</span></div><div style="display:flex; justify-content:space-between;"><span>Kasir:</span> <span>${escapeHTML(data.namaKasir ? data.namaKasir.toUpperCase() : 'SISTEM')}</span></div></div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="margin-bottom:8px;">${(data.items||[]).map(i => `<div style="margin-bottom:4px;"><div style="font-size:10px; font-weight:bold;">${escapeHTML(i.nama||'Item')}</div><div style="display:flex; justify-content:space-between; font-size:10px;"><span>${i.qty} x ${toRupiah(i.harga)}</span><span>${toRupiah((i.harga||0) * i.qty)}</span></div></div>`).join('')}</div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px;"><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Subtotal:</span><span>${toRupiah(data.subtotal)}</span></div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Diskon:</span><span>-${toRupiah(data.diskon)}</span></div>${(data.pajak || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Pajak:</span><span>+${toRupiah(data.pajak)}</span></div>` : ''}${(data.serviceCharge || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Service:</span><span>+${toRupiah(data.serviceCharge)}</span></div>` : ''}<div style="display:flex; justify-content:space-between; font-weight:bold; font-size:12px; margin-top:4px; margin-bottom:4px;"><span>Total:</span><span>${toRupiah(data.totalAkhir)}</span></div><div style="border-top:1px dashed black; margin:6px 0;"></div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Bayar (${escapeHTML(data.metodePembayaran||'Tunai')}):</span><span>${toRupiah(data.uangBayar)}</span></div><div style="display:flex; justify-content:space-between;"><span>Kembali:</span><span>${toRupiah(data.kembalian)}</span></div></div>${data.memberName ? `<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; text-align:center;"><p style="margin:2px 0;">Member: <strong>${escapeHTML(data.memberName.toUpperCase())}</strong></p></div>` : ''}<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="text-align:center; font-size:10px; margin-top:10px;"><p style="margin:0; font-weight:bold;">${escapeHTML(globalSettings.footerStruk)}</p></div></div>`;
     printArea.classList.remove('hidden'); window.print(); printArea.classList.add('hidden');
 }
@@ -897,7 +898,7 @@ itemForm?.addEventListener('submit', async (e) => {
     const btnSubmit = document.getElementById('btn-submit'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan..."; }
     try {
         const rawCost = Math.max(0, parseInputRibuan(document.getElementById('item-cost')?.value)); const rawHrg = Math.max(0, parseInputRibuan(document.getElementById('item-price')?.value)); const rawStk = Math.max(0, parseInputRibuan(document.getElementById('item-stock')?.value));
-        const nName = (document.getElementById('item-name')?.value || '').trim() || 'Barang Baru'; const nCat = (document.getElementById('item-category')?.value || '').trim() || 'Umum'; const supId = document.getElementById('item-supplier')?.value || ""; const nNotes = (document.getElementById('item-notes')?.value || '').trim() || '';
+        const nName = String(document.getElementById('item-name')?.value || '').trim() || 'Barang Baru'; const nCat = String(document.getElementById('item-category')?.value || '').trim() || 'Umum'; const supId = document.getElementById('item-supplier')?.value || ""; const nNotes = String(document.getElementById('item-notes')?.value || '').trim() || '';
         const data = { barcode: barcodeInput, nama: nName, kategori: nCat, catatan: nNotes, cost: Math.round(rawCost), harga: Math.round(rawHrg), stok: rawStk, supplierId: supId };
         if(id) { await updateDoc(doc(db, "barang", id), data); } else { await addDoc(itemsRef, data); }
         document.getElementById('item-form')?.reset(); if(document.getElementById('item-id')) document.getElementById('item-id').value = ""; document.getElementById('btn-cancel')?.classList.add('hidden');
@@ -955,8 +956,6 @@ window.ubahQtyCart = (id, delta) => {
 
 document.getElementById('btn-verify-pin')?.addEventListener('click', () => {
     const inputPin = document.getElementById('auth-pin-input')?.value;
-    
-    // Bug Fix: Ambil PIN yang valid dari memori global
     if (inputPin === (globalSettings.pinAdmin || "123456")) {
         sessionStorage.setItem("pos_admin_authorized", "true");
         if (window.itemAkanDihapus) { const index = keranjang.findIndex(k => k.id === window.itemAkanDihapus); if (index > -1) { keranjang.splice(index, 1); localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); renderKeranjang(); } }
@@ -964,41 +963,9 @@ document.getElementById('btn-verify-pin')?.addEventListener('click', () => {
     } else { alert("PIN SALAH!"); if(document.getElementById('auth-pin-input')) document.getElementById('auth-pin-input').value = ""; }
 });
 
-// Listener Event Navigasi Kategori Kasir
-document.getElementById('btn-check-member')?.addEventListener('click', async () => {
-    const phone = document.getElementById('member-search-input')?.value.trim(); if (!phone) return; const btnCheck = document.getElementById('btn-check-member'); if(btnCheck) { btnCheck.disabled = true; btnCheck.textContent = "..."; }
-    try {
-        const docSnap = await getDoc(doc(db, "members", phone));
-        if (docSnap.exists()) { activeMember = { id: phone, ...docSnap.data() }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); } 
-        else { if (confirm(`Member ${phone} belum terdaftar. Daftarkan?`)) { document.getElementById('member-reg-phone').value = phone; document.getElementById('member-reg-name').value = ""; document.getElementById('member-modal').classList.remove('hidden'); } }
-    } catch(e) {} finally { if(btnCheck) { btnCheck.disabled = false; btnCheck.textContent = "Cari"; } }
-});
-
-document.getElementById('member-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault(); if (!navigator.onLine) return alert("Butuh internet.");
-    const btnSubmit = e.target.querySelector('button[type="submit"]'); let origText = ""; if(btnSubmit) { origText = btnSubmit.textContent; btnSubmit.disabled = true; btnSubmit.textContent = "Memproses..."; }
-    try {
-        const phone = document.getElementById('member-reg-phone')?.value.trim() || ''; const name = document.getElementById('member-reg-name')?.value.trim() || '';
-        const checkSnap = await getDoc(doc(db, "members", phone)); if(checkSnap.exists()) return alert("Nomor terdaftar!");
-        await setDoc(doc(db, "members", phone), { nama: name, poin: 0, hutang: 0 }); activeMember = { id: phone, nama: name, poin: 0, hutang: 0 }; localStorage.setItem("pos_recovery_member", JSON.stringify(activeMember)); showActiveMemberUI(); document.getElementById('member-modal')?.classList.add('hidden');
-    } catch(e) {} finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = origText; } }
-});
-
-document.getElementById('btn-remove-member')?.addEventListener('click', () => { 
-    activeMember = null; localStorage.removeItem("pos_recovery_member"); 
-    document.getElementById('member-select-zone')?.classList.remove('hidden'); 
-    document.getElementById('member-active-zone')?.classList.add('hidden'); 
-    document.getElementById('btn-remove-member')?.classList.add('hidden'); 
-    if(document.getElementById('member-search-input')) document.getElementById('member-search-input').value = ""; 
-    renderKeranjang(); 
-    
-    // Bug Fix Reference Error "btnCash"
-    document.getElementById('pay-method-cash')?.click(); 
-});
-
 document.getElementById('btn-apply-voucher')?.addEventListener('click', () => {
     if (keranjang.length === 0) return alert("Keranjang kosong, tambahkan produk terlebih dahulu!");
-    const code = (document.getElementById('voucher-code')?.value || '').trim().toUpperCase(); if (!code) return;
+    const code = String(document.getElementById('voucher-code')?.value || '').trim().toUpperCase(); if (!code) return;
     const activeVouchers = globalSettings.vouchers || {};
     if (activeVouchers[code]) { appliedVoucher = activeVouchers[code]; alert(`✅ Voucher ${code} berhasil diklaim!`); hitungUangKembalian(); } 
     else { alert("❌ Kode Voucher tidak valid atau kadaluarsa."); appliedVoucher = null; if(document.getElementById('voucher-code')) document.getElementById('voucher-code').value = ""; hitungUangKembalian(); }
@@ -1052,10 +1019,10 @@ document.getElementById('file-import-gudang')?.addEventListener('change', async 
             if (jsonData.length === 0) throw new Error("File Excel kosong.");
             let successCount = 0; let updateCount = 0;
             for (let row of jsonData) {
-                const barcode = (row['Barcode'] || row['barcode'] || '').toString().trim(); const nama = row['Nama Barang'] || row['nama'] || row['Nama'] || ''; if (!nama) continue;
-                const hrgModal = parseExcelNum(row['Harga Modal'] || row['cost'] || row['Cost']); const hrgJual = parseExcelNum(row['Harga Jual'] || row['harga'] || row['Harga']); const stok = parseExcelNum(row['Stok'] || row['stok'] || row['Qty']); const kategori = row['Kategori'] || row['kategori'] || 'Umum'; const catatan = row['Catatan'] || row['catatan'] || '';
+                const barcode = String(row['Barcode'] || row['barcode'] || '').trim(); const nama = String(row['Nama Barang'] || row['nama'] || row['Nama'] || '').trim(); if (!nama) continue;
+                const hrgModal = parseExcelNum(row['Harga Modal'] || row['cost'] || row['Cost']); const hrgJual = parseExcelNum(row['Harga Jual'] || row['harga'] || row['Harga']); const stok = parseExcelNum(row['Stok'] || row['stok'] || row['Qty']); const kategori = String(row['Kategori'] || row['kategori'] || 'Umum').trim(); const catatan = String(row['Catatan'] || row['catatan'] || '').trim();
                 const dataObj = { barcode, nama, kategori, catatan, cost: hrgModal, harga: hrgJual, stok, supplierId: "" };
-                let existingItem = null; if (barcode) { existingItem = databaseBarang.find(x => x.barcode === barcode); } else { existingItem = databaseBarang.find(x => (x.nama || '').toLowerCase() === (nama || '').toLowerCase()); }
+                let existingItem = null; if (barcode) { existingItem = databaseBarang.find(x => x.barcode === barcode); } else { existingItem = databaseBarang.find(x => (x.nama || '').toLowerCase() === nama.toLowerCase()); }
                 if (existingItem) { await updateDoc(doc(db, "barang", existingItem.id), dataObj); updateCount++; } else { await addDoc(itemsRef, dataObj); successCount++; }
             }
             alert(`Import Selesai!\n✅ ${successCount} Barang Baru ditambahkan.\n🔄 ${updateCount} Barang lama diperbarui.`);
@@ -1111,27 +1078,33 @@ function initRealtimeListeners() {
     unsubscribeSettings = onSnapshot(doc(db, "pengaturan", "global"), (docSnap) => {
         if (docSnap.exists()) { globalSettings = { ...globalSettings, ...docSnap.data() }; }
         terapkanPengaturanLayar();
-    });
+    }, (error) => { console.warn("Settings Listener Off"); });
+    
     unsubscribeItems = onSnapshot(query(itemsRef, orderBy("nama", "asc")), (snapshot) => { 
         databaseBarang = []; snapshot.forEach(doc => databaseBarang.push({ id: doc.id, ...doc.data() })); localStorage.setItem("pos_cached_items", JSON.stringify(databaseBarang)); renderKatalogKasir(); renderGudangList();
-    });
+    }, (error) => { console.warn("Items Listener Off"); });
+    
     unsubscribeSales = onSnapshot(query(salesRef, orderBy("waktu", "desc"), limit(100)), (snapshot) => { 
         riwayatPenjualan = []; snapshot.forEach(doc => riwayatPenjualan.push({ id: doc.id, ...doc.data() })); applyFiltersAndStats(); 
-    });
+    }, (error) => { console.warn("Sales Listener Off"); });
+    
     unsubscribeMembers = onSnapshot(membersRef, (snapshot) => {
         memberDataAll = []; snapshot.forEach(doc => memberDataAll.push({ id: doc.id, ...doc.data() })); 
         localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); renderPiutangList();
-    });
+    }, (error) => { console.warn("Members Listener Off"); });
+    
     if (currentUserRole === 'admin') {
         unsubscribePemasok = onSnapshot(query(collection(db, "pemasok"), orderBy("nama", "asc")), (snapshot) => {
             databasePemasok = []; snapshot.forEach(doc => databasePemasok.push({ id: doc.id, ...doc.data() })); renderPemasokList(); renderPemasokDropdown(); renderGudangList();
-        });
+        }, (error) => { console.warn("Pemasok Listener Off"); });
+        
         unsubscribeShifts = onSnapshot(query(shiftsRef, orderBy("waktuBuka", "desc"), limit(30)), (snapshot) => { 
             dataShiftAll = []; snapshot.forEach(doc => dataShiftAll.push({ id: doc.id, ...doc.data() })); renderShiftLogs(); 
-        });
+        }, (error) => { console.warn("Shift Listener Off"); });
+        
         unsubscribeAudit = onSnapshot(query(auditLogsRef, orderBy("timestamp", "desc"), limit(50)), (snapshot) => { 
             auditLogsData = []; snapshot.forEach(doc => auditLogsData.push({ id: doc.id, ...doc.data() })); renderAuditLogs(); 
-        });
+        }, (error) => { console.warn("Audit Listener Off"); });
     }
 }
 
@@ -1146,10 +1119,10 @@ document.getElementById('settings-form')?.addEventListener('submit', async (e) =
     const btn = document.getElementById('btn-save-settings'); const origText = btn.textContent; btn.textContent = "Menyimpan..."; btn.disabled = true;
     
     const newData = {
-        namaToko: (document.getElementById('set-nama-toko')?.value || '').trim() || "TOKO POS", 
-        alamatToko: (document.getElementById('set-alamat-toko')?.value || '').trim() || "Alamat Toko",
-        footerStruk: (document.getElementById('set-footer-toko')?.value || '').trim() || "Terima Kasih", 
-        pinAdmin: (document.getElementById('set-pin')?.value || '').trim() || "123456",
+        namaToko: String(document.getElementById('set-nama-toko')?.value || '').trim() || "TOKO POS", 
+        alamatToko: String(document.getElementById('set-alamat-toko')?.value || '').trim() || "Alamat Toko",
+        footerStruk: String(document.getElementById('set-footer-toko')?.value || '').trim() || "Terima Kasih", 
+        pinAdmin: String(document.getElementById('set-pin')?.value || '').trim() || "123456",
         printerSize: parseInt(document.getElementById('set-printer')?.value) || 32, 
         batasStok: parseInt(document.getElementById('set-stok')?.value) || 5,
         kelipatanPoin: parseInt(document.getElementById('set-poin')?.value) || 10000, 
