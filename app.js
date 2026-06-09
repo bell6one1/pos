@@ -7,9 +7,9 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https:/
 // ==========================================
 let globalSettings = {
     namaToko: "TOKO MODERN POS", alamatToko: "Jl. Teknologi No.123", footerStruk: "TERIMA KASIH!",
-    pinAdmin: "123456", batasStok: 5, kelipatanPoin: 10000, tema: "dark", showExport: true,
-    printerSize: 32, payNonCash: true, payKasbon: true, showMember: true, showVoucher: true,
-    showHoldBill: true, pajakPersen: 0, serviceChargePersen: 0,
+    pinAdmin: "123456", batasStok: 5, kelipatanPoin: 10000, tema: "dark", 
+    showExport: true, payNonCash: true, payKasbon: true, showMember: true, showVoucher: true, showHoldBill: true, 
+    pajakPersen: 0, serviceChargePersen: 0,
     vouchers: { "PROMO20": { type: "percent", value: 20 }, "POTONG10K": { type: "nominal", value: 10000 } }
 };
 
@@ -82,15 +82,52 @@ document.addEventListener('input', (e) => {
 // ==========================================
 // 3. ENGINE ANTARMUKA (RENDER UI)
 // ==========================================
+
+// FIX: Update UI Visibilitas & Paksa Sinkronisasi Switch Button
 function updateFiturVisibility() {
-    const showMember = globalSettings.showMember !== false; 
-    const showVoucher = globalSettings.showVoucher !== false; 
-    const showHold = globalSettings.showHoldBill !== false;
-    
-    document.getElementById('section-kasir-member')?.classList.toggle('hidden', !showMember); 
-    document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !showVoucher); 
-    document.getElementById('container-hold-bill')?.classList.toggle('hidden', !showHold);
+    const sExport = globalSettings.showExport !== false;
+    const sNonCash = globalSettings.payNonCash !== false;
+    const sKasbon = globalSettings.payKasbon !== false;
+    const sMember = globalSettings.showMember !== false;
+    const sVoucher = globalSettings.showVoucher !== false;
+    const sHold = globalSettings.showHoldBill !== false;
+
+    // Toggle tampilan Kasir & Gudang secara Real-time
+    document.getElementById('gudang-export-container')?.classList.toggle('hidden', !sExport);
+    document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !sNonCash);
+    document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !sKasbon);
+    document.getElementById('section-kasir-member')?.classList.toggle('hidden', !sMember);
+    document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !sVoucher);
+    document.getElementById('container-hold-bill')?.classList.toggle('hidden', !sHold);
+
+    // Paksa centangan Switch Button HTML agar selalu akurat dengan State
+    const elExport = document.getElementById('set-export'); if(elExport) elExport.checked = sExport;
+    const elNonCash = document.getElementById('set-noncash'); if(elNonCash) elNonCash.checked = sNonCash;
+    const elKasbon = document.getElementById('set-kasbon'); if(elKasbon) elKasbon.checked = sKasbon;
+    const elMember = document.getElementById('switch-fitur-member'); if(elMember) elMember.checked = sMember;
+    const elVoucher = document.getElementById('switch-fitur-voucher'); if(elVoucher) elVoucher.checked = sVoucher;
+    const elHold = document.getElementById('switch-fitur-hold'); if(elHold) elHold.checked = sHold;
 }
+
+// FIX: Event Listener Real-Time untuk semua Switch Button
+setTimeout(() => {
+    ['set-export', 'set-noncash', 'set-kasbon', 'switch-fitur-member', 'switch-fitur-voucher', 'switch-fitur-hold'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', (e) => {
+                if (id === 'set-export') globalSettings.showExport = e.target.checked;
+                if (id === 'set-noncash') globalSettings.payNonCash = e.target.checked;
+                if (id === 'set-kasbon') globalSettings.payKasbon = e.target.checked;
+                if (id === 'switch-fitur-member') globalSettings.showMember = e.target.checked;
+                if (id === 'switch-fitur-voucher') globalSettings.showVoucher = e.target.checked;
+                if (id === 'switch-fitur-hold') globalSettings.showHoldBill = e.target.checked;
+                
+                // Panggil render UI instan
+                updateFiturVisibility();
+            });
+        }
+    });
+}, 1000); // Set timeout ringan untuk menjamin DOM sudah siap
 
 function terapkanPengaturanLayar() {
     const themeStyle = document.getElementById('dynamic-theme');
@@ -98,31 +135,21 @@ function terapkanPengaturanLayar() {
         themeStyle.innerHTML = `.bg-dark-7 { background-color: #f1f5f9 !important; } .bg-dark-8 { background-color: #ffffff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.1); } .bg-dark-6 { background-color: #e2e8f0 !important; } .bg-dark-5 { background-color: #cbd5e1 !important; color: #0f172a !important; } .text-white, .text-gray-100, .text-gray-200, .text-gray-300 { color: #0f172a !important; } .text-dark-0, .text-dark-1, .text-dark-2, .text-dark-3 { color: #475569 !important; } .border-dark-4, .border-dark-5 { border-color: #cbd5e1 !important; } input, select { color: #0f172a !important; } ::placeholder { color: #94a3b8 !important; }`;
     } else { themeStyle.innerHTML = ''; }
     
-    document.getElementById('gudang-export-container')?.classList.toggle('hidden', !globalSettings.showExport);
-    document.getElementById('pay-method-noncash')?.classList.toggle('hidden', !globalSettings.payNonCash); 
-    document.getElementById('pay-method-kasbon')?.classList.toggle('hidden', !globalSettings.payKasbon);
-    
     if(document.getElementById('set-nama-toko')) {
         document.getElementById('set-nama-toko').value = globalSettings.namaToko || ""; 
         document.getElementById('set-alamat-toko').value = globalSettings.alamatToko || "";
         document.getElementById('set-footer-toko').value = globalSettings.footerStruk || ""; 
         document.getElementById('set-pin').value = globalSettings.pinAdmin || "123456";
-        document.getElementById('set-printer').value = globalSettings.printerSize || 32; 
+        document.getElementById('set-printer-size').value = globalSettings.printerSize || 32; 
         document.getElementById('set-stok').value = globalSettings.batasStok || 5;
         document.getElementById('set-poin').value = globalSettings.kelipatanPoin || 10000; 
         document.getElementById('set-tema').value = globalSettings.tema || "dark";
-        document.getElementById('set-export').checked = globalSettings.showExport !== false; 
-        document.getElementById('set-noncash').checked = globalSettings.payNonCash !== false; 
-        document.getElementById('set-kasbon').checked = globalSettings.payKasbon !== false;
         document.getElementById('set-pajak').value = globalSettings.pajakPersen || 0; 
         document.getElementById('set-service').value = globalSettings.serviceChargePersen || 0;
-        
-        if(document.getElementById('switch-fitur-member')) document.getElementById('switch-fitur-member').checked = globalSettings.showMember !== false;
-        if(document.getElementById('switch-fitur-voucher')) document.getElementById('switch-fitur-voucher').checked = globalSettings.showVoucher !== false;
-        if(document.getElementById('switch-fitur-hold')) document.getElementById('switch-fitur-hold').checked = globalSettings.showHoldBill !== false;
     }
     
-    renderAdminVouchers(); renderKatalogKasir(); renderGudangList(); updateFiturVisibility(); hitungUangKembalian(); 
+    updateFiturVisibility(); // Panggil sinkronisasi Switch
+    renderAdminVouchers(); renderKatalogKasir(); renderGudangList(); hitungUangKembalian(); 
 }
 
 function renderKatalogKasir() {
@@ -1022,7 +1049,7 @@ document.getElementById('file-import-gudang')?.addEventListener('change', async 
                 const barcode = String(row['Barcode'] || row['barcode'] || '').trim(); const nama = String(row['Nama Barang'] || row['nama'] || row['Nama'] || '').trim(); if (!nama) continue;
                 const hrgModal = parseExcelNum(row['Harga Modal'] || row['cost'] || row['Cost']); const hrgJual = parseExcelNum(row['Harga Jual'] || row['harga'] || row['Harga']); const stok = parseExcelNum(row['Stok'] || row['stok'] || row['Qty']); const kategori = String(row['Kategori'] || row['kategori'] || 'Umum').trim(); const catatan = String(row['Catatan'] || row['catatan'] || '').trim();
                 const dataObj = { barcode, nama, kategori, catatan, cost: hrgModal, harga: hrgJual, stok, supplierId: "" };
-                let existingItem = null; if (barcode) { existingItem = databaseBarang.find(x => x.barcode === barcode); } else { existingItem = databaseBarang.find(x => (x.nama || '').toLowerCase() === nama.toLowerCase()); }
+                let existingItem = null; if (barcode) { existingItem = databaseBarang.find(x => x.barcode === barcode); } else { existingItem = databaseBarang.find(x => (x.nama || '').toLowerCase() === (nama || '').toLowerCase()); }
                 if (existingItem) { await updateDoc(doc(db, "barang", existingItem.id), dataObj); updateCount++; } else { await addDoc(itemsRef, dataObj); successCount++; }
             }
             alert(`Import Selesai!\n✅ ${successCount} Barang Baru ditambahkan.\n🔄 ${updateCount} Barang lama diperbarui.`);
