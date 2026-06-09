@@ -89,7 +89,6 @@ window.updateFiturVisibility = function() {
     document.getElementById('section-kasir-member')?.classList.toggle('hidden', !sMember);
     document.getElementById('section-kasir-voucher')?.classList.toggle('hidden', !sVoucher);
     
-    // Perbaikan Target visibilitas Hold Bill
     document.getElementById('btn-buka-hold')?.classList.toggle('hidden', !sHold);
     document.getElementById('btn-hold-bill')?.classList.toggle('hidden', !sHold);
 
@@ -145,7 +144,7 @@ window.renderKeranjang = function() {
         document.getElementById('kembalian-info')?.classList.add('hidden');
         document.getElementById('cart-tax-zone')?.classList.add('hidden');
         document.getElementById('cart-service-zone')?.classList.add('hidden');
-        document.getElementById('cart-discount-zone')?.classList.add('hidden'); // Sembunyikan diskon
+        document.getElementById('cart-discount-zone')?.classList.add('hidden');
         return;
     }
     
@@ -208,7 +207,6 @@ window.hitungUangKembalian = function() {
     if(document.getElementById('cart-grand-total')) document.getElementById('cart-grand-total').textContent = toRupiah(globalGrandTotal);
     if(document.getElementById('pane1-grand-total')) document.getElementById('pane1-grand-total').textContent = toRupiah(globalGrandTotal);
     
-    // UPDATE: Tampilkan Diskon di Layar
     const discountZone = document.getElementById('cart-discount-zone');
     if(discountZone) { 
         if (globalDiskon > 0) { 
@@ -238,11 +236,9 @@ window.hitungUangKembalian = function() {
             else if (kembalian < 0) { kembalianNilai.textContent = "Kurang: " + toRupiah(Math.abs(kembalian)); kembalianNilai.className = "text-lg font-black text-red-400"; } 
             else { kembalianNilai.textContent = "Kembali: " + toRupiah(kembalian); kembalianNilai.className = "text-lg font-black text-green-400"; }
         }
-        // Tombol hanya aktif jika uang tunai mencukupi dan keranjang ada isinya
         if(btnCheckout) btnCheckout.disabled = (cashInputVal < globalGrandTotal || keranjang.length === 0);
     } else {
         if(kembalianInfo) kembalianInfo.classList.add('hidden');
-        // Tombol langsung aktif jika non-tunai/kasbon
         if(btnCheckout) btnCheckout.disabled = (keranjang.length === 0);
     }
 };
@@ -265,7 +261,9 @@ window.bukaModalSplit = function() {
         document.getElementById('split-amount-1').value = formatInputRibuan(Math.ceil(globalGrandTotal / 2)); document.getElementById('split-amount-2').value = formatInputRibuan(globalGrandTotal - Math.ceil(globalGrandTotal / 2));
     }
 };
+
 window.batalSplitPayment = function() { document.getElementById('split-modal')?.classList.add('hidden'); };
+
 window.simpanSplitPayment = function() {
     const amt1 = parseInputRibuan(document.getElementById('split-amount-1')?.value || "0"); const amt2 = parseInputRibuan(document.getElementById('split-amount-2')?.value || "0");
     const method1 = document.getElementById('split-method-1')?.value || "Tunai"; const method2 = document.getElementById('split-method-2')?.value || "QRIS";
@@ -358,6 +356,10 @@ document.addEventListener('click', async (e) => {
 
     const btnSaveSplit = e.target.closest('#btn-save-split');
     if (btnSaveSplit) { window.simpanSplitPayment(); return; }
+
+    // -> FIX: TOMBOL BATAL SPLIT DITAMBAHKAN DI SINI <-
+    const btnBatalSplit = e.target.closest('#btn-batal-split');
+    if (btnBatalSplit) { window.batalSplitPayment(); return; }
 
     // 2. Tahan & Buka Bill
     const btnHoldAction = e.target.closest('#btn-hold-bill'); 
