@@ -1,6 +1,6 @@
 {
-  "name": "Kasir v6.0",
-  "short_name": "POS",
+  "name": "POSPRO v7.0",
+  "short_name": "POSPRO",
   "description": "Aplikasi Kasir Point of Sale Modern",
   "start_url": "./index.html",
   "display": "standalone",
