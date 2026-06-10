@@ -153,34 +153,17 @@ window.tambahKeKeranjang = (id) => {
 };
 
 window.hitungUangKembalian = function() {
-    if(isSplitPayment) { 
-        selectedPaymentMethod = 'Tunai'; 
-        const btnCash = document.getElementById('pay-method-cash'); 
-        if (btnCash) {
-            btnCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; 
-        }
-        document.getElementById('cash-paid')?.classList.remove('hidden'); 
-        document.getElementById('quick-cash-zone')?.classList.remove('hidden'); 
-    }
+    if(isSplitPayment) { window.resetPaymentUI(); selectedPaymentMethod = 'Tunai'; const btnCash = document.getElementById('pay-method-cash'); if (btnCash) btnCash.className = "py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow"; document.getElementById('cash-paid')?.classList.remove('hidden'); document.getElementById('quick-cash-zone')?.classList.remove('hidden'); }
     
     globalSubtotal = Math.round(keranjang.reduce((acc, i) => acc + ((i.harga||0) * i.qty), 0));
-    let diskonOtomatisMember = activeMember ? Math.floor(globalSubtotal * 0.05) : 0;
-    let diskonVoucher = 0;
-    if (appliedVoucher) { 
-        if (appliedVoucher.type === "percent") { 
-            diskonVoucher = Math.floor(globalSubtotal * (appliedVoucher.value / 100)); 
-        } else if (appliedVoucher.type === "nominal") { 
-            diskonVoucher = appliedVoucher.value; 
-        } 
-    }
+    let diskonOtomatisMember = activeMember ? Math.floor(globalSubtotal * 0.05) : 0, diskonVoucher = 0;
+    if (appliedVoucher) { if (appliedVoucher.type === "percent") { diskonVoucher = Math.floor(globalSubtotal * (appliedVoucher.value / 100)); } else if (appliedVoucher.type === "nominal") { diskonVoucher = appliedVoucher.value; } }
     
     globalDiskon = Math.min(globalSubtotal, diskonOtomatisMember + diskonVoucher);
     let totalSebelumPajak = Math.max(0, globalSubtotal - globalDiskon);
-    const taxRate = Math.max(0, parseFloat(globalSettings.pajakPersen) || 0); 
-    const serviceRate = Math.max(0, parseFloat(globalSettings.serviceChargePersen) || 0);
+    const taxRate = Math.max(0, parseFloat(globalSettings.pajakPersen) || 0), serviceRate = Math.max(0, parseFloat(globalSettings.serviceChargePersen) || 0);
     
-    globalTaxAmount = Math.round(totalSebelumPajak * (taxRate / 100)); 
-    globalServiceAmount = Math.round(totalSebelumPajak * (serviceRate / 100));
+    globalTaxAmount = Math.round(totalSebelumPajak * (taxRate / 100)); globalServiceAmount = Math.round(totalSebelumPajak * (serviceRate / 100));
     globalGrandTotal = totalSebelumPajak + globalTaxAmount + globalServiceAmount;
     
     if(document.getElementById('cart-subtotal')) document.getElementById('cart-subtotal').textContent = toRupiah(globalSubtotal); 
@@ -188,58 +171,23 @@ window.hitungUangKembalian = function() {
     if(document.getElementById('pane1-grand-total')) document.getElementById('pane1-grand-total').textContent = toRupiah(globalGrandTotal);
     
     const discountZone = document.getElementById('cart-discount-zone');
-    if(discountZone) { 
-        if (globalDiskon > 0) { 
-            discountZone.classList.remove('hidden'); 
-            const disAmt = document.getElementById('cart-discount-amount');
-            if(disAmt) disAmt.textContent = "-" + toRupiah(globalDiskon); 
-        } else { 
-            discountZone.classList.add('hidden'); 
-        } 
-    }
+    if(discountZone) { if (globalDiskon > 0) { discountZone.classList.remove('hidden'); const disAmt = document.getElementById('cart-discount-amount'); if(disAmt) disAmt.textContent = "-" + toRupiah(globalDiskon); } else { discountZone.classList.add('hidden'); } }
 
     const taxZone = document.getElementById('cart-tax-zone');
-    if(taxZone) { 
-        if (taxRate > 0) { 
-            taxZone.classList.remove('hidden'); 
-            document.getElementById('cart-tax-rate-display').textContent = taxRate; 
-            document.getElementById('cart-tax-amount').textContent = "+" + toRupiah(globalTaxAmount); 
-        } else { 
-            taxZone.classList.add('hidden'); 
-        } 
-    }
-    
+    if(taxZone) { if (taxRate > 0) { taxZone.classList.remove('hidden'); document.getElementById('cart-tax-rate-display').textContent = taxRate; document.getElementById('cart-tax-amount').textContent = "+" + toRupiah(globalTaxAmount); } else { taxZone.classList.add('hidden'); } }
     const serviceZone = document.getElementById('cart-service-zone');
-    if(serviceZone) { 
-        if (serviceRate > 0) { 
-            serviceZone.classList.remove('hidden'); 
-            document.getElementById('cart-service-rate-display').textContent = serviceRate; 
-            document.getElementById('cart-service-amount').textContent = "+" + toRupiah(globalServiceAmount); 
-        } else { 
-            serviceZone.classList.add('hidden'); 
-        } 
-    }
+    if(serviceZone) { if (serviceRate > 0) { serviceZone.classList.remove('hidden'); document.getElementById('cart-service-rate-display').textContent = serviceRate; document.getElementById('cart-service-amount').textContent = "+" + toRupiah(globalServiceAmount); } else { serviceZone.classList.add('hidden'); } }
     
-    const btnCheckout = document.getElementById('btn-checkout'); 
+    const btnCheckout = document.getElementById('btn-checkout'), kembalianInfo = document.getElementById('kembalian-info'), kembalianNilai = document.getElementById('kembalian-nilai');
     if(btnCheckout) btnCheckout.textContent = "Selesaikan Bayar";
-    const kembalianInfo = document.getElementById('kembalian-info'), kembalianNilai = document.getElementById('kembalian-nilai');
-    
     if (selectedPaymentMethod === 'Tunai') {
         const cashInputVal = Math.max(0, parseInputRibuan(document.getElementById('cash-paid')?.value || "0")); 
         const kembalian = cashInputVal - globalGrandTotal;
-        
         if (kembalianInfo) kembalianInfo.classList.remove('hidden');
         if (kembalianNilai) {
-            if ((document.getElementById('cash-paid')?.value || "") === "") { 
-                kembalianNilai.textContent = "Rp 0"; 
-                kembalianNilai.className = "text-lg font-black text-dark-2"; 
-            } else if (kembalian < 0) { 
-                kembalianNilai.textContent = "Kurang: " + toRupiah(Math.abs(kembalian)); 
-                kembalianNilai.className = "text-lg font-black text-red-400"; 
-            } else { 
-                kembalianNilai.textContent = "Kembali: " + toRupiah(kembalian); 
-                kembalianNilai.className = "text-lg font-black text-green-400"; 
-            }
+            if ((document.getElementById('cash-paid')?.value || "") === "") { kembalianNilai.textContent = "Rp 0"; kembalianNilai.className = "text-lg font-black text-dark-2"; } 
+            else if (kembalian < 0) { kembalianNilai.textContent = "Kurang: " + toRupiah(Math.abs(kembalian)); kembalianNilai.className = "text-lg font-black text-red-400"; } 
+            else { kembalianNilai.textContent = "Kembali: " + toRupiah(kembalian); kembalianNilai.className = "text-lg font-black text-green-400"; }
         }
         if(btnCheckout) btnCheckout.disabled = (cashInputVal < globalGrandTotal || keranjang.length === 0);
     } else {
@@ -397,32 +345,8 @@ document.addEventListener('click', async (e) => {
             try { const trxData = { waktuLokal: new Date().toISOString(), tipe: "pelunasan_piutang", totalAkhir: inputVal, profit: 0, metodePembayaran: "Pelunasan Hutang (Tunai)", namaKasir: auth.currentUser?.email.split('@')[0], memberId: piutangAktifDipilih.id, memberName: piutangAktifDipilih.nama, tunaiMasukLaci: inputVal, shiftId: activeShiftSession.id, isOfflinePending: true }; const isSaved = await saveTransactionOffline(trxData); if (!isSaved) throw new Error("Memori Penuh."); const memberIndex = memberDataAll.findIndex(m => m.id === piutangAktifDipilih.id); if(memberIndex > -1) { memberDataAll[memberIndex].hutang -= inputVal; localStorage.setItem("pos_cached_members", JSON.stringify(memberDataAll)); } activeShiftSession.totalTunai += inputVal; localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession)); alert("✅ OFFLINE: Pelunasan dicatat lokal."); window.tutupModalBayarPiutang(); renderPiutangList(); updateShiftUI(true); } catch(err) { alert("❌ Gagal memproses pelunasan offline."); console.error(err); }
             btnSubmitPiutang.textContent = "Lunasi Cicilan"; btnSubmitPiutang.disabled = false; return;
         }
-        try { 
-			await updateDoc(doc(db, "members", piutangAktifDipilih.id), { hutang: increment(-inputVal) }); 
-			await logActivity("PELUNASAN_KASBON", `Terima pelunasan Rp${inputVal} dari ${piutangAktifDipilih.nama}`); 
-			
-			const emailKasir = auth.currentUser?.email;
-			const namaKasirAman = emailKasir ? emailKasir.split('@')[0] : 'kasir_pos';
-
-			await addDoc(salesRef, { 
-				waktu: serverTimestamp(), 
-				tipe: "pelunasan_piutang", 
-				totalAkhir: inputVal, 
-				profit: 0, 
-				metodePembayaran: "Pelunasan Hutang (Tunai)", 
-				namaKasir: namaKasirAman,
-				memberId: piutangAktifDipilih.id, 
-				memberName: piutangAktifDipilih.nama 
-			}); 
-			
-			await updateDoc(doc(db, "shift", activeShiftSession.id), { totalTunai: increment(inputVal) }); 
-			alert("✅ Pelunasan berhasil dicatat!"); 
-			window.tutupModalBayarPiutang(); 
-		} catch(err) { 
-			alert("❌ Gagal memproses pelunasan."); 
-			console.error(err); 
-		}
-		btnSubmitPiutang.textContent = "Lunasi Cicilan"; btnSubmitPiutang.disabled = false; return;
+        try { await updateDoc(doc(db, "members", piutangAktifDipilih.id), { hutang: increment(-inputVal) }); await logActivity("PELUNASAN_KASBON", `Terima pelunasan Rp${inputVal} dari ${piutangAktifDipilih.nama}`); await addDoc(salesRef, { waktu: serverTimestamp(), tipe: "pelunasan_piutang", totalAkhir: inputVal, profit: 0, metodePembayaran: "Pelunasan Hutang (Tunai)", namaKasir: auth.currentUser?.email.split('@')[0], memberId: piutangAktifDipilih.id, memberName: piutangAktifDipilih.nama }); await updateDoc(doc(db, "shift", activeShiftSession.id), { totalTunai: increment(inputVal) }); alert("✅ Pelunasan berhasil dicatat!"); window.tutupModalBayarPiutang(); } catch(err) { alert("❌ Gagal memproses pelunasan."); console.error(err); }
+        btnSubmitPiutang.textContent = "Lunasi Cicilan"; btnSubmitPiutang.disabled = false; return;
     }
     
     const btnCheckout = e.target.closest('#btn-checkout'); if (btnCheckout) {
@@ -595,41 +519,7 @@ document.getElementById('btn-connect-printer')?.addEventListener('click', async 
 async function printDirectBluetooth(text) { if (!bluetoothPrintCharacteristic) return false; try { const encoder = new TextEncoder(); const data = encoder.encode("\x1B\x40" + text + "\n\n\n\n"); const MAX_CHUNK = 100; for (let i = 0; i < data.length; i += MAX_CHUNK) { await bluetoothPrintCharacteristic.writeValue(data.slice(i, i + MAX_CHUNK)); } return true; } catch (e) { console.error(e); return false; } }
 function padCenter(str, len) { str = String(str || ''); if(str.length >= len) return str; const left = Math.floor((len - str.length) / 2); const right = len - str.length - left; return " ".repeat(left) + str + " ".repeat(right); }
 function formatStrukBT(data) { const lineLen = globalSettings.printerSize || 32; const lineChar = "-".repeat(lineLen); const eqChar = "=".repeat(lineLen); let struk = eqChar + "\n" + padCenter(globalSettings.namaToko, lineLen) + "\n" + padCenter(globalSettings.alamatToko, lineLen) + "\n" + lineChar + "\n"; let tglStruk = new Date(); if (data.waktu && data.waktu.seconds) tglStruk = new Date(data.waktu.seconds * 1000); else if (data.waktuLokal) tglStruk = new Date(data.waktuLokal); else if (data.waktu) tglStruk = new Date(data.waktu); struk += `ID   : ${data.id}\nWaktu: ${tglStruk.toLocaleString('id-ID')}\nKasir: ${data.namaKasir.toUpperCase()}\n` + lineChar + "\n"; data.items.forEach(i => { struk += `${i.nama}\n${i.qty} x ${toRupiah(i.harga)} = ${toRupiah(i.qty * i.harga)}\n`; }); struk += lineChar + "\n" + `Subtotal : ${toRupiah(data.subtotal)}\nDiskon   : -${toRupiah(data.diskon)}\n`; if ((data.pajak || 0) > 0) struk += `Pajak    : +${toRupiah(data.pajak)}\n`; if ((data.serviceCharge || 0) > 0) struk += `Service  : +${toRupiah(data.serviceCharge)}\n`; struk += `TOTAL    : ${toRupiah(data.totalAkhir)}\nBayar    : ${toRupiah(data.uangBayar)}\nKembali  : ${toRupiah(data.kembalian)}\n`; if(data.memberName) struk += `\nMember   : ${data.memberName.toUpperCase()}\n`; struk += lineChar + "\n" + padCenter(globalSettings.footerStruk, lineLen) + "\n\n\n\n"; return struk; }
-window.cetakStrukThermal = function(data) { 
-    const printArea = document.getElementById('print-area'); 
-    if(!printArea) return; 
-
-    if (!document.getElementById('pos-print-css')) {
-        const style = document.createElement('style');
-        style.id = 'pos-print-css';
-        style.innerHTML = `
-            @media print {
-                body * { visibility: hidden !important; }
-                #print-area, #print-area * { visibility: visible !important; color: black !important; }
-                #print-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
-    let tglStruk = new Date(); 
-    if (data.waktu && data.waktu.seconds) tglStruk = new Date(data.waktu.seconds * 1000); 
-    else if (data.waktuLokal) tglStruk = new Date(data.waktuLokal); 
-    else if (data.waktu) tglStruk = new Date(data.waktu); 
-
-    printArea.innerHTML = `<div style="font-family:monospace; color:black; max-width:300px; margin:0 auto; padding:10px;"><div style="text-align:center; margin-bottom:10px;"><h3 style="margin:0; font-size:16px; font-weight:bold;">${escapeHTML(globalSettings.namaToko)}</h3><p style="margin:2px 0; font-size:10px;">${escapeHTML(globalSettings.alamatToko)}</p></div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><span>Trx ID:</span> <span>${data.id || 'OFFLINE'}</span></div><div style="display:flex; justify-content:space-between;"><span>Waktu:</span> <span>${tglStruk.toLocaleString('id-ID')}</span></div><div style="display:flex; justify-content:space-between;"><span>Kasir:</span> <span>${escapeHTML(data.namaKasir ? data.namaKasir.toUpperCase() : 'SISTEM')}</span></div></div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="margin-bottom:8px;">${(data.items||[]).map(i => `<div style="margin-bottom:4px;"><div style="font-size:10px; font-weight:bold;">${escapeHTML(i.nama||'Item')}</div><div style="display:flex; justify-content:space-between; font-size:10px;"><span>${i.qty} x ${toRupiah(i.harga)}</span><span>${toRupiah((i.harga||0) * i.qty)}</span></div></div>`).join('')}</div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px;"><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Subtotal:</span><span>${toRupiah(data.subtotal)}</span></div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Diskon:</span><span>-${toRupiah(data.diskon)}</span></div>${(data.pajak || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Pajak:</span><span>+${toRupiah(data.pajak)}</span></div>` : ''}${(data.serviceCharge || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Service:</span><span>+${toRupiah(data.serviceCharge)}</span></div>` : ''}<div style="display:flex; justify-content:space-between; font-weight:bold; font-size:12px; margin-top:4px; margin-bottom:4px;"><span>Total:</span><span>${toRupiah(data.totalAkhir)}</span></div><div style="border-top:1px dashed black; margin:6px 0;"></div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Bayar (${escapeHTML(data.metodePembayaran||'Tunai')}):</span><span>${toRupiah(data.uangBayar)}</span></div><div style="display:flex; justify-content:space-between;"><span>Kembali:</span><span>${toRupiah(data.kembalian)}</span></div></div>${data.memberName ? `<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; text-align:center;"><p style="margin:2px 0;">Member: <strong>${escapeHTML(data.memberName.toUpperCase())}</strong></p></div>` : ''}<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="text-align:center; font-size:10px; margin-top:10px;"><p style="margin:0; font-weight:bold;">${escapeHTML(globalSettings.footerStruk)}</p></div></div>`; 
-
-    printArea.classList.remove('hidden'); 
-
-    setTimeout(() => {
-        window.print();
-    }, 500); 
-};
-
-window.addEventListener('afterprint', () => {
-    document.getElementById('print-area')?.classList.add('hidden');
-});
-
+window.cetakStrukThermal = function(data) { const printArea = document.getElementById('print-area'); if(!printArea) return; let tglStruk = new Date(); if (data.waktu && data.waktu.seconds) tglStruk = new Date(data.waktu.seconds * 1000); else if (data.waktuLokal) tglStruk = new Date(data.waktuLokal); else if (data.waktu) tglStruk = new Date(data.waktu); printArea.innerHTML = `<div style="font-family:monospace; color:black; max-width:300px; margin:0 auto; padding:10px;"><div style="text-align:center; margin-bottom:10px;"><h3 style="margin:0; font-size:16px; font-weight:bold;">${escapeHTML(globalSettings.namaToko)}</h3><p style="margin:2px 0; font-size:10px;">${escapeHTML(globalSettings.alamatToko)}</p></div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; margin-bottom:8px;"><div style="display:flex; justify-content:space-between;"><span>Trx ID:</span> <span>${data.id || 'OFFLINE'}</span></div><div style="display:flex; justify-content:space-between;"><span>Waktu:</span> <span>${tglStruk.toLocaleString('id-ID')}</span></div><div style="display:flex; justify-content:space-between;"><span>Kasir:</span> <span>${escapeHTML(data.namaKasir ? data.namaKasir.toUpperCase() : 'SISTEM')}</span></div></div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="margin-bottom:8px;">${(data.items||[]).map(i => `<div style="margin-bottom:4px;"><div style="font-size:10px; font-weight:bold;">${escapeHTML(i.nama||'Item')}</div><div style="display:flex; justify-content:space-between; font-size:10px;"><span>${i.qty} x ${toRupiah(i.harga)}</span><span>${toRupiah((i.harga||0) * i.qty)}</span></div></div>`).join('')}</div><div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px;"><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Subtotal:</span><span>${toRupiah(data.subtotal)}</span></div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Diskon:</span><span>-${toRupiah(data.diskon)}</span></div>${(data.pajak || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Pajak:</span><span>+${toRupiah(data.pajak)}</span></div>` : ''}${(data.serviceCharge || 0) > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Service:</span><span>+${toRupiah(data.serviceCharge)}</span></div>` : ''}<div style="display:flex; justify-content:space-between; font-weight:bold; font-size:12px; margin-top:4px; margin-bottom:4px;"><span>Total:</span><span>${toRupiah(data.totalAkhir)}</span></div><div style="border-top:1px dashed black; margin:6px 0;"></div><div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Bayar (${escapeHTML(data.metodePembayaran||'Tunai')}):</span><span>${toRupiah(data.uangBayar)}</span></div><div style="display:flex; justify-content:space-between;"><span>Kembali:</span><span>${toRupiah(data.kembalian)}</span></div></div>${data.memberName ? `<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="font-size:10px; text-align:center;"><p style="margin:2px 0;">Member: <strong>${escapeHTML(data.memberName.toUpperCase())}</strong></p></div>` : ''}<div style="border-top:1px dashed black; margin:8px 0;"></div><div style="text-align:center; font-size:10px; margin-top:10px;"><p style="margin:0; font-weight:bold;">${escapeHTML(globalSettings.footerStruk)}</p></div></div>`; printArea.classList.remove('hidden'); window.print(); printArea.classList.add('hidden'); }
 window.reprintTrx = async (id) => { const offlineTrx = dataPenjualanTerfilter.find(t => t.localId == id || t.id == id); if (offlineTrx) { window.cetakStrukThermal(offlineTrx); } else { if (!navigator.onLine) return alert("Peringatan: Butuh internet."); try { const docSnap = await getDoc(doc(db, "penjualan", id)); if(docSnap.exists()) { window.cetakStrukThermal(docSnap.data()); } } catch(e) { alert("Data tidak ditemukan."); console.error(e); } } };
 
 onAuthStateChanged(auth, async (user) => {
@@ -682,199 +572,6 @@ function stopRealtimeListeners() { if(unsubscribeItems) unsubscribeItems(); if(u
 document.getElementById('settings-form')?.addEventListener('submit', async (e) => {
     e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Butuh internet untuk menyimpan pengaturan global.");
     const btn = document.getElementById('btn-save-settings'); const origText = btn.textContent; btn.textContent = "Menyimpan..."; btn.disabled = true;
-    
-    const nilaiPrinter = document.getElementById('set-printer')?.value || document.getElementById('set-printer-size')?.value;
-
-    const newData = { 
-        namaToko: String(document.getElementById('set-nama-toko')?.value || '').trim() || "TOKO POS", 
-        alamatToko: String(document.getElementById('set-alamat-toko')?.value || '').trim() || "Alamat Toko", 
-        footerStruk: String(document.getElementById('set-footer-toko')?.value || '').trim() || "Terima Kasih", 
-        pinAdmin: String(document.getElementById('set-pin')?.value || '').trim() || "123456", 
-        printerSize: parseInt(nilaiPrinter) || 32,
-        batasStok: parseInt(document.getElementById('set-stok')?.value) || 5, 
-        kelipatanPoin: parseInt(document.getElementById('set-poin')?.value) || 10000, 
-        pajakPersen: Math.max(0, parseFloat(document.getElementById('set-pajak')?.value) || 0), 
-        serviceChargePersen: Math.max(0, parseFloat(document.getElementById('set-service')?.value) || 0), 
-        tema: document.getElementById('set-tema')?.value || "dark", 
-        showExport: document.getElementById('set-export')?.checked ?? true, 
-        payNonCash: document.getElementById('set-noncash')?.checked ?? true, 
-        payKasbon: document.getElementById('set-kasbon')?.checked ?? true, 
-        showMember: document.getElementById('switch-fitur-member')?.checked ?? true, 
-        showVoucher: document.getElementById('switch-fitur-voucher')?.checked ?? true, 
-        showHoldBill: document.getElementById('switch-fitur-hold')?.checked ?? true 
-    };
+    const newData = { namaToko: String(document.getElementById('set-nama-toko')?.value || '').trim() || "TOKO POS", alamatToko: String(document.getElementById('set-alamat-toko')?.value || '').trim() || "Alamat Toko", footerStruk: String(document.getElementById('set-footer-toko')?.value || '').trim() || "Terima Kasih", pinAdmin: String(document.getElementById('set-pin')?.value || '').trim() || "123456", printerSize: parseInt(document.getElementById('set-printer')?.value) || 32, batasStok: parseInt(document.getElementById('set-stok')?.value) || 5, kelipatanPoin: parseInt(document.getElementById('set-poin')?.value) || 10000, pajakPersen: Math.max(0, parseFloat(document.getElementById('set-pajak')?.value) || 0), serviceChargePersen: Math.max(0, parseFloat(document.getElementById('set-service')?.value) || 0), tema: document.getElementById('set-tema')?.value || "dark", showExport: document.getElementById('set-export')?.checked ?? true, payNonCash: document.getElementById('set-noncash')?.checked ?? true, payKasbon: document.getElementById('set-kasbon')?.checked ?? true, showMember: document.getElementById('switch-fitur-member')?.checked ?? true, showVoucher: document.getElementById('switch-fitur-voucher')?.checked ?? true, showHoldBill: document.getElementById('switch-fitur-hold')?.checked ?? true };
     try { await setDoc(doc(db, "pengaturan", "global"), newData, { merge: true }); alert("Pembaruan Sistem Berhasil Diterapkan!"); } catch (err) { alert("Gagal menyimpan pengaturan: " + err.message); console.error(err); } finally { btn.textContent = origText; btn.disabled = false; }
 });
-
-window.POSEngine = {
-    state: {
-        isSplitPayment: false,
-        selectedPaymentMethod: 'Tunai',
-        appliedVoucher: null,
-        activeMember: null,
-        keranjang: [],
-        globalSettings: {
-            pajakPersen: 0,
-            serviceChargePersen: 0,
-            printerSize: 32
-        }
-    },
-
-    syncWithLegacy: function() {
-        this.state.keranjang = window.keranjang || [];
-        this.state.activeMember = window.activeMember || null;
-        this.state.appliedVoucher = window.appliedVoucher || null;
-        this.state.isSplitPayment = window.isSplitPayment || false;
-        this.state.selectedPaymentMethod = window.selectedPaymentMethod || 'Tunai';
-        this.state.globalSettings = window.globalSettings || this.state.globalSettings;
-    },
-
-    hitungUangKembalian: function() {
-        this.syncWithLegacy();
-
-        let subtotal = Math.round(this.state.keranjang.reduce((acc, item) => acc + ((item.harga || 0) * (item.qty || 0)), 0));
-        
-        let diskonMember = this.state.activeMember ? Math.floor(subtotal * 0.05) : 0;
-        let diskonVoucher = 0;
-        if (this.state.appliedVoucher) {
-            diskonVoucher = this.state.appliedVoucher.type === "percent" 
-                ? Math.floor(subtotal * (this.state.appliedVoucher.value / 100))
-                : this.state.appliedVoucher.value;
-        }
-        let totalDiskon = Math.min(subtotal, diskonMember + diskonVoucher);
-        let totalSetelahDiskon = Math.max(0, subtotal - totalDiskon);
-
-        let taxRate = Math.max(0, parseFloat(this.state.globalSettings.pajakPersen) || 0);
-        let serviceRate = Math.max(0, parseFloat(this.state.globalSettings.serviceChargePersen) || 0);
-        
-        let taxAmount = Math.round(totalSetelahDiskon * (taxRate / 100));
-        let serviceAmount = Math.round(totalSetelahDiskon * (serviceRate / 100));
-        let grandTotal = totalSetelahDiskon + taxAmount + serviceAmount;
-
-        window.globalSubtotal = subtotal;
-        window.globalDiskon = totalDiskon;
-        window.globalTaxAmount = taxAmount;
-        window.globalServiceAmount = serviceAmount;
-        window.globalGrandTotal = grandTotal;
-
-        this.renderUIInjektor(subtotal, grandTotal, taxRate, taxAmount, serviceRate, serviceAmount, totalDiskon);
-        this.validasiMetodePembayaran(grandTotal);
-    },
-
-    renderUIInjektor: function(subtotal, grandTotal, taxRate, taxAmount, serviceRate, serviceAmount, totalDiskon) {
-        if(document.getElementById('cart-subtotal')) document.getElementById('cart-subtotal').textContent = toRupiah(subtotal);
-        if(document.getElementById('cart-grand-total')) document.getElementById('cart-grand-total').textContent = toRupiah(grandTotal);
-        if(document.getElementById('pane1-grand-total')) document.getElementById('pane1-grand-total').textContent = toRupiah(grandTotal);
-
-        this.toggleZone('cart-discount-zone', totalDiskon > 0, () => {
-            document.getElementById('cart-discount-amount').textContent = "-" + toRupiah(totalDiskon);
-        });
-        this.toggleZone('cart-tax-zone', taxRate > 0, () => {
-            document.getElementById('cart-tax-rate-display').textContent = taxRate;
-            document.getElementById('cart-tax-amount').textContent = "+" + toRupiah(taxAmount);
-        });
-        this.toggleZone('cart-service-zone', serviceRate > 0, () => {
-            document.getElementById('cart-service-rate-display').textContent = serviceRate;
-            document.getElementById('cart-service-amount').textContent = "+" + toRupiah(serviceAmount);
-        });
-    },
-
-    toggleZone: function(elementId, condition, updateCallback) {
-        const el = document.getElementById(elementId);
-        if(el) {
-            if(condition) {
-                el.classList.remove('hidden');
-                if(updateCallback) updateCallback();
-            } else {
-                el.classList.add('hidden');
-            }
-        }
-    },
-
-    validasiMetodePembayaran: function(grandTotal) {
-        const btnCheckout = document.getElementById('btn-checkout');
-        const kembalianInfo = document.getElementById('kembalian-info');
-        const kembalianNilai = document.getElementById('kembalian-nilai');
-
-        if (this.state.isSplitPayment) {
-            document.getElementById('cash-paid')?.classList.remove('hidden');
-            document.getElementById('quick-cash-zone')?.classList.remove('hidden');
-        }
-
-        if (this.state.selectedPaymentMethod === 'Tunai') {
-            const cashInputVal = Math.max(0, parseInputRibuan(document.getElementById('cash-paid')?.value || "0"));
-            const kembalian = cashInputVal - grandTotal;
-            
-            if (kembalianInfo) kembalianInfo.classList.remove('hidden');
-            if (kembalianNilai) {
-                if ((document.getElementById('cash-paid')?.value || "") === "") {
-                    kembalianNilai.textContent = "Rp 0";
-                    kembalianNilai.className = "text-lg font-black text-dark-2";
-                } else if (kembalian < 0) {
-                    kembalianNilai.textContent = "Kurang: " + toRupiah(Math.abs(kembalian));
-                    kembalianNilai.className = "text-lg font-black text-red-400";
-                } else {
-                    kembalianNilai.textContent = "Kembali: " + toRupiah(kembalian);
-                    kembalianNilai.className = "text-lg font-black text-green-400";
-                }
-            }
-            if(btnCheckout) btnCheckout.disabled = (cashInputVal < grandTotal || this.state.keranjang.length === 0);
-        } else {
-            if (this.state.selectedPaymentMethod === 'Kasbon' && !this.state.activeMember) {
-                if(btnCheckout) btnCheckout.disabled = true;
-                if(kembalianNilai) {
-                    kembalianInfo?.classList.remove('hidden');
-                    kembalianNilai.textContent = "Wajib Pilih Member!";
-                    kembalianNilai.className = "text-sm font-bold text-red-400";
-                }
-            } else {
-                if(kembalianInfo) kembalianInfo.classList.add('hidden');
-                if(btnCheckout) btnCheckout.disabled = (this.state.keranjang.length === 0);
-            }
-        }
-    },
-
-    simpanPengaturanGlobal: async function(db, logActivityFunction) {
-        try {
-            const printerElement = document.getElementById('set-printer') || document.getElementById('set-printer-size');
-            
-            const cleanData = {
-                namaToko: String(document.getElementById('set-nama-toko')?.value || '').trim() || "TOKO MODERN POS",
-                alamatToko: String(document.getElementById('set-alamat-toko')?.value || '').trim() || "Jl. Teknologi No.123",
-                footerStruk: String(document.getElementById('set-footer-toko')?.value || '').trim() || "Terima Kasih", 
-                pinAdmin: String(document.getElementById('set-pin')?.value || '').trim() || "123456",
-                printerSize: parseInt(printerElement?.value) || 32, 
-                batasStok: parseInt(document.getElementById('set-stok')?.value) || 5,
-                kelipatanPoin: parseInt(document.getElementById('set-poin')?.value) || 10000, 
-                pajakPersen: Math.max(0, parseFloat(document.getElementById('set-pajak')?.value) || 0),
-                serviceChargePersen: Math.max(0, parseFloat(document.getElementById('set-service')?.value) || 0), 
-                tema: document.getElementById('set-tema')?.value || "dark",
-                showExport: document.getElementById('set-export')?.checked ?? true, 
-                payNonCash: document.getElementById('set-noncash')?.checked ?? true,
-                payKasbon: document.getElementById('set-kasbon')?.checked ?? true,
-                showMember: document.getElementById('switch-fitur-member')?.checked ?? true,
-                showVoucher: document.getElementById('switch-fitur-voucher')?.checked ?? true,
-                showHoldBill: document.getElementById('switch-fitur-hold')?.checked ?? true
-            };
-
-            await setDoc(doc(db, "pengaturan", "global"), cleanData);
-            if (logActivityFunction) await logActivityFunction("UBAH_PENGATURAN", "Memperbarui konfigurasi sistem global");
-            return { success: true, data: cleanData };
-        } catch (error) {
-            console.error("Engine Error (Save Settings): ", error);
-            return { success: false, error: error.message };
-        }
-    },
-
-    getNamaKasirAman: function(authObject) {
-        const email = authObject?.currentUser?.email;
-        if (!email) return 'kasir_offline';
-        
-        if (email.includes('@')) {
-            return email.split('@')[0];
-        }
-        return email;
-    }
-};
-
-window.hitungUangKembalian = function() { window.POSEngine.hitungUangKembalian(); };
