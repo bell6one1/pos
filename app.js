@@ -209,22 +209,39 @@ window.resetPaymentUI = function() {
 window.bukaModalSplit = function() {
     if (keranjang.length === 0) return alert("⚠️ Keranjang belanja masih kosong!");
     const modal = document.getElementById('split-modal');
-    if (modal) { modal.classList.remove('hidden'); document.getElementById('split-total-tagihan').textContent = toRupiah(globalGrandTotal); document.getElementById('split-amount-1').value = formatInputRibuan(Math.ceil(globalGrandTotal / 2)); document.getElementById('split-amount-2').value = formatInputRibuan(globalGrandTotal - Math.ceil(globalGrandTotal / 2)); }
+    if (modal) { 
+        modal.classList.remove('hidden'); 
+        document.getElementById('split-total-tagihan').textContent = toRupiah(globalGrandTotal); 
+        document.getElementById('split-amount-1').value = formatInputRibuan(Math.ceil(globalGrandTotal / 2)); 
+        document.getElementById('split-amount-2').value = formatInputRibuan(globalGrandTotal - Math.ceil(globalGrandTotal / 2)); 
+        document.getElementById('split-warning')?.classList.add('hidden');
+    }
 };
 
 window.batalSplitPayment = function() { document.getElementById('split-modal')?.classList.add('hidden'); };
 
 window.simpanSplitPayment = function() {
-    const amt1 = parseInputRibuan(document.getElementById('split-amount-1')?.value || "0"), amt2 = parseInputRibuan(document.getElementById('split-amount-2')?.value || "0");
-    const method1 = document.getElementById('split-method-1')?.value || "Tunai", method2 = document.getElementById('split-method-2')?.value || "QRIS";
+    const amt1 = parseInputRibuan(document.getElementById('split-amount-1')?.value || "0"); 
+    const amt2 = parseInputRibuan(document.getElementById('split-amount-2')?.value || "0");
+    const method1 = document.getElementById('split-method-1')?.value || "Tunai"; 
+    const method2 = document.getElementById('split-method-2')?.value || "QRIS";
+    
     if (amt1 + amt2 !== globalGrandTotal) return alert(`⚠️ Kombinasi split (${toRupiah(amt1 + amt2)}) tidak sesuai dengan total tagihan wajib (${toRupiah(globalGrandTotal)})!`);
-    isSplitPayment = true; selectedPaymentMethod = "Split"; splitDetails = { method1, amount1: amt1, method2, amount2: amt2, kembalian: 0 };
-    window.resetPaymentUI(); isSplitPayment = true;
-    const btnSplit = document.getElementById('pay-method-split'); if (btnSplit) btnSplit.className = "w-full py-2.5 mb-4 text-[11px] font-bold text-white bg-mantine-blue rounded-lg transition-all shadow";
+    
+    window.resetPaymentUI(); 
+    isSplitPayment = true; 
+    selectedPaymentMethod = "Split"; 
+    splitDetails = { method1, amount1: amt1, method2, amount2: amt2, kembalian: 0 };
+    
+    const btnSplit = document.getElementById('pay-method-split'); 
+    if (btnSplit) btnSplit.className = "w-full py-2.5 mb-4 text-[11px] font-bold text-white bg-mantine-blue rounded-lg transition-all shadow";
+    
     const kembalianInfo = document.getElementById('kembalian-info'), kembalianNilai = document.getElementById('kembalian-nilai');
     if (kembalianInfo) kembalianInfo.classList.remove('hidden');
     if (kembalianNilai) { kembalianNilai.textContent = `Split: ${method1} (${toRupiah(amt1)}) + ${method2} (${toRupiah(amt2)})`; kembalianNilai.className = "text-xs font-black text-green-400"; }
-    if(document.getElementById('btn-checkout')) document.getElementById('btn-checkout').disabled = false; window.batalSplitPayment();
+    
+    if(document.getElementById('btn-checkout')) document.getElementById('btn-checkout').disabled = false; 
+    window.batalSplitPayment();
 };
 
 window.updateHoldBadge = function() { const badge = document.getElementById('hold-count-badge'); if (badge) { badge.textContent = heldBills.length; badge.classList.toggle('hidden', heldBills.length === 0); } };
@@ -273,8 +290,29 @@ window.tutupModalBayarPiutang = function() { document.getElementById('bayar-piut
 // 6. EVENT DELEGATOR SENTRAL (MANAJEMEN KLIK & INPUT)
 // ==========================================
 document.addEventListener('input', (e) => {
-    if (e.target && e.target.classList.contains('input-ribuan')) { e.target.value = formatInputRibuan(e.target.value); }
-    if (e.target && e.target.id === 'cash-paid') { window.hitungUangKembalian(); }
+    // 1. Validasi Input Ribuan Universal
+    if (e.target && e.target.classList.contains('input-ribuan')) { 
+        e.target.value = formatInputRibuan(e.target.value); 
+    }
+    // 2. Kalkulasi Kembalian Otomatis saat mengetik Cash
+    if (e.target && e.target.id === 'cash-paid') { 
+        window.hitungUangKembalian(); 
+    }
+    // 3. AUTO-CALC SPLIT PAYMENT (Fix Utama)
+    if (e.target && e.target.id === 'split-amount-1') {
+        let val1 = parseInputRibuan(e.target.value);
+        let val2 = globalGrandTotal - val1;
+        if (val2 < 0) val2 = 0;
+        
+        const amt2 = document.getElementById('split-amount-2');
+        if (amt2) amt2.value = formatInputRibuan(val2);
+        
+        const warning = document.getElementById('split-warning');
+        if (warning) {
+            if (val1 + val2 !== globalGrandTotal) warning.classList.remove('hidden');
+            else warning.classList.add('hidden');
+        }
+    }
 });
 
 document.addEventListener('change', (e) => {
