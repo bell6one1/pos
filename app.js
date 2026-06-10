@@ -709,7 +709,7 @@ document.addEventListener('click', async (e) => {
 
         try {
             await updateDoc(doc(db, "members", piutangAktifDipilih.id), { hutang: increment(-inputVal) }); 
-            await logActivity("PELUNASAN_KASBON", `Terima pelunasan Rp${inputVal} dari ${piutangAktifDipilih.nama}`); 
+            await logActivity("PELUNASAN_KASBON", `Terima pelunasan Rp ${inputVal} dari ${piutangAktifDipilih.nama}`); 
             await addDoc(salesRef, { 
                 waktu: serverTimestamp(), tipe: "pelunasan_piutang", totalAkhir: inputVal, profit: 0, 
                 metodePembayaran: "Pelunasan Hutang (Tunai)", namaKasir: auth.currentUser?.email.split('@')[0], 
