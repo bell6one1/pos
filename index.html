@@ -266,9 +266,8 @@
 
             <div id="tab-kasir" class="tab-content hidden">
                 
-                <div id="shift-status-widget" class="bg-dark-8 border border-dark-4 p-5 rounded-xl flex items-center justify-between mb-6 transition-colors duration-300">
+                <div id="shift-status-widget" class="bg-dark-6 border border-dark-4 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors duration-300"></div>
                     <div class="text-sm text-dark-1">Memuat status shift...</div>
-                </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
                     <div class="lg:col-span-8 flex flex-col h-auto min-h-[calc(100vh-12rem)] relative opacity-40 pointer-events-none transition-all duration-300" id="kasir-core-content">
@@ -282,7 +281,7 @@
                         <div id="kasir-katalog" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"></div>
                     </div>
 
-                    <div class="lg:col-span-4 bg-dark-6 rounded-xl border border-dark-4 flex flex-col h-[calc(100vh-8rem)] sticky top-20 opacity-40 pointer-events-none transition-all duration-300 overflow-hidden" id="kasir-cart-content">
+                    <div class="bg-dark-6 rounded-xl border border-dark-4 flex flex-col h-[calc(100vh-6rem)] sticky top-20 opacity-40 pointer-events-none transition-all duration-300 overflow-hidden" id="kasir-cart-content">
                         <div class="flex bg-dark-7 border-b border-dark-4 shrink-0 transition-colors duration-300">
                             <button id="tab-cart-list-btn" onclick="window.switchCartTab('list')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-mantine-blue border-b-2 border-mantine-blue transition-colors focus:outline-none">🛒 Pesanan</button>
                             <button id="tab-cart-pay-btn" onclick="window.switchCartTab('pay')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-dark-2 border-b-2 border-transparent hover:text-gray-200 transition-colors focus:outline-none">💳 Pembayaran</button>
@@ -341,7 +340,11 @@
                                     
                                     <div id="quick-cash-zone" class="grid grid-cols-4 gap-1.5 mt-2">
                                         <button onclick="window.setQuickCash('pas')" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">Uang Pas</button>
+										<button onclick="window.setQuickCash(5000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">5K</button>
+										<button onclick="window.setQuickCash(10000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">10K</button>
+										<button onclick="window.setQuickCash(20000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">20K</button>
                                         <button onclick="window.setQuickCash(50000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">50K</button>
+										<button onclick="window.setQuickCash(75000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">75K</button>
                                         <button onclick="window.setQuickCash(100000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">100K</button>
                                         <button onclick="window.setQuickCash('clear')" class="py-1.5 bg-red-950/30 text-red-400 hover:bg-red-900/50 text-[10px] font-bold rounded transition-colors">C</button>
                                     </div>
