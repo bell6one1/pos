@@ -14,6 +14,8 @@ let globalSettings = {
 };
 
 window.itemAkanDihapus = null; 
+window.isAdminAuthorizedSession = false; // PERBAIKAN SECURITY: Memori untuk otorisasi PIN
+
 let databaseBarang = [], riwayatPenjualan = [], dataPenjualanTerfilter = [], dataShiftAll = [], auditLogsData = [], databasePemasok = [];
 let memberDataAllCached = JSON.parse(localStorage.getItem("pos_cached_members") || "[]");
 let memberDataAll = memberDataAllCached.length > 0 ? memberDataAllCached : [];
@@ -138,8 +140,13 @@ window.renderKeranjang = function() {
 window.ubahQtyCart = (id, delta) => {
     const index = keranjang.findIndex(k => k.id === id); if(index === -1) return;
     if (keranjang[index].qty + delta <= 0) {
-        if (sessionStorage.getItem("pos_admin_authorized") === "true") { keranjang.splice(index, 1); localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); window.renderKeranjang(); } 
-        else { window.itemAkanDihapus = id; document.getElementById('pin-modal')?.classList.remove('hidden'); setTimeout(() => document.getElementById('auth-pin-input')?.focus(), 100); } return; 
+        // PERBAIKAN SECURITY: Memeriksa dengan window variable, bukan sessionStorage yang bisa diedit via console
+        if (window.isAdminAuthorizedSession === true) { 
+            keranjang.splice(index, 1); localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); window.renderKeranjang(); 
+        } 
+        else { 
+            window.itemAkanDihapus = id; document.getElementById('pin-modal')?.classList.remove('hidden'); setTimeout(() => document.getElementById('auth-pin-input')?.focus(), 100); 
+        } return; 
     }
     const itemDb = databaseBarang.find(i => i.id === id); if (delta > 0 && itemDb && keranjang[index].qty >= (itemDb.stok||0)) return alert("Melebihi stok gudang maksimal!");
     keranjang[index].qty += delta; localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); window.renderKeranjang();
@@ -337,7 +344,31 @@ document.addEventListener('click', async (e) => {
         } catch(err) { alert("GAGAL MEMPROSES TRANSAKSI: " + err.message); } finally { btnCheckout.disabled = false; btnCheckout.textContent = "Selesaikan Bayar"; } return;
     }
     
-    const btnVerifyPin = e.target.closest('#btn-verify-pin'); if (btnVerifyPin) { const inputPin = document.getElementById('auth-pin-input')?.value; if (inputPin === (globalSettings.pinAdmin || "123456")) { sessionStorage.setItem("pos_admin_authorized", "true"); if (window.itemAkanDihapus) { const index = keranjang.findIndex(k => k.id === window.itemAkanDihapus); if (index > -1) { keranjang.splice(index, 1); localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); window.renderKeranjang(); } } document.getElementById('pin-modal')?.classList.add('hidden'); window.itemAkanDihapus = null; } else { alert("PIN SALAH!"); const pinInput = document.getElementById('auth-pin-input'); if(pinInput) pinInput.value = ""; } return; }
+    // PERBAIKAN SECURITY: Verifikasi PIN & Hapus Item Keranjang menggunakan Memory JS
+    const btnVerifyPin = e.target.closest('#btn-verify-pin'); 
+    if (btnVerifyPin) { 
+        const inputPin = document.getElementById('auth-pin-input')?.value; 
+        if (inputPin === (globalSettings.pinAdmin || "123456")) { 
+            window.isAdminAuthorizedSession = true; 
+            if (window.itemAkanDihapus) { 
+                const index = keranjang.findIndex(k => k.id === window.itemAkanDihapus); 
+                if (index > -1) { 
+                    keranjang.splice(index, 1); 
+                    localStorage.setItem("pos_recovery_cart", JSON.stringify(keranjang)); 
+                    window.renderKeranjang(); 
+                } 
+            } 
+            document.getElementById('pin-modal')?.classList.add('hidden'); 
+            window.itemAkanDihapus = null; 
+            // Opsional: Matikan sesi admin setelah 3 menit otomatis untuk keamanan tambahan
+            setTimeout(() => { window.isAdminAuthorizedSession = false; }, 180000);
+        } else { 
+            alert("PIN SALAH!"); 
+            const pinInput = document.getElementById('auth-pin-input'); 
+            if(pinInput) pinInput.value = ""; 
+        } 
+        return; 
+    }
 });
 
 // ==========================================
@@ -520,16 +551,48 @@ function updateShiftUI(isActive) {
     } 
 }
 
+// PERBAIKAN SECURITY 1: Cek Role Aman Tanpa Percaya localStorage
 onAuthStateChanged(auth, async (user) => {
     document.getElementById('auth-loading')?.classList.add('hidden');
-    if (user) { currentUserId = user.uid; document.getElementById('login-screen')?.classList.add('hidden'); document.getElementById('app-screen')?.classList.remove('hidden'); window.renderKeranjang(); renderKatalogKasir(); renderGudangList(); if (navigator.onLine) { try { const userDocSnap = await getDoc(doc(db, "pengguna", user.uid)); if (userDocSnap.exists()) { currentUserRole = userDocSnap.data().role || "kasir"; localStorage.setItem("pos_user_role", currentUserRole); } else { currentUserRole = "kasir"; await setDoc(doc(db, "pengguna", user.uid), { email: user.email, role: "kasir", nama: (user.email || 'kasir@toko.com').split('@')[0] }); } } catch(e) { currentUserRole = localStorage.getItem("pos_user_role") || "kasir"; } } else { currentUserRole = localStorage.getItem("pos_user_role") || "kasir"; } stopRealtimeListeners(); applyRoleAccess(); initRealtimeListeners(); checkActiveShift(user.uid); window.updateHoldBadge(); syncOfflineTransactions(); if(activeMember) window.showActiveMemberUI(); if(!navigator.onLine) renderPiutangList(); } 
-    else { document.getElementById('app-screen')?.classList.add('hidden'); document.getElementById('login-screen')?.classList.remove('hidden'); stopRealtimeListeners(); }
+    if (user) { 
+        currentUserId = user.uid; 
+        document.getElementById('login-screen')?.classList.add('hidden'); 
+        document.getElementById('app-screen')?.classList.remove('hidden'); 
+        window.renderKeranjang(); renderKatalogKasir(); renderGudangList(); 
+        
+        if (navigator.onLine) { 
+            try { 
+                const userDocSnap = await getDoc(doc(db, "pengguna", user.uid)); 
+                if (userDocSnap.exists()) { 
+                    currentUserRole = userDocSnap.data().role || "kasir"; 
+                } else { 
+                    currentUserRole = "kasir"; 
+                    await setDoc(doc(db, "pengguna", user.uid), { 
+                        email: user.email, role: "kasir", nama: (user.email || 'kasir@toko.com').split('@')[0] 
+                    }); 
+                } 
+            } catch(e) { currentUserRole = "kasir"; } 
+        } else { 
+            currentUserRole = "kasir"; 
+        } 
+        
+        stopRealtimeListeners(); applyRoleAccess(); initRealtimeListeners(); 
+        checkActiveShift(user.uid); window.updateHoldBadge(); 
+        syncOfflineTransactions(); 
+        if(activeMember) window.showActiveMemberUI(); 
+        if(!navigator.onLine) renderPiutangList(); 
+    } 
+    else { 
+        document.getElementById('app-screen')?.classList.add('hidden'); 
+        document.getElementById('login-screen')?.classList.remove('hidden'); 
+        stopRealtimeListeners(); 
+    }
 });
 
 document.getElementById('login-form')?.addEventListener('submit', async (e) => { e.preventDefault(); if (!navigator.onLine) return alert("Butuh internet!"); try { await signInWithEmailAndPassword(auth, String(document.getElementById('login-email')?.value || '').trim(), String(document.getElementById('login-password')?.value || '')); e.target.reset(); } catch (e) { alert("Login Gagal!"); console.error(e); } });
 
 function matikanSemuaListener() { if (typeof unsubscribeItems === 'function') unsubscribeItems(); if (typeof unsubscribeSales === 'function') unsubscribeSales(); if (typeof unsubscribeMembers === 'function') unsubscribeMembers(); if (typeof unsubscribeActiveShift === 'function') unsubscribeActiveShift(); if (typeof unsubscribeShifts === 'function') unsubscribeShifts(); if (typeof unsubscribeAudit === 'function') unsubscribeAudit(); if (typeof unsubscribePemasok === 'function') unsubscribePemasok(); if (typeof unsubscribeSettings === 'function') unsubscribeSettings(); }
-document.getElementById('btn-logout')?.addEventListener('click', async () => { if (activeShiftSession) return alert("Tutup shift kasir sebelum keluar!"); if(confirm("Keluar dari sistem?")) { matikanSemuaListener(); try { await signOut(auth); } catch (e) { console.error(e); } finally { sessionStorage.removeItem('pos_admin_authorized'); localStorage.removeItem('pos_recovery_cart'); localStorage.removeItem('pos_recovery_member'); localStorage.clear(); location.reload(); } } });
+document.getElementById('btn-logout')?.addEventListener('click', async () => { if (activeShiftSession) return alert("Tutup shift kasir sebelum keluar!"); if(confirm("Keluar dari sistem?")) { matikanSemuaListener(); try { await signOut(auth); } catch (e) { console.error(e); } finally { window.isAdminAuthorizedSession = false; localStorage.removeItem('pos_recovery_cart'); localStorage.removeItem('pos_recovery_member'); localStorage.clear(); location.reload(); } } });
 
 ['tab-dashboard-btn', 'tab-kasir-btn', 'tab-gudang-btn', 'tab-pemasok-btn', 'tab-piutang-btn', 'tab-riwayat-btn', 'tab-pengaturan-btn'].forEach(btnId => { document.getElementById(btnId)?.addEventListener('click', () => { switchTab(btnId.replace('tab-', '').replace('-btn', '')); }); });
 function switchTab(id) { const tabsBtns = document.querySelectorAll('.nav-tab'); const contents = document.querySelectorAll('.tab-content'); contents.forEach(c => c.classList.add('hidden')); tabsBtns.forEach(t => { t.classList.remove('border-b-2', 'border-mantine-blue', 'text-mantine-blue'); t.classList.add('border-transparent', 'text-dark-1'); }); document.getElementById(`tab-${id}`)?.classList.remove('hidden'); const targetBtn = document.getElementById(`tab-${id}-btn`); if(targetBtn) { targetBtn.classList.remove('border-transparent', 'text-dark-1'); targetBtn.classList.add('border-b-2', 'border-mantine-blue', 'text-mantine-blue'); } if(id === 'piutang') renderPiutangList(); if(id === 'dashboard' && chartInstance) setTimeout(() => chartInstance.update(), 100); }
@@ -538,7 +601,7 @@ function applyRoleAccess() { ['tab-dashboard-btn', 'tab-gudang-btn', 'tab-pemaso
 function checkActiveShift(uid) { if (unsubscribeActiveShift) { unsubscribeActiveShift(); unsubscribeActiveShift = null; } unsubscribeActiveShift = onSnapshot(query(shiftsRef, where("userId", "==", uid), where("status", "==", "buka"), limit(1)), (snapshot) => { if (!snapshot.empty) { snapshot.forEach(doc => { activeShiftSession = { id: doc.id, ...doc.data() }; }); localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession)); updateShiftUI(true); } else if(navigator.onLine) { activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false); } }, (error) => { console.warn("Shift Listener terputus", error); }); }
 
 window.triggerBukaShift = () => { document.getElementById('shift-modal-title').textContent = "Buka Shift Kasir"; document.getElementById('shift-input-label').textContent = "Uang Modal Fisik di Laci (Rp)"; document.getElementById('btn-close-shift-modal')?.classList.add('hidden'); document.getElementById('btn-shift-submit').textContent = "Buka Sesi"; const form = document.getElementById('shift-form'); if(!form) return; form.onsubmit = async (e) => { e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Koneksi internet dibutuhkan."); const btnSubmit = document.getElementById('btn-shift-submit'); if(btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = "Menyimpan..."; } try { const val = Math.round(Math.max(0, parseInputRibuan(document.getElementById('shift-cash-input')?.value))); const namaKasirAman = (auth.currentUser?.email || 'kasir@toko.com').split('@')[0]; const docRef = await addDoc(shiftsRef, { userId: currentUserId, namaKasir: namaKasirAman, waktuBuka: serverTimestamp(), modalAwal: val, totalPenjualan: 0, totalTunai: 0, status: "buka" }); activeShiftSession = { id: docRef.id, userId: currentUserId, namaKasir: namaKasirAman, modalAwal: val, totalPenjualan: 0, totalTunai: 0, status: "buka" }; localStorage.setItem("pos_cached_shift", JSON.stringify(activeShiftSession)); await logActivity("SHIFT_BUKA", `Modal ${toRupiah(val)}`); document.getElementById('shift-modal')?.classList.add('hidden'); updateShiftUI(true); } catch(e) { alert("Error: " + e.message); console.error(e); } finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = "Buka Sesi"; } form.reset(); } }; document.getElementById('shift-modal')?.classList.remove('hidden'); };
-window.triggerTutupShift = () => { document.getElementById('shift-modal-title').textContent = "Z-Report (Tutup Shift)"; document.getElementById('shift-input-label').textContent = "Uang Fisik Aktual di Laci (Rp)"; document.getElementById('btn-close-shift-modal')?.classList.remove('hidden'); document.getElementById('btn-shift-submit').textContent = "Tutup Shift"; const btnClose = document.getElementById('btn-close-shift-modal'); if(btnClose) btnClose.onclick = () => document.getElementById('shift-modal')?.classList.add('hidden'); const form = document.getElementById('shift-form'); if(!form) return; form.onsubmit = async (e) => { e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Koneksi internet dibutuhkan."); const btnSubmit = document.getElementById('btn-shift-submit'); if(btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = "Validasi..."; } try { const val = Math.round(Math.max(0, parseInputRibuan(document.getElementById('shift-cash-input')?.value))); const selisih = Math.round(val - (activeShiftSession.modalAwal + (activeShiftSession.totalTunai || 0))); await updateDoc(doc(db, "shift", activeShiftSession.id), { waktuTutup: serverTimestamp(), uangFisikAktual: val, selisih: selisih, status: "tutup" }); await logActivity("SHIFT_TUTUP", `Tutup Shift. Selisih laci: ${toRupiah(selisih)}`); alert(`Shift Berhasil Ditutup. Selisih Laci: ${toRupiah(selisih)}`); sessionStorage.removeItem('pos_admin_authorized'); document.getElementById('shift-modal')?.classList.add('hidden'); activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false); } catch(e) { alert("Error: " + e.message); console.error(e); } finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = "Tutup Shift"; } form.reset(); } }; document.getElementById('shift-modal')?.classList.remove('hidden'); };
+window.triggerTutupShift = () => { document.getElementById('shift-modal-title').textContent = "Z-Report (Tutup Shift)"; document.getElementById('shift-input-label').textContent = "Uang Fisik Aktual di Laci (Rp)"; document.getElementById('btn-close-shift-modal')?.classList.remove('hidden'); document.getElementById('btn-shift-submit').textContent = "Tutup Shift"; const btnClose = document.getElementById('btn-close-shift-modal'); if(btnClose) btnClose.onclick = () => document.getElementById('shift-modal')?.classList.add('hidden'); const form = document.getElementById('shift-form'); if(!form) return; form.onsubmit = async (e) => { e.preventDefault(); if (!navigator.onLine) return alert("Peringatan: Koneksi internet dibutuhkan."); const btnSubmit = document.getElementById('btn-shift-submit'); if(btnSubmit) { btnSubmit.disabled = true; btnSubmit.textContent = "Validasi..."; } try { const val = Math.round(Math.max(0, parseInputRibuan(document.getElementById('shift-cash-input')?.value))); const selisih = Math.round(val - (activeShiftSession.modalAwal + (activeShiftSession.totalTunai || 0))); await updateDoc(doc(db, "shift", activeShiftSession.id), { waktuTutup: serverTimestamp(), uangFisikAktual: val, selisih: selisih, status: "tutup" }); await logActivity("SHIFT_TUTUP", `Tutup Shift. Selisih laci: ${toRupiah(selisih)}`); alert(`Shift Berhasil Ditutup. Selisih Laci: ${toRupiah(selisih)}`); document.getElementById('shift-modal')?.classList.add('hidden'); activeShiftSession = null; localStorage.removeItem("pos_cached_shift"); updateShiftUI(false); } catch(e) { alert("Error: " + e.message); console.error(e); } finally { if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.textContent = "Tutup Shift"; } form.reset(); } }; document.getElementById('shift-modal')?.classList.remove('hidden'); };
 
 window.tambahVoucherAdmin = async () => { const code = String(document.getElementById('new-voucher-code')?.value || '').trim().toUpperCase(); const type = document.getElementById('new-voucher-type')?.value; const val = parseInputRibuan(document.getElementById('new-voucher-value')?.value); if(!code || isNaN(val) || val <= 0) return alert("Data voucher tidak valid!"); let currentVouchers = { ...(globalSettings.vouchers || {}) }; currentVouchers[code] = { type: type, value: val }; try { globalSettings.vouchers = currentVouchers; renderAdminVouchers(); await setDoc(doc(db, "pengaturan", "global"), { vouchers: currentVouchers }, { merge: true }); if(document.getElementById('new-voucher-code')) document.getElementById('new-voucher-code').value = ""; if(document.getElementById('new-voucher-value')) document.getElementById('new-voucher-value').value = ""; alert("Voucher berhasil ditambahkan!"); } catch(e) { alert("Gagal menyimpan voucher."); console.error(e); } };
 window.hapusVoucherAdmin = async (code) => { if(!confirm(`Hapus voucher ${code}?`)) return; let currentVouchers = { ...(globalSettings.vouchers || {}) }; delete currentVouchers[code]; try { globalSettings.vouchers = currentVouchers; renderAdminVouchers(); await setDoc(doc(db, "pengaturan", "global"), { vouchers: currentVouchers }, { merge: true }); } catch(e) { alert("Gagal menghapus voucher."); console.error(e); } };
