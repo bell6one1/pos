@@ -229,10 +229,6 @@
                     </div>
                 </div>
 
-                <div id="shift-status-widget" class="bg-dark-8 border border-dark-4 p-5 rounded-xl flex items-center justify-between transition-colors duration-300">
-                    <div class="text-sm text-dark-1">Memuat status shift...</div>
-                </div>
-
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-2 bg-dark-6 p-6 rounded-xl border border-dark-4 transition-colors duration-300">
                         <h2 class="text-sm font-bold text-gray-100 uppercase tracking-widest mb-4">Grafik 5 Terlaris</h2>
@@ -268,115 +264,122 @@
                 </div>
             </div>
 
-            <div id="tab-kasir" class="tab-content grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-                <div class="lg:col-span-8 flex flex-col h-[calc(100vh-6rem)] relative opacity-40 pointer-events-none transition-all duration-300" id="kasir-core-content">
-                    <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 mb-4 shrink-0 shadow-sm z-10 transition-colors duration-300">
-                        <div class="flex gap-2">
-                            <input type="text" id="kasir-search" placeholder="Cari / Scan Barcode Produk..." class="w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors shadow-inner">
-                            <button onclick="window.startVoiceSearchKasir()" id="btn-voice-search-kasir" class="px-4 bg-dark-5 hover:bg-dark-4 text-white rounded-xl transition-colors text-lg flex items-center justify-center border border-dark-4" title="Cari dengan Suara">🎤</button>
-                        </div>
-                    </div>
-                    <div id="kasir-categories" class="flex gap-2 overflow-x-auto no-scrollbar py-2 items-center"></div>
-                    <div id="kasir-katalog" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            <div id="tab-kasir" class="tab-content hidden">
+                
+                <div id="shift-status-widget" class="bg-dark-8 border border-dark-4 p-5 rounded-xl flex items-center justify-between mb-6 transition-colors duration-300">
+                    <div class="text-sm text-dark-1">Memuat status shift...</div>
                 </div>
 
-                <div class="bg-dark-6 rounded-xl border border-dark-4 flex flex-col h-[calc(100vh-6rem)] sticky top-20 opacity-40 pointer-events-none transition-all duration-300 overflow-hidden" id="kasir-cart-content">
-                    <div class="flex bg-dark-7 border-b border-dark-4 shrink-0 transition-colors duration-300">
-                        <button id="tab-cart-list-btn" onclick="window.switchCartTab('list')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-mantine-blue border-b-2 border-mantine-blue transition-colors focus:outline-none">🛒 Pesanan</button>
-                        <button id="tab-cart-pay-btn" onclick="window.switchCartTab('pay')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-dark-2 border-b-2 border-transparent hover:text-gray-200 transition-colors focus:outline-none">💳 Pembayaran</button>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+                    <div class="lg:col-span-8 flex flex-col h-auto min-h-[calc(100vh-12rem)] relative opacity-40 pointer-events-none transition-all duration-300" id="kasir-core-content">
+                        <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 mb-4 shrink-0 shadow-sm z-10 transition-colors duration-300">
+                            <div class="flex gap-2">
+                                <input type="text" id="kasir-search" placeholder="Cari / Scan Barcode Produk..." class="w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors shadow-inner">
+                                <button onclick="window.startVoiceSearchKasir()" id="btn-voice-search-kasir" class="px-4 bg-dark-5 hover:bg-dark-4 text-white rounded-xl transition-colors text-lg flex items-center justify-center border border-dark-4" title="Cari dengan Suara">🎤</button>
+                            </div>
+                        </div>
+                        <div id="kasir-categories" class="flex gap-2 overflow-x-auto no-scrollbar py-2 items-center"></div>
+                        <div id="kasir-katalog" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"></div>
                     </div>
 
-                    <div id="cart-pane-list" class="flex-1 flex flex-col min-h-0">
-                        <div class="flex justify-between items-center px-4 py-3 border-b border-dark-4 shrink-0 transition-colors duration-300">
-                            <h2 class="text-xs font-bold text-gray-100 uppercase tracking-widest">Detail Item</h2>
-                            <span id="cart-total-qty-badge" class="bg-mantine-blue text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow">0</span>
+                    <div class="lg:col-span-4 bg-dark-6 rounded-xl border border-dark-4 flex flex-col h-[calc(100vh-8rem)] sticky top-20 opacity-40 pointer-events-none transition-all duration-300 overflow-hidden" id="kasir-cart-content">
+                        <div class="flex bg-dark-7 border-b border-dark-4 shrink-0 transition-colors duration-300">
+                            <button id="tab-cart-list-btn" onclick="window.switchCartTab('list')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-mantine-blue border-b-2 border-mantine-blue transition-colors focus:outline-none">🛒 Pesanan</button>
+                            <button id="tab-cart-pay-btn" onclick="window.switchCartTab('pay')" class="flex-1 py-2.5 text-[11px] uppercase tracking-wider font-bold text-dark-2 border-b-2 border-transparent hover:text-gray-200 transition-colors focus:outline-none">💳 Pembayaran</button>
                         </div>
-                        <div class="flex-1 overflow-y-auto p-3 space-y-2 no-scrollbar relative" id="cart-list"></div>
-                        <div class="p-4 bg-dark-7 border-t border-dark-4 shrink-0 transition-colors duration-300">
-                            <div class="flex justify-between text-xs font-bold text-dark-1 mb-1"><span>Subtotal:</span><span id="cart-subtotal">Rp 0</span></div>
-                            <div class="flex justify-between text-lg font-black text-mantine-blue mt-1 pt-1 border-t border-dark-4"><span>TOTAL:</span><span id="pane1-grand-total">Rp 0</span></div>
-                            <button onclick="window.switchCartTab('pay')" class="w-full mt-3 py-3 bg-mantine-blue hover:bg-mantine-hover text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg transition-all">Lanjut Bayar ➔</button>
+
+                        <div id="cart-pane-list" class="flex-1 flex flex-col min-h-0">
+                            <div class="flex justify-between items-center px-4 py-3 border-b border-dark-4 shrink-0 transition-colors duration-300">
+                                <h2 class="text-xs font-bold text-gray-100 uppercase tracking-widest">Detail Item</h2>
+                                <span id="cart-total-qty-badge" class="bg-mantine-blue text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow">0</span>
+                            </div>
+                            <div class="flex-1 overflow-y-auto p-3 space-y-2 no-scrollbar relative" id="cart-list"></div>
+                            <div class="p-4 bg-dark-7 border-t border-dark-4 shrink-0 transition-colors duration-300">
+                                <div class="flex justify-between text-xs font-bold text-dark-1 mb-1"><span>Subtotal:</span><span id="cart-subtotal">Rp 0</span></div>
+                                <div class="flex justify-between text-lg font-black text-mantine-blue mt-1 pt-1 border-t border-dark-4"><span>TOTAL:</span><span id="pane1-grand-total">Rp 0</span></div>
+                                <button onclick="window.switchCartTab('pay')" class="w-full mt-3 py-3 bg-mantine-blue hover:bg-mantine-hover text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg transition-all">Lanjut Bayar ➔</button>
+                            </div>
                         </div>
-                    </div>
 
-                    <div id="cart-pane-pay" class="flex-1 flex-col min-h-0 hidden">
-                        <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-                            
-                            <div id="section-kasir-member" class="bg-dark-8 p-4 rounded-xl border border-dark-4 transition-colors duration-300">
-                                <div class="flex justify-between items-center mb-2">
-                                    <label class="text-[10px] font-bold text-dark-2 uppercase">Pelanggan</label>
-                                    <button id="btn-remove-member" class="hidden text-[10px] text-red-400 font-bold hover:underline">Hapus</button>
-                                </div>
-                                <div id="member-select-zone" class="flex gap-2">
-                                    <input type="text" id="member-search-input" placeholder="No. HP" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-xs outline-none focus:border-mantine-blue transition-colors">
-                                    <button id="btn-check-member" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-lg transition-colors">Cari</button>
-                                </div>
-                                <div id="member-active-zone" class="hidden mt-1 p-2 bg-mantine-blue/10 border border-mantine-blue/30 rounded-lg">
-                                    <p id="member-active-name" class="text-xs font-bold text-mantine-blue truncate"></p>
-                                    <p id="member-active-points" class="text-[10px] text-gray-300 mt-0.5"></p>
-                                </div>
-                            </div>
-
-                            <div id="section-kasir-voucher" class="bg-dark-8 p-4 rounded-xl border border-dark-4 transition-colors duration-300">
-                                <label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase">Kode Voucher</label>
-                                <div class="flex gap-2">
-                                    <input type="text" id="voucher-code" placeholder="KODE..." class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-xs outline-none focus:border-mantine-blue uppercase transition-colors">
-                                    <button id="btn-apply-voucher" class="px-3 py-2 bg-pink-900/30 text-pink-400 hover:bg-pink-900/50 border border-pink-900/50 text-xs font-bold rounded-lg transition-colors">Klaim</button>
-                                </div>
-                            </div>
-
-                            <div class="bg-dark-8 p-4 rounded-xl border border-dark-4 transition-colors duration-300">
-                                <label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase">Metode Pembayaran</label>
-                                <div class="grid grid-cols-3 gap-2 mb-3">
-                                    <button id="pay-method-cash" class="py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow">Tunai</button>
-                                    <button id="pay-method-noncash" class="py-2.5 text-[11px] font-bold text-dark-1 hover:text-gray-100 bg-transparent border border-dark-4 rounded-md transition-all">QRIS/Debit</button>
-                                    <button id="pay-method-kasbon" class="py-2.5 text-[11px] font-bold text-dark-1 hover:text-gray-100 bg-transparent border border-dark-4 rounded-md transition-all">Kasbon</button>
-                                </div>
-                                <button id="pay-method-split" class="w-full py-2.5 mb-4 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all">🔀 Split Payment</button>
-
-                                <input type="text" id="noncash-ref" placeholder="Ref/No. Trx (Opsional)" class="hidden w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-xs outline-none focus:border-mantine-blue transition-colors">
-                                <input type="text" inputmode="numeric" id="cash-paid" placeholder="Uang Diterima (Rp)" class="w-full px-4 py-3 bg-dark-7 border border-dark-4 rounded-xl text-gray-100 text-sm font-bold outline-none focus:border-green-500 input-ribuan transition-colors">
+                        <div id="cart-pane-pay" class="flex-1 flex-col min-h-0 hidden">
+                            <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
                                 
-                                <div id="quick-cash-zone" class="grid grid-cols-4 gap-1.5 mt-2">
-                                    <button onclick="window.setQuickCash('pas')" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">Uang Pas</button>
-                                    <button onclick="window.setQuickCash(50000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">50K</button>
-                                    <button onclick="window.setQuickCash(100000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">100K</button>
-                                    <button onclick="window.setQuickCash('clear')" class="py-1.5 bg-red-950/30 text-red-400 hover:bg-red-900/50 text-[10px] font-bold rounded transition-colors">C</button>
+                                <div id="section-kasir-member" class="bg-dark-8 p-4 rounded-xl border border-dark-4 transition-colors duration-300">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="text-[10px] font-bold text-dark-2 uppercase">Pelanggan</label>
+                                        <button id="btn-remove-member" class="hidden text-[10px] text-red-400 font-bold hover:underline">Hapus</button>
+                                    </div>
+                                    <div id="member-select-zone" class="flex gap-2">
+                                        <input type="text" id="member-search-input" placeholder="No. HP" class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-xs outline-none focus:border-mantine-blue transition-colors">
+                                        <button id="btn-check-member" class="px-3 py-2 bg-dark-5 hover:bg-dark-4 text-white text-xs font-bold rounded-lg transition-colors">Cari</button>
+                                    </div>
+                                    <div id="member-active-zone" class="hidden mt-1 p-2 bg-mantine-blue/10 border border-mantine-blue/30 rounded-lg">
+                                        <p id="member-active-name" class="text-xs font-bold text-mantine-blue truncate"></p>
+                                        <p id="member-active-points" class="text-[10px] text-gray-300 mt-0.5"></p>
+                                    </div>
+                                </div>
+
+                                <div id="section-kasir-voucher" class="bg-dark-8 p-4 rounded-xl border border-dark-4 transition-colors duration-300">
+                                    <label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase">Kode Voucher</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="voucher-code" placeholder="KODE..." class="w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-xs outline-none focus:border-mantine-blue uppercase transition-colors">
+                                        <button id="btn-apply-voucher" class="px-3 py-2 bg-pink-900/30 text-pink-400 hover:bg-pink-900/50 border border-pink-900/50 text-xs font-bold rounded-lg transition-colors">Klaim</button>
+                                    </div>
+                                </div>
+
+                                <div class="bg-dark-8 p-4 rounded-xl border border-dark-4 transition-colors duration-300">
+                                    <label class="block text-[10px] font-bold text-dark-2 mb-2 uppercase">Metode Pembayaran</label>
+                                    <div class="grid grid-cols-3 gap-2 mb-3">
+                                        <button id="pay-method-cash" class="py-2.5 text-[11px] font-bold bg-mantine-blue text-white rounded-md transition-all shadow">Tunai</button>
+                                        <button id="pay-method-noncash" class="py-2.5 text-[11px] font-bold text-dark-1 hover:text-gray-100 bg-transparent border border-dark-4 rounded-md transition-all">QRIS/Debit</button>
+                                        <button id="pay-method-kasbon" class="py-2.5 text-[11px] font-bold text-dark-1 hover:text-gray-100 bg-transparent border border-dark-4 rounded-md transition-all">Kasbon</button>
+                                    </div>
+                                    <button id="pay-method-split" class="w-full py-2.5 mb-4 text-[11px] font-bold text-mantine-blue bg-mantine-blue/10 hover:bg-mantine-blue/20 border border-mantine-blue/30 rounded-lg transition-all">🔀 Split Payment</button>
+
+                                    <input type="text" id="noncash-ref" placeholder="Ref/No. Trx (Opsional)" class="hidden w-full px-3 py-2 bg-dark-7 border border-dark-4 rounded-lg text-gray-100 text-xs outline-none focus:border-mantine-blue transition-colors">
+                                    <input type="text" inputmode="numeric" id="cash-paid" placeholder="Uang Diterima (Rp)" class="w-full px-4 py-3 bg-dark-7 border border-dark-4 rounded-xl text-gray-100 text-sm font-bold outline-none focus:border-green-500 input-ribuan transition-colors">
+                                    
+                                    <div id="quick-cash-zone" class="grid grid-cols-4 gap-1.5 mt-2">
+                                        <button onclick="window.setQuickCash('pas')" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">Uang Pas</button>
+                                        <button onclick="window.setQuickCash(50000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">50K</button>
+                                        <button onclick="window.setQuickCash(100000)" class="py-1.5 bg-dark-5 hover:bg-dark-4 text-[10px] font-bold rounded text-gray-200 transition-colors">100K</button>
+                                        <button onclick="window.setQuickCash('clear')" class="py-1.5 bg-red-950/30 text-red-400 hover:bg-red-900/50 text-[10px] font-bold rounded transition-colors">C</button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="p-4 bg-dark-7 border-t border-dark-4 shrink-0 transition-colors duration-300">
-                            <div id="cart-tax-zone" class="hidden flex justify-between text-xs font-semibold text-dark-1 mb-1">
-                                <span>Pajak (<span id="cart-tax-rate-display">0</span>%):</span><span id="cart-tax-amount">+Rp 0</span>
+                            <div class="p-4 bg-dark-7 border-t border-dark-4 shrink-0 transition-colors duration-300">
+                                <div id="cart-tax-zone" class="hidden flex justify-between text-xs font-semibold text-dark-1 mb-1">
+                                    <span>Pajak (<span id="cart-tax-rate-display">0</span>%):</span><span id="cart-tax-amount">+Rp 0</span>
+                                </div>
+                                <div id="cart-service-zone" class="hidden flex justify-between text-xs font-semibold text-dark-1 mb-1">
+                                    <span>Service (<span id="cart-service-rate-display">0</span>%):</span><span id="cart-service-amount">+Rp 0</span>
+                                </div>
+                                <div id="cart-discount-zone" class="hidden flex justify-between text-xs font-semibold text-pink-400 mb-1">
+                                    <span>Diskon:</span><span id="cart-discount-amount">-Rp 0</span>
+                                </div>
+                                
+                                <div class="flex justify-between items-end mt-2 pt-2 border-t border-dark-4">
+                                    <span class="text-xs font-bold text-gray-200">TOTAL</span>
+                                    <span id="cart-grand-total" class="text-xl font-black text-mantine-blue">Rp 0</span>
+                                </div>
+                                
+                                <div id="kembalian-info" class="hidden mt-2 bg-dark-8 p-3 rounded-xl border border-dark-4 flex justify-between items-center transition-colors duration-300">
+                                    <span class="text-xs font-bold text-dark-2">Status</span>
+                                    <span id="kembalian-nilai" class="text-lg font-black text-dark-2">Rp 0</span>
+                                </div>
+                                
+                                <div class="flex gap-2 mt-4 relative">
+                                    <button id="btn-buka-hold" class="px-4 bg-dark-5 hover:bg-dark-4 text-white text-lg rounded-xl transition-colors border border-dark-4" title="Buka Pesanan Tertunda">
+                                        <span class="text-[11px] font-bold uppercase tracking-wider">📂 Buka</span>
+                                        <span id="hold-count-badge" class="absolute -top-2 -right-2 bg-mantine-blue text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow hidden">0</span>
+                                    </button>
+                                    <button id="btn-hold-bill" class="px-4 bg-amber-900/30 text-amber-500 border border-amber-900/50 hover:bg-amber-900/50 text-lg rounded-xl transition-colors" title="Tahan / Hold Pesanan Ini">
+                                        <span class="text-[11px] font-bold uppercase tracking-wider">📌 Tahan</span>
+                                    </button>
+                                </div>
+                                <button id="btn-checkout" disabled class="w-full py-4 bg-dark-5 text-dark-3 font-black rounded-xl cursor-not-allowed transition-all uppercase tracking-widest text-sm shadow-lg mt-2">SELESAIKAN BAYAR</button>
                             </div>
-                            <div id="cart-service-zone" class="hidden flex justify-between text-xs font-semibold text-dark-1 mb-1">
-                                <span>Service (<span id="cart-service-rate-display">0</span>%):</span><span id="cart-service-amount">+Rp 0</span>
-                            </div>
-                            <div id="cart-discount-zone" class="hidden flex justify-between text-xs font-semibold text-pink-400 mb-1">
-                                <span>Diskon:</span><span id="cart-discount-amount">-Rp 0</span>
-                            </div>
-                            
-                            <div class="flex justify-between items-end mt-2 pt-2 border-t border-dark-4">
-                                <span class="text-xs font-bold text-gray-200">TOTAL</span>
-                                <span id="cart-grand-total" class="text-xl font-black text-mantine-blue">Rp 0</span>
-                            </div>
-                            
-                            <div id="kembalian-info" class="hidden mt-2 bg-dark-8 p-3 rounded-xl border border-dark-4 flex justify-between items-center transition-colors duration-300">
-                                <span class="text-xs font-bold text-dark-2">Status</span>
-                                <span id="kembalian-nilai" class="text-lg font-black text-dark-2">Rp 0</span>
-                            </div>
-                            
-                            <div class="flex gap-2 mt-4 relative">
-                                <button id="btn-buka-hold" class="px-4 bg-dark-5 hover:bg-dark-4 text-white text-lg rounded-xl transition-colors border border-dark-4" title="Buka Pesanan Tertunda">
-                                    <span class="text-[11px] font-bold uppercase tracking-wider">📂 Buka</span>
-                                    <span id="hold-count-badge" class="absolute -top-2 -right-2 bg-mantine-blue text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full shadow hidden">0</span>
-                                </button>
-                                <button id="btn-hold-bill" class="px-4 bg-amber-900/30 text-amber-500 border border-amber-900/50 hover:bg-amber-900/50 text-lg rounded-xl transition-colors" title="Tahan / Hold Pesanan Ini">
-                                    <span class="text-[11px] font-bold uppercase tracking-wider">📌 Tahan</span>
-                                </button>
-                            </div>
-                            <button id="btn-checkout" disabled class="w-full py-4 bg-dark-5 text-dark-3 font-black rounded-xl cursor-not-allowed transition-all uppercase tracking-widest text-sm shadow-lg mt-2">SELESAIKAN BAYAR</button>
                         </div>
                     </div>
                 </div>
