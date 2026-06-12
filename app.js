@@ -537,21 +537,26 @@ window.reprintTrx = async (id) => { const offlineTrx = dataPenjualanTerfilter.fi
 function updateShiftUI(isActive) { 
     const w = document.getElementById('shift-status-widget'); 
     if (!w) return; 
+    
     if (isActive) { 
         const namaKasirAman = (auth.currentUser?.email || 'kasir@toko.com').split('@')[0].toUpperCase();
-        w.className = "bg-green-900/20 border border-green-800/50 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 transition-colors duration-300"; 
-        w.innerHTML = `<div class="text-sm text-green-400"><p class="font-bold flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Sesi Aktif: ${escapeHTML(namaKasirAman)}</p><p class="text-green-500/80 mt-1 text-xs font-medium">Laci: ${toRupiah((activeShiftSession.modalAwal||0) + (activeShiftSession.totalTunai||0))} | Omset Total: ${toRupiah(activeShiftSession.totalPenjualan || 0)}</p></div><button onclick="window.triggerTutupShift()" class="px-5 py-2.5 text-xs font-bold text-gray-100 bg-dark-5 hover:bg-red-500 hover:text-white transition-all rounded-xl border border-dark-4 hover:border-red-600 shadow shrink-0">Tutup Sesi 🔒</button>`; 
+        
+        w.className = "bg-green-900/20 border border-green-800/50 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors duration-300 xl:max-w-[24rem] w-full shadow-sm"; 
+        
+        w.innerHTML = `<div class="text-sm text-green-400"><p class="font-bold flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> Aktif: ${escapeHTML(namaKasirAman)}</p><p class="text-green-500/80 mt-1 text-[10px] font-medium">Laci: ${toRupiah((activeShiftSession.modalAwal||0) + (activeShiftSession.totalTunai||0))} | Omset: ${toRupiah(activeShiftSession.totalPenjualan || 0)}</p></div><button onclick="window.triggerTutupShift()" class="px-4 py-2 text-xs font-bold text-gray-100 bg-dark-5 hover:bg-red-500 hover:text-white transition-all rounded-lg border border-dark-4 hover:border-red-600 shadow shrink-0">Tutup 🔒</button>`; 
+        
         document.getElementById('kasir-core-content')?.classList.remove('opacity-40', 'pointer-events-none'); 
         document.getElementById('kasir-cart-content')?.classList.remove('opacity-40', 'pointer-events-none'); 
     } else { 
-        w.className = "bg-dark-8 border border-dark-4 p-5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 transition-colors duration-300"; 
-        w.innerHTML = `<div class="text-sm text-dark-0"><p class="font-bold flex items-center gap-2">🔒 Sesi Belum Dibuka</p><p class="text-dark-2 mt-1 text-xs">Buka shift terlebih dahulu untuk bertransaksi.</p></div><button onclick="window.triggerBukaShift()" class="px-5 py-2.5 text-xs font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-xl shadow-lg shadow-mantine-blue/20 transition-all shrink-0">Mulai Shift 🔑</button>`; 
+        w.className = "bg-dark-8 border border-dark-4 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors duration-300 xl:max-w-[24rem] w-full shadow-sm"; 
+        
+        w.innerHTML = `<div class="text-sm text-dark-0"><p class="font-bold flex items-center gap-2">🔒 Sesi Ditutup</p><p class="text-dark-2 mt-0.5 text-[10px]">Buka shift untuk transaksi.</p></div><button onclick="window.triggerBukaShift()" class="px-4 py-2 text-xs font-bold text-white bg-mantine-blue hover:bg-mantine-hover rounded-lg shadow-md shadow-mantine-blue/20 transition-all shrink-0">Buka Sesi 🔑</button>`; 
+        
         document.getElementById('kasir-core-content')?.classList.add('opacity-40', 'pointer-events-none'); 
         document.getElementById('kasir-cart-content')?.classList.add('opacity-40', 'pointer-events-none'); 
     } 
 }
 
-// PERBAIKAN SECURITY 1: Cek Role Aman Tanpa Percaya localStorage
 onAuthStateChanged(auth, async (user) => {
     document.getElementById('auth-loading')?.classList.add('hidden');
     if (user) { 

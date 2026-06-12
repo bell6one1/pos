@@ -265,18 +265,24 @@
             </div>
 
             <div id="tab-kasir" class="tab-content hidden">
-                
-                <div id="shift-status-widget" class="bg-dark-8 border border-dark-4 p-5 rounded-xl flex items-center justify-between mb-6 transition-colors duration-300">
-                    <div class="text-sm text-dark-1">Memuat status shift...</div>
-                </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-6 items-start">
+                    
                     <div class="md:col-span-7 lg:col-span-7 flex flex-col h-auto min-h-[calc(100vh-12rem)] relative opacity-40 pointer-events-none transition-all duration-300" id="kasir-core-content">
-                        <div class="bg-dark-6 p-4 rounded-xl border border-dark-4 mb-4 shrink-0 shadow-sm z-10 transition-colors duration-300">
-                            <div class="flex gap-2">
-                                <input type="text" id="kasir-search" placeholder="Cari / Scan Barcode Produk..." class="w-full px-4 py-3 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors shadow-inner">
-                                <button onclick="window.startVoiceSearchKasir()" id="btn-voice-search-kasir" class="px-4 bg-dark-5 hover:bg-dark-4 text-white rounded-xl transition-colors text-lg flex items-center justify-center border border-dark-4" title="Cari dengan Suara">🎤</button>
+                        
+                        <div class="flex flex-col xl:flex-row gap-3 mb-4 shrink-0 z-10">
+                            
+                            <div class="flex-1 bg-dark-6 p-3.5 rounded-xl border border-dark-4 shadow-sm transition-colors duration-300">
+                                <div class="flex gap-2 h-full items-center">
+                                    <input type="text" id="kasir-search" placeholder="Cari / Scan Barcode..." class="w-full px-4 py-2.5 bg-dark-8 border border-dark-4 rounded-xl text-gray-100 text-sm outline-none focus:border-mantine-blue transition-colors shadow-inner">
+                                    <button onclick="window.startVoiceSearchKasir()" id="btn-voice-search-kasir" class="px-4 py-2.5 bg-dark-5 hover:bg-dark-4 text-white rounded-xl transition-colors text-lg flex items-center justify-center border border-dark-4" title="Cari dengan Suara">🎤</button>
+                                </div>
                             </div>
+
+                            <div id="shift-status-widget" class="xl:max-w-[24rem] w-full bg-dark-8 border border-dark-4 p-3.5 rounded-xl flex items-center justify-between transition-colors duration-300 shadow-sm">
+                                <div class="text-sm text-dark-1">Memuat status shift...</div>
+                            </div>
+
                         </div>
                         <div id="kasir-categories" class="flex gap-2 overflow-x-auto no-scrollbar py-2 items-center"></div>
                         <div id="kasir-katalog" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"></div>
