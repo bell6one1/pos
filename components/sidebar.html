@@ -1,0 +1,37 @@
+<aside class="w-16 lg:w-64 bg-dark-6 border-r border-dark-4 flex flex-col justify-between h-screen shrink-0 relative z-20">
+    <div class="flex flex-col">
+        <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-dark-4 bg-dark-8 gap-3">
+            <span class="text-xl">🏪</span>
+            <h1 id="brand-name" class="font-bold text-sm text-gray-100 hidden lg:block tracking-wide truncate">TOKO POS</h1>
+        </div>
+        <nav class="p-2 lg:p-4 space-y-1.5 flex-1">
+            <button onclick="switchTab('kasir')" id="nav-kasir" class="w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all bg-mantine-blue text-white shadow-md shadow-mantine-blue/20">
+                <span class="text-lg">🛒</span><span class="hidden lg:block">Kasir Utama</span>
+            </button>
+            <button onclick="switchTab('barang')" id="nav-barang" class="w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-dark-1 hover:bg-dark-5 hover:text-gray-100">
+                <span class="text-lg">📦</span><span class="hidden lg:block">Manajemen Stok</span>
+            </button>
+            <button onclick="switchTab('laporan')" id="nav-laporan" class="w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-dark-1 hover:bg-dark-5 hover:text-gray-100">
+                <span class="text-lg">📊</span><span class="hidden lg:block">Laporan Bisnis</span>
+            </button>
+            <button onclick="switchTab('member')" id="nav-member" class="w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-dark-1 hover:bg-dark-5 hover:text-gray-100 hidden-feature" id="sidebar-menu-member">
+                <span class="text-lg">👥</span><span class="hidden lg:block">Pelanggan / Member</span>
+            </button>
+            <button onclick="switchTab('pengaturan')" id="nav-pengaturan" class="w-full flex items-center justify-center lg:justify-start gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-dark-1 hover:bg-dark-5 hover:text-gray-100">
+                <span class="text-lg">⚙️</span><span class="hidden lg:block">Konfigurasi Sistem</span>
+            </button>
+        </nav>
+    </div>
+    <div class="p-2 lg:p-4 border-t border-dark-4 bg-dark-8/50">
+        <div class="flex items-center justify-between gap-2 bg-dark-6 p-2 rounded-xl border border-dark-4">
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="w-8 h-8 rounded-lg bg-dark-5 flex items-center justify-center text-sm shrink-0">👤</div>
+                <div class="hidden lg:block min-w-0">
+                    <p id="user-display-email" class="text-xs text-gray-400 font-medium truncate">-</p>
+                    <span id="user-display-role" class="inline-block text-[9px] font-bold px-1.5 py-0.5 bg-mantine-blue/20 text-mantine-blue rounded uppercase tracking-wider mt-0.5">-</span>
+                </div>
+            </div>
+            <button onclick="handleLogout()" class="text-dark-2 hover:text-mantine-red p-1.5 rounded-lg hover:bg-dark-5 transition-colors hidden lg:block" title="Keluar Akun">➡️</button>
+        </div>
+    </div>
+</aside>

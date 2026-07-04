@@ -1,7 +1,5 @@
-// Naikkan versi cache agar browser memuat ulang file terbaru
-const CACHE_NAME = 'pos-cache-v11'; 
+const CACHE_NAME = 'pos-cache-v12';
 
-// Daftarkan SEMUA file lokal penting ke dalam memori offline
 const urlsToCache = [
   './',
   './index.html',
@@ -10,7 +8,14 @@ const urlsToCache = [
   './firebase-config.js',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './components/sidebar.html',
+  './components/tab-kasir.html',
+  './components/tab-barang.html',
+  './components/tab-laporan.html',
+  './components/tab-member.html',
+  './components/tab-pengaturan.html',
+  './components/modals.html'
 ];
 
 self.addEventListener('install', event => {
@@ -21,7 +26,6 @@ self.addEventListener('install', event => {
   );
 });
 
-// Hapus cache versi lama secara otomatis agar memori browser tidak penuh
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -39,7 +43,6 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(response => {
-      // Kembalikan dari cache lokal jika ada, jika tidak, unduh dari internet
       return response || fetch(event.request);
     })
   );

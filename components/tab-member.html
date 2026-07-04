@@ -1,0 +1,25 @@
+<div id="tab-member" class="hidden space-y-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-dark-6 p-4 rounded-2xl border border-dark-4">
+        <div>
+            <h2 class="text-lg font-bold text-gray-100">Koleksi Data Pelanggan Tetap</h2>
+            <p class="text-xs text-dark-2">Kelola loyalitas pelanggan, data poin belanja, serta pelunasan saldo kasbon.</p>
+        </div>
+        <button onclick="bukaModalTambahMember()" class="w-full sm:w-auto px-4 py-2.5 bg-mantine-blue hover:bg-mantine-blue/90 text-white font-bold rounded-xl text-xs shadow-md transition-colors flex items-center justify-center gap-1.5">➕ Registrasi Member Baru</button>
+    </div>
+    <div class="bg-dark-6 rounded-2xl border border-dark-4 overflow-hidden shadow-xl">
+        <div class="overflow-x-auto no-scrollbar">
+            <table class="min-w-full divide-y divide-dark-4 text-left text-xs">
+                <thead class="bg-dark-8/60 text-dark-1 font-semibold uppercase tracking-wider">
+                    <tr>
+                        <th class="px-6 py-4">Nama Lengkap</th>
+                        <th class="px-6 py-4">Nomor Kontak / WA</th>
+                        <th class="px-6 py-4">Poin Terkumpul</th>
+                        <th class="px-6 py-4">Akumulasi Kasbon</th>
+                        <th class="px-6 py-4 text-right">Tindakan Keuangan</th>
+                    </tr>
+                </thead>
+                <tbody id="member-table-body" class="bg-dark-6 divide-y divide-dark-4 text-gray-200"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
