@@ -2,9 +2,7 @@ import { db, auth, itemsRef, salesRef, shiftsRef, membersRef, auditLogsRef } fro
 import { addDoc, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, increment, serverTimestamp, where, limit, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// ==========================================
 // SINKRONISASI INJEKSI HTML KOMPONEN
-// ==========================================
 async function loadAllUiComponents() {
     const listKomponen = [
         { id: 'inject-sidebar', url: './components/sidebar.html' },
@@ -20,7 +18,10 @@ async function loadAllUiComponents() {
         try {
             const res = await fetch(item.url);
             if (res.ok) {
-                document.getElementById(item.id).innerHTML = await res.text();
+                const elemenKontainer = document.getElementById(item.id);
+                if (elemenKontainer) {
+                    elemenKontainer.outerHTML = await res.text();
+                }
             } else {
                 console.error(`Gagal mengunduh: ${item.url}`);
             }
@@ -32,20 +33,17 @@ async function loadAllUiComponents() {
 
 // MANAGEMENT STARTUP - MENUNGGU HTML SIAP
 document.addEventListener("DOMContentLoaded", async () => {
-    await loadAllUiComponents(); // Muat semua kotak HTML
+    await loadAllUiComponents();
 
-    // Hilangkan layar loading utama
     const objekLoader = document.getElementById('app-loader');
     if (objekLoader) {
         objekLoader.classList.add('opacity-0', 'pointer-events-none');
         setTimeout(() => objekLoader.remove(), 500);
     }
 
-    // SETELAH HTML SIAP, JALANKAN LOGIKA POS ANDA:
     jalankanAplikasiKasirUtama();
 });
 
-// BUNGKUSAN LOGIKA UTAMA
 function jalankanAplikasiKasirUtama() {
 
     // ==========================================
