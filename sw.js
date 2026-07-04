@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pos-cache-v12';
+const CACHE_NAME = 'pos-cache-v1.13';
 
 const urlsToCache = [
   './',
