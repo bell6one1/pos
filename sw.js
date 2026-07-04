@@ -1,5 +1,5 @@
 // Naikkan versi cache agar browser memuat ulang file terbaru
-const CACHE_NAME = 'pos-cache-v11'; 
+const CACHE_NAME = 'pos-cache-v12';
 
 // Daftarkan SEMUA file lokal penting ke dalam memori offline
 const urlsToCache = [
@@ -9,6 +9,7 @@ const urlsToCache = [
   './app.js',
   './firebase-config.js',
   './manifest.json',
+  './favicon.ico',
   './icon-192.png',
   './icon-512.png'
 ];
