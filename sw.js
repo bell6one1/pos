@@ -1,5 +1,5 @@
 // Naikkan versi cache agar browser memuat ulang file terbaru
-const CACHE_NAME = 'pos-cache-v14';
+const CACHE_NAME = 'pos-cache-v11'; 
 
 // Daftarkan SEMUA file lokal penting ke dalam memori offline
 const urlsToCache = [
