@@ -1,5 +1,5 @@
 {
-  "name": "POSPRO v13.0",
+  "name": "POSPRO v10.0",
   "short_name": "POSPRO",
   "description": "Aplikasi Kasir Point of Sale Modern",
   "start_url": "./index.html",
@@ -8,13 +8,7 @@
   "theme_color": "#1971c2",
   "icons": [
     {
-      "src": "./icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./icon-512.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/10017/10017680.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
